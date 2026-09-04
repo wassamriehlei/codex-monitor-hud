@@ -31,6 +31,7 @@ internal sealed partial class HudApplicationController : IDisposable
     private readonly MainHudView _view;
     private readonly HudCommandSurfaces _commands;
     private readonly DispatcherTimer _timer;
+    private readonly System.Windows.Media.MediaPlayer _completionMediaPlayer = new();
     private readonly Dictionary<string, int> _completionRevisions = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _heartbeatPath;
     private readonly string _hostsRoot;
@@ -75,6 +76,8 @@ internal sealed partial class HudApplicationController : IDisposable
         _paths = paths;
         _arguments = arguments;
         _log = log;
+        _completionMediaPlayer.MediaFailed += (_, args) =>
+            _log.Write("Completion audio failed: " + args.ErrorException.Message);
         _configDocument = HudConfigStore.Load(paths);
         _settings = HudSettings.From(_configDocument);
         _pricing = PricingCatalog.Load(paths.PluginRoot, _settings.PricingPath);
@@ -148,6 +151,7 @@ internal sealed partial class HudApplicationController : IDisposable
         _notificationTracker.Dispose();
         _signalTracker.Dispose();
         _commands.Dispose();
+        _completionMediaPlayer.Close();
         _view.Dispose();
         TryDelete(_heartbeatPath);
     }
@@ -667,6 +671,22 @@ internal sealed partial class HudApplicationController : IDisposable
 
         try
         {
+            if (_settings.CompletionSound == "file")
+            {
+                var path = Environment.ExpandEnvironmentVariables(_settings.CompletionSoundFile.Trim());
+                if (!File.Exists(path))
+                {
+                    _log.Write("Completion audio file not found: " + path);
+                    return;
+                }
+                _completionMediaPlayer.Stop();
+                _completionMediaPlayer.Close();
+                _completionMediaPlayer.Volume = 1;
+                _completionMediaPlayer.Open(new Uri(Path.GetFullPath(path), UriKind.Absolute));
+                _completionMediaPlayer.Play();
+                _log.Write("Completion audio played: " + path);
+                return;
+            }
             var sound = _settings.CompletionSound switch
             {
                 "exclamation" => System.Media.SystemSounds.Exclamation,
@@ -676,7 +696,7 @@ internal sealed partial class HudApplicationController : IDisposable
             sound.Play();
             _log.Write($"Completion sound played: {_settings.CompletionSound}");
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException or UriFormatException)
         {
             _log.Write("Completion sound failed: " + exception.Message);
         }

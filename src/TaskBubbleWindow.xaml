@@ -89,15 +89,15 @@
               </Viewbox>
             </Border>
             <Border x:Name="TaskBubbleNumberBadge" CornerRadius="8" Background="#120A84FF" Padding="7,3" Margin="0,0,7,0">
-              <TextBlock x:Name="TaskBubbleNumber" FontFamily="Segoe UI Variable Text, Microsoft YaHei UI" FontSize="12" FontWeight="SemiBold" />
+              <TextBlock x:Name="TaskBubbleNumber" FontFamily="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI" FontSize="12" FontWeight="SemiBold" />
             </Border>
-            <TextBlock x:Name="TaskBubbleName" MaxWidth="230" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontFamily="Segoe UI Variable Text, Microsoft YaHei UI" FontSize="12" FontWeight="SemiBold" />
+            <TextBlock x:Name="TaskBubbleName" MaxWidth="230" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontFamily="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI" FontSize="12" FontWeight="SemiBold" />
           </StackPanel>
           <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
             <Border x:Name="TaskBubbleContextMetric" CornerRadius="7" Padding="6,2" Margin="0,0,7,0" BorderThickness="1">
-              <TextBlock x:Name="TaskBubbleContextText" FontFamily="Segoe UI Variable Text, Microsoft YaHei UI" FontSize="12" FontWeight="SemiBold" />
+              <TextBlock x:Name="TaskBubbleContextText" FontFamily="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI" FontSize="12" FontWeight="SemiBold" />
             </Border>
-            <TextBlock x:Name="TaskBubbleMetrics" MaxWidth="520" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontFamily="Segoe UI Variable Text, Microsoft YaHei UI" FontSize="12" TextWrapping="NoWrap" />
+            <TextBlock x:Name="TaskBubbleMetrics" MaxWidth="520" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontFamily="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI" FontSize="12" TextWrapping="NoWrap" />
           </StackPanel>
         </StackPanel>
       </DockPanel>

@@ -113,19 +113,19 @@
                   Visibility="Collapsed"
                   Margin="8,0,2,0"
                   HorizontalAlignment="Right"
+                  VerticalAlignment="Center"
+                  MinWidth="46"
                   Style="{StaticResource HudListToggleButton}"
-                  FontFamily="Segoe UI Variable Text, Microsoft YaHei UI"
                   FontSize="12"
                   Cursor="Hand" />
           <WrapPanel x:Name="MetricsPanel"
                      Grid.Column="1"
                      Orientation="Horizontal"
                      HorizontalAlignment="Left"
-                     VerticalAlignment="Center"
-                     MaxWidth="1480" />
+                     VerticalAlignment="Center" />
         </Grid>
         <Border x:Name="TaskListDivider" Height="1" Background="#16000000" Margin="0,7,0,4" Visibility="Collapsed" />
-        <ScrollViewer x:Name="TaskListScroller" MinWidth="900" MaxHeight="420" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
+        <ScrollViewer x:Name="TaskListScroller" MaxHeight="420" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Visibility="Collapsed">
           <StackPanel x:Name="TaskListPanel" />
         </ScrollViewer>
       </StackPanel>

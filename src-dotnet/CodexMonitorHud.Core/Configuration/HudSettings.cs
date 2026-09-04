@@ -4,6 +4,10 @@ using CodexMonitorHud.Core.State;
 namespace CodexMonitorHud.Core.Configuration;
 
 public sealed record MetricFieldSettings(
+    bool Directory,
+    bool Time,
+    bool Context,
+    bool Status,
     bool Model,
     bool CallTotal,
     bool CacheHitRate,
@@ -111,6 +115,7 @@ public sealed record HudSettings
     public required BehaviorSettings Behavior { get; init; }
     public required AttentionSettings Attention { get; init; }
     public required string CompletionSound { get; init; }
+    public required string CompletionSoundFile { get; init; }
     public required AgentNotificationSettings AgentNotifications { get; init; }
     public required QuotaGuardSettings QuotaGuard { get; init; }
     public required OfficialAllowanceSettings OfficialAllowance { get; init; }
@@ -118,6 +123,7 @@ public sealed record HudSettings
     public required string Position { get; init; }
     public double? CustomLeft { get; init; }
     public double? CustomTop { get; init; }
+    public required double HudWidth { get; init; }
     public required double FontSize { get; init; }
     public required double CornerRadius { get; init; }
     public required double Opacity { get; init; }
@@ -201,6 +207,7 @@ public sealed record HudSettings
                 Boolean(attention, "onAbortedOrError", true),
                 Boolean(attention, "onSettled")),
             CompletionSound = Text(document, "completionSound", "off"),
+            CompletionSoundFile = Text(document, "completionSoundFile"),
             AgentNotifications = new AgentNotificationSettings(
                 Boolean(notices, "enabled"),
                 Text(notices, "permission", "text"),
@@ -222,6 +229,7 @@ public sealed record HudSettings
             Position = Text(document, "position", "top-right"),
             CustomLeft = NullableNumber(document, "customLeft"),
             CustomTop = NullableNumber(document, "customTop"),
+            HudWidth = Number(document, "hudWidth", 900),
             FontSize = Number(document, "fontSize", 14),
             CornerRadius = Number(document, "cornerRadius", 22),
             Opacity = Number(document, "opacity", 0.97),
@@ -242,7 +250,7 @@ public sealed record HudSettings
                 Text(theme, "shadow", "soft"),
                 Number(theme, "borderWidth", 1),
                 Number(theme, "statusDotSize", 8),
-                Text(theme, "fontFamily", "Segoe UI Variable Text, Microsoft YaHei UI")),
+                Text(theme, "fontFamily", "HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI")),
             StatusColors = StringDictionary(Object(document, "statusColors")),
             StatusTiming = new StatusTimingSettings(
                 Number(timing, "activeSeconds", 12),
@@ -286,6 +294,10 @@ public sealed record HudSettings
     };
 
     private static MetricFieldSettings MetricFields(JsonObject node) => new(
+        Boolean(node, "directory"),
+        Boolean(node, "time"),
+        Boolean(node, "context"),
+        Boolean(node, "status"),
         Boolean(node, "model"),
         Boolean(node, "callTotal"),
         Boolean(node, "cacheHitRate"),

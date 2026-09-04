@@ -253,6 +253,7 @@ internal sealed class MainHudView : IDisposable
             settings.Border,
             settings.Accent,
             settings.FontSize,
+            settings.HudWidth,
             settings.CornerRadius,
             settings.Opacity,
             settings.TransparencyMode,
@@ -278,6 +279,7 @@ internal sealed class MainHudView : IDisposable
         catch (ArgumentException)
         {
         }
+        _shell.Width = Math.Min(settings.HudWidth, Math.Max(360, GetCurrentScreenBounds().Width - MainChromeInset * 2));
         _shell.CornerRadius = new CornerRadius(settings.CornerRadius);
         _shell.BorderBrush = _brushes.Create(settings.Border, "#22FFFFFF", BrushRole.Decoration, settings, status, hasAttention);
         _shell.BorderThickness = new Thickness(settings.ThemeStyle.BorderWidth);
@@ -329,7 +331,7 @@ internal sealed class MainHudView : IDisposable
             var waiting = new TextBlock
             {
                 Text = text,
-                FontFamily = new FontFamily("Segoe UI Variable Text, Microsoft YaHei UI"),
+                FontFamily = new FontFamily(settings.ThemeStyle.FontFamily),
                 FontSize = settings.FontSize,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = _brushes.Create(settings.Foreground, "#FFFFFFFF", BrushRole.Primary, settings, "idle", false),
@@ -427,7 +429,7 @@ internal sealed class MainHudView : IDisposable
         var label = new TextBlock
         {
             Text = metric.Label,
-            FontFamily = new FontFamily("Segoe UI Variable Text, Microsoft YaHei UI"),
+            FontFamily = new FontFamily(settings.ThemeStyle.FontFamily),
             FontSize = Math.Max(10, settings.FontSize - 2),
             Foreground = _brushes.Create(settings.Muted, "#FF8A94A6", BrushRole.Secondary, settings, "idle", false),
             VerticalAlignment = VerticalAlignment.Center,
@@ -440,15 +442,31 @@ internal sealed class MainHudView : IDisposable
             FontSize = settings.FontSize,
             FontWeight = FontWeights.SemiBold,
             Foreground = _brushes.Create(settings.Foreground, "#FFFFFFFF", BrushRole.Primary, settings, "idle", false),
-            VerticalAlignment = VerticalAlignment.Center
+            VerticalAlignment = VerticalAlignment.Center,
+            TextWrapping = TextWrapping.Wrap
         };
-        var content = new StackPanel
+        var content = new Grid();
+        if (settings.Layout == "cards")
         {
-            Orientation = settings.Layout == "cards" ? Orientation.Vertical : Orientation.Horizontal
-        };
+            content.RowDefinitions.Add(new RowDefinition());
+            content.RowDefinitions.Add(new RowDefinition());
+            Grid.SetRow(value, 1);
+        }
+        else
+        {
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(value, 1);
+        }
         content.Children.Add(label);
         content.Children.Add(value);
-        var container = new Border { Child = content, VerticalAlignment = VerticalAlignment.Center };
+        var effectiveMetricWidth = double.IsNaN(_shell.Width) ? settings.HudWidth : _shell.Width;
+        var container = new Border
+        {
+            Child = content,
+            VerticalAlignment = VerticalAlignment.Center,
+            MaxWidth = Math.Max(140, effectiveMetricWidth - 112)
+        };
         var accent = ParseColor(settings.Accent, "#FF0A84FF");
         switch (settings.Layout)
         {
@@ -512,6 +530,7 @@ internal sealed class MainHudView : IDisposable
             : string.Empty;
         var signature = string.Join('|', visible, settings.MultiTask.ListStyle, settings.MultiTask.ListDensity,
             settings.MultiTask.ListDetail, settings.MultiTask.NameMode,
+            settings.MultiTask.ListFields, settings.HudWidth,
             _appearanceSignature, stateSignature);
         if (_listSignature == signature)
         {
@@ -533,6 +552,7 @@ internal sealed class MainHudView : IDisposable
         }
 
         var density = Density(settings.MultiTask.ListDensity);
+        var narrowLayout = _shell.Width < 760;
         foreach (var state in states.OrderBy(static state => state.Number))
         {
             var status = statusFor(state);
@@ -541,7 +561,10 @@ internal sealed class MainHudView : IDisposable
                 Margin = density.RowMargin,
                 Background = _brushes.Create("#08000000", "#08000000", BrushRole.Decoration, settings, status, state.AttentionUntil > now)
             };
-            foreach (var width in new[] { GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto })
+            var columnWidths = narrowLayout
+                ? new[] { GridLength.Auto, GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), new GridLength(0), GridLength.Auto, GridLength.Auto }
+                : new[] { GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto };
+            foreach (var width in columnWidths)
             {
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
             }
@@ -606,19 +629,28 @@ internal sealed class MainHudView : IDisposable
 
             var projectName = ProjectName(state, locale);
             var collapsedSubtitle = state.StartedAt.ToLocalTime().ToString("HH:mm");
-            var expandedSubtitle = string.IsNullOrWhiteSpace(state.ConversationLabel) || settings.MultiTask.NameMode == "hidden"
-                ? collapsedSubtitle
-                : state.ConversationLabel + " \u00B7 " + collapsedSubtitle;
+            var subtitleParts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(state.ConversationLabel) && settings.MultiTask.NameMode != "hidden")
+            {
+                subtitleParts.Add(state.ConversationLabel);
+            }
+            if (settings.MultiTask.ListFields.Time)
+            {
+                subtitleParts.Add(collapsedSubtitle);
+            }
+            var expandedSubtitle = string.Join(" \u00B7 ", subtitleParts);
             var name = new TextBlock
             {
                 Text = projectName,
+                Visibility = settings.MultiTask.ListFields.Directory ? Visibility.Visible : Visibility.Collapsed,
                 FontWeight = FontWeights.SemiBold,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 Foreground = _brushes.Create(settings.Foreground, "#FF111827", BrushRole.Primary, settings, status, false)
             };
             var subtitle = new TextBlock
             {
-                Text = settings.MultiTask.NameMode == "hidden" ? collapsedSubtitle : expandedSubtitle,
+                Text = expandedSubtitle,
+                Visibility = expandedSubtitle.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
                 Margin = new Thickness(0, 1, 0, 0),
                 FontSize = Math.Max(9, settings.FontSize - 3),
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -634,6 +666,9 @@ internal sealed class MainHudView : IDisposable
             };
             identity.Children.Add(name);
             identity.Children.Add(subtitle);
+            identity.Visibility = name.Visibility == Visibility.Visible || subtitle.Visibility == Visibility.Visible
+                ? Visibility.Visible
+                : Visibility.Collapsed;
             Grid.SetColumn(identity, 3);
             row.Children.Add(identity);
             var listMetrics = WithAgentNotice(
@@ -646,6 +681,7 @@ internal sealed class MainHudView : IDisposable
             var metricsText = new TextBlock
             {
                 Text = listMetrics,
+                Visibility = listMetrics.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
                 VerticalAlignment = VerticalAlignment.Center,
                 // An agent-authored notice is an instruction for the human, not
                 // background telemetry.  Give the whole notice line the same
@@ -666,6 +702,7 @@ internal sealed class MainHudView : IDisposable
             metricsHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             Border? contextMetric = null;
             TextBlock? contextTextControl = null;
+            if (settings.MultiTask.ListFields.Context)
             {
                 var contextValue = state.Snapshot is null
                     ? Get(locale, "waiting")
@@ -718,19 +755,24 @@ internal sealed class MainHudView : IDisposable
             Grid.SetColumn(dismiss, 6);
             row.Children.Add(dismiss);
 
-            var detailedLayout = settings.MultiTask.ListDetail == "detailed";
-            if (detailedLayout)
+            var twoLineLayout = settings.MultiTask.ListDetail == "detailed" || narrowLayout;
+            if (twoLineLayout)
             {
                 row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                 row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                foreach (var control in new FrameworkElement[] { dot, sourceBadge, badge, action, dismiss })
+                var spanningControls = narrowLayout
+                    ? new FrameworkElement[] { dot, action, dismiss }
+                    : new FrameworkElement[] { dot, sourceBadge, badge, action, dismiss };
+                foreach (var control in spanningControls)
                 {
                     Grid.SetRowSpan(control, 2);
                 }
                 Grid.SetRow(metricsHost, 1);
-                Grid.SetColumn(metricsHost, 3);
-                Grid.SetColumnSpan(metricsHost, 2);
-                metricsHost.Margin = density.MetricsMargin;
+                Grid.SetColumn(metricsHost, narrowLayout ? 1 : 3);
+                Grid.SetColumnSpan(metricsHost, narrowLayout ? 4 : 2);
+                metricsHost.Margin = narrowLayout
+                    ? new Thickness(density.MetricsMargin.Left, 4, density.MetricsMargin.Right, density.MetricsMargin.Bottom)
+                    : density.MetricsMargin;
                 metricsText.TextWrapping = TextWrapping.Wrap;
                 metricsText.TextTrimming = TextTrimming.None;
             }
@@ -739,7 +781,7 @@ internal sealed class MainHudView : IDisposable
             if (settings.MultiTask.ListStyle == "cards")
             {
                 row.Background = Brushes.Transparent;
-                if (!detailedLayout)
+                if (!twoLineLayout)
                 {
                     row.RowDefinitions.Add(new RowDefinition());
                     row.RowDefinitions.Add(new RowDefinition());
@@ -929,6 +971,7 @@ internal sealed class MainHudView : IDisposable
             locale,
             now,
             !_detached.Contains(state.Path));
+        live.Metrics.Visibility = live.Metrics.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         live.Metrics.ToolTip = live.Metrics.Text;
         live.Metrics.Foreground = _brushes.Create(
             hasAgentNotice ? settings.Foreground : settings.Muted,
@@ -1083,6 +1126,9 @@ internal sealed class MainHudView : IDisposable
                              states.All(state => IsQuiet(state, statusFor(state), settings, now, keepTerminalLights));
         var transition = shouldCollapse != _isMainIndicatorCollapsed;
         _isMainIndicatorCollapsed = shouldCollapse;
+        _shell.Width = shouldCollapse
+            ? double.NaN
+            : Math.Min(settings.HudWidth, Math.Max(360, GetCurrentScreenBounds().Width - MainChromeInset * 2));
         _contentPanel.Visibility = shouldCollapse ? Visibility.Collapsed : Visibility.Visible;
         _quietPanel.Visibility = shouldCollapse ? Visibility.Visible : Visibility.Collapsed;
         if (shouldCollapse)
@@ -1471,21 +1517,25 @@ internal sealed class MainHudView : IDisposable
             return Get(locale, "waiting");
         }
         var snapshot = state.Snapshot;
-        var parts = new List<string> { Get(locale, StatusKey(status)) };
+        var parts = new List<string>();
+        if (!listPreset || settings.MultiTask.ListFields.Status)
+        {
+            parts.Add(Get(locale, StatusKey(status)));
+        }
         if (listPreset)
         {
             var metrics = HudFormatting.GetTaskListMetrics(
                 snapshot,
                 settings.MultiTask.ListDetail,
+                settings.MultiTask.ListFields,
                 locale,
                 settings.NumberFormat);
-            parts.AddRange(metrics.Primary
-                .Where(static metric => metric.Key != "context")
-                .Select(FormatTaskMetric));
+            parts.AddRange(metrics.Primary.Select(FormatTaskMetric));
             if (metrics.Diagnostics.Count > 0)
             {
                 var diagnosticText = string.Join(" \u00B7 ", metrics.Diagnostics.Select(FormatTaskMetric));
-                return string.Join(" \u00B7 ", parts) + Environment.NewLine + diagnosticText;
+                var primaryText = string.Join(" \u00B7 ", parts);
+                return primaryText.Length > 0 ? primaryText + Environment.NewLine + diagnosticText : diagnosticText;
             }
         }
         else
@@ -1526,7 +1576,8 @@ internal sealed class MainHudView : IDisposable
         {
             return metrics;
         }
-        return $"\u2726 {Get(locale, "agentNotificationBadge")} #{state.Number}  {state.AgentNoticeText}  \u00B7  {metrics}";
+        var notice = $"\u2726 {Get(locale, "agentNotificationBadge")} #{state.Number}  {state.AgentNoticeText}";
+        return metrics.Length > 0 ? notice + "  \u00B7  " + metrics : notice;
     }
 
     private static bool HasVisibleAgentNotice(SessionState state, DateTimeOffset now) =>

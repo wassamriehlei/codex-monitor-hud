@@ -21,9 +21,13 @@
     "autoSplitNewTasks": true,
     "numberCooldownSeconds": 120,
     "listFields": {
+      "directory": true,
+      "time": true,
+      "context": true,
+      "status": true,
       "model": true,
       "callTotal": true,
-      "cacheHitRate": false,
+      "cacheHitRate": true,
       "taskTotal": false,
       "estimatedCost": false,
       "updated": false
@@ -71,6 +75,7 @@
     "onSettled": false
   },
   "completionSound": "off",
+  "completionSoundFile": "",
   "agentNotifications": {
     "enabled": false,
     "permission": "text",
@@ -96,6 +101,7 @@
   "position": "top-right",
   "customLeft": null,
   "customTop": null,
+  "hudWidth": 900,
   "fontSize": 14.0,
   "cornerRadius": 22,
   "opacity": 0.97,
@@ -116,7 +122,7 @@
     "shadow": "soft",
     "borderWidth": 1.0,
     "statusDotSize": 8.0,
-    "fontFamily": "Segoe UI Variable Text, Microsoft YaHei UI"
+    "fontFamily": "HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI"
   },
   "statusPalette": "default",
   "statusColors": {

@@ -145,7 +145,8 @@ public static partial class HudConfigStore
         SetBool(result, GetBool(result, true, "attention", "dotBreathing"), "attention", "dotBreathing");
         SetInt(result, Math.Clamp(GetInt(result, 6, "attention", "durationSeconds"), 2, 15), "attention", "durationSeconds");
         SetInt(result, Math.Clamp(GetInt(result, 8, "attention", "completionGraceSeconds"), 0, 30), "attention", "completionGraceSeconds");
-        SetAllowed(result, "off", new[] { "off", "asterisk", "exclamation", "beep" }, "completionSound");
+        SetAllowed(result, "off", new[] { "off", "asterisk", "exclamation", "beep", "file" }, "completionSound");
+        SetString(result, GetString(result, string.Empty, "completionSoundFile"), "completionSoundFile");
 
         SetAllowed(result, "text", new[] { "text", "expressive" }, "agentNotifications", "permission");
         SetAllowed(result, "focus", new[] { "halo", "breathe", "flow", "focus" }, "agentNotifications", "mode");
@@ -174,6 +175,7 @@ public static partial class HudConfigStore
 
         SetAllowed(result, "uniform", new[] { "uniform", "layered", "focus" }, "transparencyMode");
         SetDouble(result, Math.Clamp(GetDouble(result, 0.97, "opacity"), 0, 1), "opacity");
+        SetDouble(result, Math.Clamp(GetDouble(result, 900, "hudWidth"), 360, 1600), "hudWidth");
         SetAllowed(result, "solid", new[] { "solid", "gradient", "image" }, "themeStyle", "surface");
         SetAllowed(result, "uniformToFill", new[] { "uniform", "uniformToFill", "fill", "none" }, "themeStyle", "imageStretch");
         SetAllowed(result, "soft", new[] { "none", "soft", "deep" }, "themeStyle", "shadow");
@@ -182,9 +184,10 @@ public static partial class HudConfigStore
         SetDouble(result, Math.Clamp(GetDouble(result, 0.28, "themeStyle", "imageOpacity"), 0.05, 1), "themeStyle", "imageOpacity");
         SetDouble(result, Math.Clamp(GetDouble(result, 1, "themeStyle", "borderWidth"), 0, 4), "themeStyle", "borderWidth");
         SetDouble(result, Math.Clamp(GetDouble(result, 8, "themeStyle", "statusDotSize"), 5, 18), "themeStyle", "statusDotSize");
-        if (string.IsNullOrWhiteSpace(GetString(result, string.Empty, "themeStyle", "fontFamily")))
+        var fontFamily = GetString(result, string.Empty, "themeStyle", "fontFamily");
+        if (string.IsNullOrWhiteSpace(fontFamily) || fontFamily == "Segoe UI Variable Text, Microsoft YaHei UI")
         {
-            SetString(result, "Segoe UI Variable Text, Microsoft YaHei UI", "themeStyle", "fontFamily");
+            SetString(result, "HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI", "themeStyle", "fontFamily");
         }
 
         SetInt(result, Math.Clamp(GetInt(result, 120, "statusTiming", "terminalHoldSeconds"), 0, 1800), "statusTiming", "terminalHoldSeconds");

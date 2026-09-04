@@ -184,6 +184,7 @@ internal sealed class TaskBubbleView : IDisposable
                 var font = new FontFamily(settings.ThemeStyle.FontFamily);
                 _number.FontFamily = font;
                 _name.FontFamily = font;
+                _contextText.FontFamily = font;
                 _metrics.FontFamily = font;
             }
             catch (ArgumentException)

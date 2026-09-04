@@ -1,4 +1,5 @@
 using System.Globalization;
+using CodexMonitorHud.Core.Configuration;
 using CodexMonitorHud.Core.Models;
 
 namespace CodexMonitorHud.Core.Presentation;
@@ -187,28 +188,28 @@ public static class HudFormatting
     public static TaskListMetricSet GetTaskListMetrics(
         HudSnapshot snapshot,
         string detail,
+        MetricFieldSettings fields,
         IReadOnlyDictionary<string, string> locale,
         string numberFormat)
     {
-        var primary = new List<HudMetric>
-        {
-            Metric("context", snapshot.ContextWindow > 0 ? FormatPercent(snapshot.ContextPercent) : "--", locale)
-        };
+        var primary = new List<HudMetric>();
         var diagnostics = new List<HudMetric>();
 
-        // The compact tier carries the identity and saturation data an agent
-        // operator needs first: status is rendered by the caller, then model
-        // and context.  Accounting detail is progressively disclosed below.
-        if (!string.IsNullOrWhiteSpace(snapshot.Model))
+        // Field switches are authoritative. The detail preset now controls
+        // layout and optional diagnostics only, so a disabled item never
+        // reappears merely because the row uses another density preset.
+        if (fields.Model && !string.IsNullOrWhiteSpace(snapshot.Model))
         {
             primary.Add(Metric("model", snapshot.Model, locale));
         }
-        primary.Add(Metric("cacheHitRate", FormatCacheHitRate(snapshot.Input, snapshot.Cached), locale));
-
-        if (detail is "balanced" or "detailed")
+        if (fields.CacheHitRate)
         {
-            primary.Add(Metric("callTotal", FormatNumber(snapshot.CallTotal, numberFormat), locale));
+            primary.Add(Metric("cacheHitRate", FormatCacheHitRate(snapshot.Input, snapshot.Cached), locale));
         }
+        if (fields.CallTotal) primary.Add(Metric("callTotal", FormatNumber(snapshot.CallTotal, numberFormat), locale));
+        if (fields.TaskTotal) primary.Add(Metric("taskTotal", FormatNumber(snapshot.TaskTotal, numberFormat), locale));
+        if (fields.EstimatedCost) primary.Add(Metric("estimatedCost", FormatCost(snapshot.EstimatedCostUsd), locale));
+        if (fields.Updated) primary.Add(Metric("updated", snapshot.Timestamp.ToString("HH:mm:ss", CultureInfo.InvariantCulture), locale));
 
         if (detail == "detailed")
         {
@@ -216,7 +217,6 @@ public static class HudFormatting
             diagnostics.Add(Metric("cached", FormatNumber(snapshot.Cached, numberFormat), locale));
             diagnostics.Add(Metric("uncached", FormatNumber(snapshot.Uncached, numberFormat), locale));
             diagnostics.Add(Metric("output", FormatNumber(snapshot.Output, numberFormat), locale));
-            diagnostics.Add(Metric("taskTotal", FormatNumber(snapshot.TaskTotal, numberFormat), locale));
             diagnostics.Add(Metric(
                 "contextWindow",
                 snapshot.ContextWindow > 0 ? FormatNumber(snapshot.ContextWindow, numberFormat) : "--",
@@ -225,11 +225,6 @@ public static class HudFormatting
             {
                 diagnostics.Add(Metric("reasoning", FormatNumber(snapshot.Reasoning, numberFormat), locale));
             }
-            if (snapshot.EstimatedCostUsd.HasValue)
-            {
-                diagnostics.Add(Metric("estimatedCost", FormatCost(snapshot.EstimatedCostUsd), locale));
-            }
-            diagnostics.Add(Metric("updated", snapshot.Timestamp.ToString("HH:mm:ss", CultureInfo.InvariantCulture), locale));
         }
 
         return new TaskListMetricSet(primary, diagnostics);

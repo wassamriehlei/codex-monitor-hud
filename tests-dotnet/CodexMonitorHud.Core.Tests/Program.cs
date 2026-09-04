@@ -635,13 +635,22 @@ void TestFormatting()
         Model = "deepseek-chat"
     };
     var labels = new Dictionary<string, string>();
-    var compact = HudFormatting.GetTaskListMetrics(hierarchySnapshot, "compact", labels, "exact");
-    Equal("context,model,cacheHitRate", string.Join(',', compact.Primary.Select(static metric => metric.Key)), "compact tier keeps context, model, and cache efficiency");
-    var balanced = HudFormatting.GetTaskListMetrics(hierarchySnapshot, "balanced", labels, "exact");
-    Equal("context,model,cacheHitRate,callTotal", string.Join(',', balanced.Primary.Select(static metric => metric.Key)), "balanced tier adds the current call total");
-    var detailed = HudFormatting.GetTaskListMetrics(hierarchySnapshot, "detailed", labels, "exact");
+    var listFields = new MetricFieldSettings(
+        Directory: true, Time: true, Context: true, Status: true,
+        Model: true, CallTotal: true, CacheHitRate: true,
+        TaskTotal: false, EstimatedCost: false, Updated: false);
+    var compact = HudFormatting.GetTaskListMetrics(hierarchySnapshot, "compact", listFields, labels, "exact");
+    Equal("model,cacheHitRate,callTotal", string.Join(',', compact.Primary.Select(static metric => metric.Key)), "selected list fields remain visible in compact layout");
+    var selectedOnly = HudFormatting.GetTaskListMetrics(
+        hierarchySnapshot,
+        "balanced",
+        listFields with { Model = false, CacheHitRate = false },
+        labels,
+        "exact");
+    Equal("callTotal", string.Join(',', selectedOnly.Primary.Select(static metric => metric.Key)), "list field switches are authoritative");
+    var detailed = HudFormatting.GetTaskListMetrics(hierarchySnapshot, "detailed", listFields, labels, "exact");
     IsTrue(detailed.Diagnostics.Any(static metric => metric.Key == "contextWindow"), "detailed tier exposes provider-specific context capacity");
-    IsTrue(detailed.Diagnostics.Any(static metric => metric.Key == "taskTotal"), "detailed tier keeps cumulative task accounting off the primary row");
+    IsTrue(detailed.Diagnostics.All(static metric => metric.Key is not ("taskTotal" or "updated" or "estimatedCost")), "disabled optional list fields do not leak into diagnostics");
     var allFields = new Dictionary<string, bool>
     {
         ["input"] = true,
@@ -713,19 +722,26 @@ void TestConfiguration()
         Equal(false, settings.Fields["context"], "wrong nested scalar type retains default");
         Equal("#FF34C759", settings.StatusColors["active"], "wrong dictionary scalar type retains default");
         Equal("off", settings.CompletionSound, "invalid completion sound falls back to off");
+        Equal(900d, settings.HudWidth, "default HUD width projection");
+        IsTrue(settings.ThemeStyle.FontFamily.StartsWith("HarmonyOS Sans SC", StringComparison.Ordinal), "legacy default font migrates to HarmonyOS Sans SC");
         ((JsonObject)config["agentNotifications"]!)["enabled"] = true;
         ((JsonObject)config["agentNotifications"]!)["permission"] = "expressive";
-        config["completionSound"] = "exclamation";
+        config["completionSound"] = "file";
+        config["completionSoundFile"] = "C:\\Synthetic\\done.mp3";
+        config["hudWidth"] = 1600;
         settings = HudSettings.From(config);
         Equal(true, settings.AgentNotifications.Enabled, "typed agent-notification boolean projection");
         Equal("expressive", settings.AgentNotifications.Permission, "typed agent-notification permission projection");
-        Equal("exclamation", settings.CompletionSound, "typed completion-sound projection");
+        Equal("file", settings.CompletionSound, "typed custom completion-sound projection");
+        Equal("C:\\Synthetic\\done.mp3", settings.CompletionSoundFile, "typed completion audio path projection");
+        Equal(1600d, settings.HudWidth, "typed HUD width projection");
         HudConfigStore.Save(paths, config);
         NotNull(JsonNode.Parse(File.ReadAllText(paths.ConfigPath)), "saved config JSON");
         var reloaded = HudSettings.From(HudConfigStore.Load(paths));
         Equal(true, reloaded.AgentNotifications.Enabled, "saved agent-notification boolean survives config merge");
         Equal("expressive", reloaded.AgentNotifications.Permission, "saved agent-notification permission survives config merge");
-        Equal("exclamation", reloaded.CompletionSound, "saved completion sound survives config merge");
+        Equal("file", reloaded.CompletionSound, "saved completion sound survives config merge");
+        Equal("C:\\Synthetic\\done.mp3", reloaded.CompletionSoundFile, "saved completion audio path survives config merge");
         Equal(0, Directory.EnumerateFiles(paths.StateRoot, "settings.json.*.tmp").Count(), "atomic config save leaves no temporary file");
     });
 }

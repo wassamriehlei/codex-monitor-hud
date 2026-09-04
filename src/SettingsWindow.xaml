@@ -2,10 +2,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Name="SettingsWindow"
         Title="Codex Monitor HUD Settings"
-        Width="720"
-        Height="790"
-        MinWidth="680"
+        Width="900"
+        Height="820"
+        MinWidth="760"
         MinHeight="700"
+        FontFamily="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -21,7 +22,6 @@
     <SolidColorBrush x:Key="Muted" Color="#FF667085" />
     <SolidColorBrush x:Key="Blue" Color="#FF0A84FF" />
     <Style TargetType="TextBlock">
-      <Setter Property="FontFamily" Value="Segoe UI Variable Text, Microsoft YaHei UI" />
       <Setter Property="Foreground" Value="{StaticResource Ink}" />
     </Style>
     <Style TargetType="{x:Type ToolTip}">
@@ -52,7 +52,6 @@
       </Setter>
     </Style>
     <Style TargetType="Button">
-      <Setter Property="FontFamily" Value="Segoe UI Variable Text, Microsoft YaHei UI" />
       <Setter Property="FontSize" Value="13" />
       <Setter Property="Foreground" Value="{StaticResource Ink}" />
       <Setter Property="Background" Value="#FFF2F4F7" />
@@ -105,7 +104,6 @@
       </Setter>
     </Style>
     <Style TargetType="CheckBox">
-      <Setter Property="FontFamily" Value="Segoe UI Variable Text, Microsoft YaHei UI" />
       <Setter Property="FontSize" Value="13" />
       <Setter Property="Foreground" Value="{StaticResource Ink}" />
       <Setter Property="Background" Value="#FFF4F6F8" />
@@ -164,7 +162,6 @@
       </Setter>
     </Style>
     <Style TargetType="ComboBox">
-      <Setter Property="FontFamily" Value="Segoe UI Variable Text, Microsoft YaHei UI" />
       <Setter Property="FontSize" Value="13" />
       <Setter Property="Foreground" Value="{StaticResource Ink}" />
       <Setter Property="Background" Value="#FFF7F9FC" />
@@ -255,7 +252,6 @@
       </Setter>
     </Style>
     <Style TargetType="ComboBoxItem">
-      <Setter Property="FontFamily" Value="Segoe UI Variable Text, Microsoft YaHei UI" />
       <Setter Property="FontSize" Value="13" />
       <Setter Property="Foreground" Value="{StaticResource Ink}" />
       <Setter Property="Padding" Value="11,8" />
@@ -292,7 +288,6 @@
       <Setter Property="CaretBrush" Value="{StaticResource Blue}" />
     </Style>
     <Style TargetType="TabItem">
-      <Setter Property="FontFamily" Value="Segoe UI Variable Text, Microsoft YaHei UI" />
       <Setter Property="FontSize" Value="13" />
       <Setter Property="Foreground" Value="{StaticResource Muted}" />
       <Setter Property="Padding" Value="16,8" />
@@ -599,12 +594,24 @@
                   </StackPanel>
                 </WrapPanel>
                 <CheckBox x:Name="AutoSplitCheck" Content="分裂模式下自动拆出新任务" Margin="0,10,0,14" />
-                <TextBlock x:Name="ListFieldsTitle" Text="列表信息密度" FontSize="15" FontWeight="SemiBold" Margin="0,6,0,4" />
-                <TextBlock x:Name="ListDetailHint" Text="三档预设让每行保持可扫读；上下文占用始终显示。" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,8" />
+                <TextBlock x:Name="ListFieldsTitle" Text="主气泡列表内容" FontSize="15" FontWeight="SemiBold" Margin="0,6,0,4" />
+                <TextBlock x:Name="ListDetailHint" Text="每个字段都可独立显示或隐藏；窄宽度会自动换成两行，避免操作按钮被裁切。" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,8" />
+                <WrapPanel Margin="0,0,0,4">
+                  <CheckBox x:Name="ListFieldDirectory" Content="目录" />
+                  <CheckBox x:Name="ListFieldTime" Content="开始时间" />
+                  <CheckBox x:Name="ListFieldContext" Content="上下文占用" />
+                  <CheckBox x:Name="ListFieldStatus" Content="任务状态" />
+                  <CheckBox x:Name="ListFieldModel" Content="模型名称" />
+                  <CheckBox x:Name="ListFieldCacheHitRate" Content="缓存命中率" />
+                  <CheckBox x:Name="ListFieldCallTotal" Content="本次合计" />
+                  <CheckBox x:Name="ListFieldTaskTotal" Content="任务累计" />
+                  <CheckBox x:Name="ListFieldEstimatedCost" Content="API 成本估算" />
+                  <CheckBox x:Name="ListFieldUpdated" Content="数据更新时间" />
+                </WrapPanel>
                 <ComboBox x:Name="ListDetailCombo" Width="360" HorizontalAlignment="Left">
-                  <ComboBoxItem x:Name="ListDetailCompactItem" Content="精简：状态、模型、上下文和缓存命中" Tag="compact" />
-                  <ComboBoxItem x:Name="ListDetailBalancedItem" Content="标准：再加本次合计" Tag="balanced" />
-                  <ComboBoxItem x:Name="ListDetailDetailedItem" Content="详细：第二行展开诊断数据" Tag="detailed" />
+                  <ComboBoxItem x:Name="ListDetailCompactItem" Content="精简布局：所选字段单行显示" Tag="compact" />
+                  <ComboBoxItem x:Name="ListDetailBalancedItem" Content="标准布局：所选字段单行显示" Tag="balanced" />
+                  <ComboBoxItem x:Name="ListDetailDetailedItem" Content="诊断布局：第二行附加输入输出明细" Tag="detailed" />
                 </ComboBox>
                 <TextBlock x:Name="TaskBubbleFieldsTitle" Text="独立小气泡信息" FontSize="15" FontWeight="SemiBold" Margin="0,10,0,4" />
                 <TextBlock x:Name="TaskBubbleResizeHint" Text="每个独立气泡都可拖动右下角调整大小；字段选择与列表互不影响。" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,8" />
@@ -773,10 +780,20 @@
                       <ComboBoxItem x:Name="CompletionSoundAsteriskItem" Content="系统通知" Tag="asterisk" />
                       <ComboBoxItem x:Name="CompletionSoundExclamationItem" Content="醒目提示" Tag="exclamation" />
                       <ComboBoxItem x:Name="CompletionSoundBeepItem" Content="经典蜂鸣" Tag="beep" />
+                      <ComboBoxItem x:Name="CompletionSoundFileItem" Content="自定义音频文件" Tag="file" />
                     </ComboBox>
                   </StackPanel>
                   <Button x:Name="CompletionSoundPreviewButton" Content="试听" VerticalAlignment="Bottom" Margin="4,0,0,0" />
                 </WrapPanel>
+                <Grid Margin="0,0,0,10">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBox x:Name="CompletionSoundFileText" MinHeight="36" Padding="10,7" ToolTip="WAV、MP3、WMA、M4A 或 AAC" />
+                  <Button x:Name="CompletionSoundBrowseButton" Grid.Column="1" Content="浏览…" Margin="8,0,0,0" VerticalAlignment="Center" />
+                </Grid>
+                <TextBlock x:Name="CompletionSoundFileHint" Text="选择“自定义音频文件”后，将在任务完成时播放这里的本地文件。" TextWrapping="Wrap" Foreground="{StaticResource Muted}" FontSize="11" Margin="0,-5,0,10" />
                 <TextBlock x:Name="AttentionSurfacesTitle" Text="提醒落点与强度" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Muted}" Margin="0,2,0,0" />
                 <WrapPanel>
                   <StackPanel>
@@ -979,20 +996,30 @@
                 <ColumnDefinition Width="54" />
               </Grid.ColumnDefinitions>
               <Grid.RowDefinitions>
+                <RowDefinition Height="48" />
+                <RowDefinition Height="38" />
                 <RowDefinition Height="38" />
                 <RowDefinition Height="38" />
                 <RowDefinition Height="38" />
               </Grid.RowDefinitions>
-              <TextBlock x:Name="FontSizeLabel" Grid.Row="0" Text="字号" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
-              <Slider x:Name="FontSizeSlider" Grid.Row="0" Grid.Column="1" Minimum="11" Maximum="22" TickFrequency="0.1" IsSnapToTickEnabled="False" IsMoveToPointEnabled="True" VerticalAlignment="Center" />
-              <TextBlock x:Name="FontSizeValue" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" />
-              <TextBlock x:Name="RadiusLabel" Grid.Row="1" Text="圆角" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
-              <Slider x:Name="RadiusSlider" Grid.Row="1" Grid.Column="1" Minimum="8" Maximum="36" TickFrequency="1" IsSnapToTickEnabled="False" IsMoveToPointEnabled="True" VerticalAlignment="Center" />
-              <TextBlock x:Name="RadiusValue" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" />
-              <TextBlock x:Name="OpacityLabel" Grid.Row="2" Text="透明度" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
-              <Slider x:Name="OpacitySlider" Grid.Row="2" Grid.Column="1" Minimum="0" Maximum="1" TickFrequency="0.01" IsMoveToPointEnabled="True" VerticalAlignment="Center" />
-              <TextBlock x:Name="OpacityValue" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" />
+              <TextBlock x:Name="FontFamilyLabel" Grid.Row="0" Text="字体" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+              <ComboBox x:Name="FontFamilyCombo" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,3,0,3" MinWidth="0" HorizontalAlignment="Stretch" />
+              <TextBlock x:Name="HudWidthLabel" Grid.Row="1" Text="HUD 宽度" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+              <Slider x:Name="HudWidthSlider" Grid.Row="1" Grid.Column="1" Minimum="360" Maximum="1600" TickFrequency="20" IsSnapToTickEnabled="False" IsMoveToPointEnabled="True" VerticalAlignment="Center" />
+              <TextBlock x:Name="HudWidthValue" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" />
+              <TextBlock x:Name="FontSizeLabel" Grid.Row="2" Text="字号" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+              <Slider x:Name="FontSizeSlider" Grid.Row="2" Grid.Column="1" Minimum="11" Maximum="22" TickFrequency="0.1" IsSnapToTickEnabled="False" IsMoveToPointEnabled="True" VerticalAlignment="Center" />
+              <TextBlock x:Name="FontSizeValue" Grid.Row="2" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" />
+              <TextBlock x:Name="RadiusLabel" Grid.Row="3" Text="圆角" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+              <Slider x:Name="RadiusSlider" Grid.Row="3" Grid.Column="1" Minimum="8" Maximum="36" TickFrequency="1" IsSnapToTickEnabled="False" IsMoveToPointEnabled="True" VerticalAlignment="Center" />
+              <TextBlock x:Name="RadiusValue" Grid.Row="3" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" />
+              <TextBlock x:Name="OpacityLabel" Grid.Row="4" Text="透明度" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+              <Slider x:Name="OpacitySlider" Grid.Row="4" Grid.Column="1" Minimum="0" Maximum="1" TickFrequency="0.01" IsMoveToPointEnabled="True" VerticalAlignment="Center" />
+              <TextBlock x:Name="OpacityValue" Grid.Row="4" Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" />
             </Grid>
+            <Border Background="#080A84FF" BorderBrush="#180A84FF" BorderThickness="1" CornerRadius="10" Padding="12,8" Margin="0,8,0,2">
+              <TextBlock x:Name="FontPreviewText" Text="字体预览：Codex 正在监听 · 123 ABC" FontSize="15" TextWrapping="Wrap" />
+            </Border>
             <StackPanel Margin="0,10,0,8">
               <TextBlock x:Name="TransparencyModeLabel" Text="透明方式" FontSize="12" Foreground="{StaticResource Muted}" />
               <ComboBox x:Name="TransparencyModeCombo" HorizontalAlignment="Left">
@@ -1060,11 +1087,14 @@
         </TabControl>
 
         <Grid Grid.Row="2" Margin="26,10,20,14">
-          <Button x:Name="ResetButton" Content="恢复默认" HorizontalAlignment="Left" />
-          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-            <TextBlock x:Name="SaveStatus" Text="设置会实时预览" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,14,8" />
-            <Button x:Name="SaveButton" Content="保存并关闭" Background="#FF0A84FF" Foreground="White" BorderBrush="#00000000" MinWidth="112" />
-          </StackPanel>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Button x:Name="ResetButton" Grid.Column="0" Content="恢复默认" HorizontalAlignment="Left" />
+          <TextBlock x:Name="SaveStatus" Grid.Column="1" Text="设置会实时预览" Foreground="{StaticResource Muted}" VerticalAlignment="Center" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis" Margin="14,0,14,8" />
+          <Button x:Name="SaveButton" Grid.Column="2" Content="保存并关闭" Background="#FF0A84FF" Foreground="White" BorderBrush="#00000000" MinWidth="112" />
         </Grid>
       </Grid>
     </Border>

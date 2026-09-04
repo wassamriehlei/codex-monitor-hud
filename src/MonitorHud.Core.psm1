@@ -291,7 +291,8 @@ function Get-HudConfig {
         $result.attention | Add-Member -NotePropertyName completionGraceSeconds -NotePropertyValue 8
     }
     $result.attention.completionGraceSeconds = [Math]::Max(0, [Math]::Min(30, [int]$result.attention.completionGraceSeconds))
-    if (@('off','asterisk','exclamation','beep') -notcontains [string]$result.completionSound) { $result.completionSound = 'off' }
+    if (@('off','asterisk','exclamation','beep','file') -notcontains [string]$result.completionSound) { $result.completionSound = 'off' }
+    $result.completionSoundFile = [string]$result.completionSoundFile
     if (@('text','expressive') -notcontains [string]$result.agentNotifications.permission) { $result.agentNotifications.permission='text' }
     if (@('halo','breathe','flow','focus') -notcontains [string]$result.agentNotifications.mode) { $result.agentNotifications.mode='focus' }
     if (@('violet','aqua','amber','custom') -notcontains [string]$result.agentNotifications.glowPreset) { $result.agentNotifications.glowPreset='violet' }
@@ -310,6 +311,7 @@ function Get-HudConfig {
     if ($result.quotaGuard.handoffInstruction.Length -gt 1200) { $result.quotaGuard.handoffInstruction = $result.quotaGuard.handoffInstruction.Substring(0,1200) }
     if (@('uniform','layered','focus') -notcontains [string]$result.transparencyMode) { $result.transparencyMode = 'uniform' }
     $result.opacity = [Math]::Max(0.0, [Math]::Min(1.0, [double]$result.opacity))
+    $result.hudWidth = [Math]::Max(360.0, [Math]::Min(1600.0, [double]$result.hudWidth))
     if (@('solid','gradient','image') -notcontains [string]$result.themeStyle.surface) { $result.themeStyle.surface = 'solid' }
     if (@('uniform','uniformToFill','fill','none') -notcontains [string]$result.themeStyle.imageStretch) { $result.themeStyle.imageStretch = 'uniformToFill' }
     if (@('none','soft','deep') -notcontains [string]$result.themeStyle.shadow) { $result.themeStyle.shadow = 'soft' }
@@ -317,7 +319,7 @@ function Get-HudConfig {
     $result.themeStyle.imageOpacity = [Math]::Max(0.05, [Math]::Min(1.0, [double]$result.themeStyle.imageOpacity))
     $result.themeStyle.borderWidth = [Math]::Max(0, [Math]::Min(4.0, [double]$result.themeStyle.borderWidth))
     $result.themeStyle.statusDotSize = [Math]::Max(5.0, [Math]::Min(18.0, [double]$result.themeStyle.statusDotSize))
-    if ([string]::IsNullOrWhiteSpace([string]$result.themeStyle.fontFamily)) { $result.themeStyle.fontFamily = 'Segoe UI Variable Text, Microsoft YaHei UI' }
+    if ([string]::IsNullOrWhiteSpace([string]$result.themeStyle.fontFamily) -or [string]$result.themeStyle.fontFamily -eq 'Segoe UI Variable Text, Microsoft YaHei UI') { $result.themeStyle.fontFamily = 'HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI' }
     $result.statusTiming.terminalHoldSeconds = [Math]::Max(0, [Math]::Min(1800, [int]$result.statusTiming.terminalHoldSeconds))
     if ($null -eq $result.statusTiming.PSObject.Properties['terminalExitMode'] -or @('fade','gentle','focus','beacon') -notcontains [string]$result.statusTiming.terminalExitMode) { $result.statusTiming.terminalExitMode = 'gentle' }
     $result.pricing.path = [string]$result.pricing.path
