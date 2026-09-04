@@ -31,6 +31,7 @@ internal sealed partial class HudApplicationController : IDisposable
     private readonly MainHudView _view;
     private readonly HudCommandSurfaces _commands;
     private readonly DispatcherTimer _timer;
+    private readonly Dictionary<string, int> _completionRevisions = new(StringComparer.OrdinalIgnoreCase);
     private readonly string _heartbeatPath;
     private readonly string _hostsRoot;
     private readonly string _notificationsRoot;
@@ -118,6 +119,7 @@ internal sealed partial class HudApplicationController : IDisposable
         var now = DateTimeOffset.Now;
         _engine.RefreshActiveSessions(now);
         _engine.Poll(now);
+        InitializeCompletionRevisions();
         StartOfficialAllowanceRead(now);
         _lastReconciliation = now;
         _lastRuntimeReconciliation = now;
@@ -342,6 +344,8 @@ internal sealed partial class HudApplicationController : IDisposable
                 _responsiveUntil = now.AddSeconds(2);
             }
         }
+
+        PlayCompletionSoundForTransitions();
 
         changed |= CompleteOrStartOfficialAllowanceRead(now);
         var overallStatus = GetOverallStatus(now);
@@ -625,6 +629,57 @@ internal sealed partial class HudApplicationController : IDisposable
             _view.MergeAll();
         }
         Render(force: true);
+    }
+
+    private void InitializeCompletionRevisions()
+    {
+        _completionRevisions.Clear();
+        foreach (var state in _engine.States.Values)
+        {
+            _completionRevisions[state.Path] = state.CompletionRevision;
+        }
+    }
+
+    private void PlayCompletionSoundForTransitions()
+    {
+        var livePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var completionDetected = false;
+        foreach (var state in _engine.States.Values)
+        {
+            livePaths.Add(state.Path);
+            _completionRevisions.TryGetValue(state.Path, out var previousRevision);
+            if (state.CompletionRevision > previousRevision)
+            {
+                completionDetected = true;
+            }
+            _completionRevisions[state.Path] = state.CompletionRevision;
+        }
+
+        foreach (var stalePath in _completionRevisions.Keys.Where(path => !livePaths.Contains(path)).ToArray())
+        {
+            _completionRevisions.Remove(stalePath);
+        }
+
+        if (!completionDetected || _settings.CompletionSound == "off")
+        {
+            return;
+        }
+
+        try
+        {
+            var sound = _settings.CompletionSound switch
+            {
+                "exclamation" => System.Media.SystemSounds.Exclamation,
+                "beep" => System.Media.SystemSounds.Beep,
+                _ => System.Media.SystemSounds.Asterisk
+            };
+            sound.Play();
+            _log.Write($"Completion sound played: {_settings.CompletionSound}");
+        }
+        catch (InvalidOperationException exception)
+        {
+            _log.Write("Completion sound failed: " + exception.Message);
+        }
     }
 
     private void ResetOfficialAllowanceWhenSourceChanges()

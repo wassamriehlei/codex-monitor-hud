@@ -311,6 +311,7 @@ void TestSessionEngine()
         Equal("session-1", state.SessionId, "engine session id");
         Equal("Synthetic engine title", state.ConversationLabel, "official session index title");
         Equal("engine-workspace", state.Workspace, "engine workspace");
+        Equal(0, state.CompletionRevision, "initial scan does not create a completion notification");
 
         var waitingPath = Path.Combine(sessions, "waiting-session.jsonl");
         File.WriteAllText(waitingPath, string.Join('\n', new[]
@@ -330,13 +331,16 @@ void TestSessionEngine()
         File.AppendAllText(sessionPath, """{"timestamp":"2026-07-17T08:00:01Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"turn-1","last_agent_message":"Done."}}""", new UTF8Encoding(false));
         IsTrue(engine.Poll(now), "completion record consumed");
         Equal(DateTimeOffset.MinValue, state.TerminalAt, "completion grace retained");
+        Equal(0, state.CompletionRevision, "pending completion does not notify early");
         engine.HoldTerminalExits = true;
         IsTrue(engine.Poll(now.AddSeconds(8)), "completion grace advanced");
         Equal("completed", state.TerminalStatus, "completion confirmed");
+        Equal(1, state.CompletionRevision, "confirmed visible completion advances notification revision");
         IsTrue(!state.TerminalExitStarted, "quiet task layout holds terminal exit");
         engine.HoldTerminalExits = false;
         IsTrue(engine.Poll(now.AddSeconds(8.1)), "terminal exit starts after quiet layout expands");
         IsTrue(state.TerminalExitStarted, "terminal exit released");
+        Equal(1, state.CompletionRevision, "lifecycle polling does not duplicate a completion notification");
 
         File.AppendAllText(sessionPath, "\n" + """{"timestamp":"2026-07-17T08:00:09Z","type":"event_msg","payload":{"type":"task_started","turn_id":"turn-2"}}""", new UTF8Encoding(false));
         IsTrue(engine.Poll(now.AddSeconds(9)), "continuation consumed");
@@ -346,6 +350,7 @@ void TestSessionEngine()
         File.AppendAllText(sessionPath, "\n" + """{"timestamp":"2026-07-17T08:00:09.5Z","type":"event_msg","payload":{"type":"task_complete","turn_id":"turn-2","last_agent_message":""}}""", new UTF8Encoding(false));
         IsTrue(engine.Poll(now.AddSeconds(9.5)), "silent completion record consumed");
         Equal(string.Empty, state.TerminalStatus, "silent completion keeps the task monitorable");
+        Equal(1, state.CompletionRevision, "silent completion does not advance notification revision");
 
         var irrelevant = "{\"timestamp\":\"2026-07-17T08:00:10Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"internal_progress\"}}\n";
         var burst = "\n" + string.Concat(Enumerable.Repeat(irrelevant, 5_000)) +
@@ -694,7 +699,7 @@ void TestConfiguration()
         File.Copy(Path.Combine(repositoryRoot, "locales", "en.json"), Path.Combine(pluginRoot, "locales", "en.json"));
         var paths = HudPaths.Create(pluginRoot, localRoot, home);
         Directory.CreateDirectory(paths.StateRoot);
-        File.WriteAllText(paths.ConfigPath, """{"multiTask":"corrupt","behavior":{"contextAlerts":"corrupt"},"opacity":-0.01,"alwaysOnTop":"yes","fontSize":"large","fields":{"context":"yes"},"statusColors":{"active":17}}""");
+        File.WriteAllText(paths.ConfigPath, """{"multiTask":"corrupt","behavior":{"contextAlerts":"corrupt"},"completionSound":"invalid","opacity":-0.01,"alwaysOnTop":"yes","fontSize":"large","fields":{"context":"yes"},"statusColors":{"active":17}}""");
         var config = HudConfigStore.Load(paths);
         Equal("summary", config["multiTask"]!["displayMode"]!.GetValue<string>(), "object/scalar corruption recovery");
         Equal(0d, config["opacity"]!.GetValue<double>(), "opacity clamp");
@@ -707,16 +712,20 @@ void TestConfiguration()
         Equal(14d, settings.FontSize, "wrong scalar type retains default number");
         Equal(false, settings.Fields["context"], "wrong nested scalar type retains default");
         Equal("#FF34C759", settings.StatusColors["active"], "wrong dictionary scalar type retains default");
+        Equal("off", settings.CompletionSound, "invalid completion sound falls back to off");
         ((JsonObject)config["agentNotifications"]!)["enabled"] = true;
         ((JsonObject)config["agentNotifications"]!)["permission"] = "expressive";
+        config["completionSound"] = "exclamation";
         settings = HudSettings.From(config);
         Equal(true, settings.AgentNotifications.Enabled, "typed agent-notification boolean projection");
         Equal("expressive", settings.AgentNotifications.Permission, "typed agent-notification permission projection");
+        Equal("exclamation", settings.CompletionSound, "typed completion-sound projection");
         HudConfigStore.Save(paths, config);
         NotNull(JsonNode.Parse(File.ReadAllText(paths.ConfigPath)), "saved config JSON");
         var reloaded = HudSettings.From(HudConfigStore.Load(paths));
         Equal(true, reloaded.AgentNotifications.Enabled, "saved agent-notification boolean survives config merge");
         Equal("expressive", reloaded.AgentNotifications.Permission, "saved agent-notification permission survives config merge");
+        Equal("exclamation", reloaded.CompletionSound, "saved completion sound survives config merge");
         Equal(0, Directory.EnumerateFiles(paths.StateRoot, "settings.json.*.tmp").Count(), "atomic config save leaves no temporary file");
     });
 }

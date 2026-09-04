@@ -291,6 +291,7 @@ function Get-HudConfig {
         $result.attention | Add-Member -NotePropertyName completionGraceSeconds -NotePropertyValue 8
     }
     $result.attention.completionGraceSeconds = [Math]::Max(0, [Math]::Min(30, [int]$result.attention.completionGraceSeconds))
+    if (@('off','asterisk','exclamation','beep') -notcontains [string]$result.completionSound) { $result.completionSound = 'off' }
     if (@('text','expressive') -notcontains [string]$result.agentNotifications.permission) { $result.agentNotifications.permission='text' }
     if (@('halo','breathe','flow','focus') -notcontains [string]$result.agentNotifications.mode) { $result.agentNotifications.mode='focus' }
     if (@('violet','aqua','amber','custom') -notcontains [string]$result.agentNotifications.glowPreset) { $result.agentNotifications.glowPreset='violet' }

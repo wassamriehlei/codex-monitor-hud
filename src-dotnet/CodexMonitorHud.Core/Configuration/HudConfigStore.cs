@@ -145,6 +145,7 @@ public static partial class HudConfigStore
         SetBool(result, GetBool(result, true, "attention", "dotBreathing"), "attention", "dotBreathing");
         SetInt(result, Math.Clamp(GetInt(result, 6, "attention", "durationSeconds"), 2, 15), "attention", "durationSeconds");
         SetInt(result, Math.Clamp(GetInt(result, 8, "attention", "completionGraceSeconds"), 0, 30), "attention", "completionGraceSeconds");
+        SetAllowed(result, "off", new[] { "off", "asterisk", "exclamation", "beep" }, "completionSound");
 
         SetAllowed(result, "text", new[] { "text", "expressive" }, "agentNotifications", "permission");
         SetAllowed(result, "focus", new[] { "halo", "breathe", "flow", "focus" }, "agentNotifications", "mode");

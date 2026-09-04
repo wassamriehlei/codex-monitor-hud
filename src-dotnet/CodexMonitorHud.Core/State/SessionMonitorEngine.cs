@@ -804,6 +804,7 @@ public sealed class SessionMonitorEngine
         state.TerminalStatus = "completed";
         state.TerminalAt = state.PendingCompletionAt == DateTimeOffset.MinValue ? now : state.PendingCompletionAt;
         state.TerminalSilent = false;
+        state.CompletionRevision++;
         ResetTerminalExit(state);
         ClearPendingCompletion(state);
         SetAttention(state, "completed", now);

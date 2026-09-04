@@ -27,6 +27,7 @@ public sealed class SessionState
     public DateTimeOffset TerminalExitUntil { get; set; } = DateTimeOffset.MinValue;
     public int TerminalExitRevision { get; set; }
     public bool HasObservedActivity { get; set; }
+    public int CompletionRevision { get; set; }
     public int AttentionRevision { get; set; }
     public string AttentionReason { get; set; } = string.Empty;
     public DateTimeOffset AttentionUntil { get; set; } = DateTimeOffset.MinValue;

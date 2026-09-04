@@ -473,6 +473,8 @@ $attentionDurationCombo = Find-Control $settings 'AttentionDurationCombo'
 $attentionCompletedCheck = Find-Control $settings 'AttentionCompletedCheck'
 $attentionErrorCheck = Find-Control $settings 'AttentionErrorCheck'
 $attentionSettledCheck = Find-Control $settings 'AttentionSettledCheck'
+$completionSoundCombo = Find-Control $settings 'CompletionSoundCombo'
+$completionSoundPreviewButton = Find-Control $settings 'CompletionSoundPreviewButton'
 $agentNotificationEnabledCheck = Find-Control $settings 'AgentNotificationEnabledCheck'
 $agentNotificationPermissionCombo = Find-Control $settings 'AgentNotificationPermissionCombo'
 $agentNotificationModeCombo = Find-Control $settings 'AgentNotificationModeCombo'
@@ -591,7 +593,7 @@ foreach ($name in @(
     'DisplayModeLabel','TaskNameModeLabel','MaxSplitLabel','NumberCooldownLabel','ListFieldsTitle','ListDetailHint','TaskBubbleFieldsTitle','TaskBubbleResizeHint',
     'ListDensityLabel',
     'ListStyleLabel','AgentNotificationTitle','AgentNotificationHint','AgentNotificationPermissionLabel','AgentNotificationModeLabel','AgentNotificationGlowPresetLabel','AgentNotificationIntensityLabel','AgentNotificationDurationLabel','AgentNotificationColorLabel','QuotaGuardTitle','QuotaGuardHint','OfficialAllowanceEnabledCheck','QuotaGuardThresholdHint','QuotaGuardPrepareLabel','QuotaGuardPrepareSubLabel','QuotaGuardHandoffLabel','QuotaGuardHandoffSubLabel','QuotaGuardFiveHourLabel','QuotaGuardFiveHourLabel2','QuotaGuardWeeklyShortLabel','QuotaGuardWeeklyShortLabel2','QuotaGuardTemplatesTitle','QuotaGuardTemplatesHint','QuotaGuardPrepareInstructionLabel','QuotaGuardHandoffInstructionLabel',
-    'AttentionTitle','AttentionHint','AttentionTriggersTitle','AttentionSurfacesTitle','SummaryAttentionModeLabel','ListAttentionModeLabel','TaskBubbleAttentionModeLabel','AttentionDurationLabel',
+    'AttentionTitle','AttentionHint','AttentionTriggersTitle','CompletionSoundLabel','AttentionSurfacesTitle','SummaryAttentionModeLabel','ListAttentionModeLabel','TaskBubbleAttentionModeLabel','AttentionDurationLabel',
     'DotAttentionTitle','DotAttentionHint','DotPatternLabel','DotBrightnessLabel','DotSpeedLabel',
     'TransparencyModeLabel','TransparencyHint','BehaviorTitle','BehaviorHint','TaskNavigationTitle','TaskNavigationHint',
     'IdleIndicatorTitle','IdleIndicatorHint','IdleIndicatorDelayLabel','IdleIndicatorLayoutLabel','IdleIndicatorTaskStyleLabel','ContextAlertsTitle','ContextAlertsHint','ContextThresholdsLabel',
@@ -613,6 +615,7 @@ foreach ($name in @(
     'SummaryAttentionOffItem','SummaryAttentionHaloItem','SummaryAttentionBubbleItem','SummaryAttentionFlowItem','SummaryAttentionFocusItem',
     'ListAttentionOffItem','ListAttentionHaloItem','ListAttentionBubbleItem','ListAttentionFlowItem','ListAttentionFocusItem',
     'TaskBubbleAttentionOffItem','TaskBubbleAttentionHaloItem','TaskBubbleAttentionBubbleItem','TaskBubbleAttentionFlowItem','TaskBubbleAttentionFocusItem',
+    'CompletionSoundOffItem','CompletionSoundAsteriskItem','CompletionSoundExclamationItem','CompletionSoundBeepItem','CompletionSoundPreviewButton',
     'AgentNotificationTextPermissionItem','AgentNotificationExpressivePermissionItem',
     'AgentNotificationHaloItem','AgentNotificationBreatheItem','AgentNotificationFlowItem','AgentNotificationFocusItem',
     'AgentNotificationVioletItem','AgentNotificationAquaItem','AgentNotificationAmberItem','AgentNotificationCustomItem',
@@ -716,7 +719,7 @@ function Apply-SettingsLanguage {
         AgentNotificationModeLabel='agentNotificationMode'; AgentNotificationGlowPresetLabel='agentNotificationGlowPreset'; AgentNotificationIntensityLabel='agentNotificationIntensity';
         AgentNotificationDurationLabel='agentNotificationDuration'; AgentNotificationColorLabel='agentNotificationColor';
         QuotaGuardTitle='quotaGuardTitle'; QuotaGuardHint='quotaGuardHint'; QuotaGuardThresholdHint='quotaGuardThresholdHint'; QuotaGuardPrepareLabel='quotaGuardPrepare'; QuotaGuardPrepareSubLabel='quotaGuardPrepareSub'; QuotaGuardHandoffLabel='quotaGuardHandoff'; QuotaGuardHandoffSubLabel='quotaGuardHandoffSub'; QuotaGuardFiveHourLabel='quotaGuardFiveHourShort'; QuotaGuardFiveHourLabel2='quotaGuardFiveHourShort'; QuotaGuardWeeklyShortLabel='quotaGuardWeeklyShort'; QuotaGuardWeeklyShortLabel2='quotaGuardWeeklyShort'; QuotaGuardTemplatesTitle='quotaGuardTemplatesTitle'; QuotaGuardTemplatesHint='quotaGuardTemplatesHint'; QuotaGuardPrepareInstructionLabel='quotaGuardPrepareInstruction'; QuotaGuardHandoffInstructionLabel='quotaGuardHandoffInstruction';
-        AttentionTitle='attentionTitle'; AttentionHint='attentionHint'; AttentionTriggersTitle='attentionTriggersTitle'; AttentionSurfacesTitle='attentionSurfacesTitle';
+        AttentionTitle='attentionTitle'; AttentionHint='attentionHint'; AttentionTriggersTitle='attentionTriggersTitle'; CompletionSoundLabel='completionSound'; AttentionSurfacesTitle='attentionSurfacesTitle';
         SummaryAttentionModeLabel='attentionSummaryMode'; ListAttentionModeLabel='attentionListMode'; TaskBubbleAttentionModeLabel='attentionTaskBubbleMode'; AttentionDurationLabel='attentionDuration';
         DotAttentionTitle='dotAttentionTitle'; DotAttentionHint='dotAttentionHint'; DotPatternLabel='dotPattern'; DotBrightnessLabel='dotBrightness'; DotSpeedLabel='dotSpeed';
         TransparencyModeLabel='transparencyMode'; TransparencyHint='transparencyHint';
@@ -753,6 +756,7 @@ function Apply-SettingsLanguage {
         SummaryAttentionOffItem='attentionOff'; SummaryAttentionHaloItem='attentionHalo'; SummaryAttentionBubbleItem='attentionBubble'; SummaryAttentionFlowItem='attentionFlow'; SummaryAttentionFocusItem='attentionFocus';
         ListAttentionOffItem='attentionOff'; ListAttentionHaloItem='attentionHalo'; ListAttentionBubbleItem='attentionBubble'; ListAttentionFlowItem='attentionFlow'; ListAttentionFocusItem='attentionFocus';
         TaskBubbleAttentionOffItem='attentionOff'; TaskBubbleAttentionHaloItem='attentionHalo'; TaskBubbleAttentionBubbleItem='attentionBubble'; TaskBubbleAttentionFlowItem='attentionFlow'; TaskBubbleAttentionFocusItem='attentionFocus';
+        CompletionSoundOffItem='completionSoundOff'; CompletionSoundAsteriskItem='completionSoundAsterisk'; CompletionSoundExclamationItem='completionSoundExclamation'; CompletionSoundBeepItem='completionSoundBeep'; CompletionSoundPreviewButton='completionSoundPreview';
         AgentNotificationTextPermissionItem='agentNotificationPermissionText'; AgentNotificationExpressivePermissionItem='agentNotificationPermissionExpressive';
         AgentNotificationHaloItem='agentNotificationHalo'; AgentNotificationBreatheItem='agentNotificationBreathe'; AgentNotificationFlowItem='agentNotificationFlow'; AgentNotificationFocusItem='agentNotificationFocus';
         AgentNotificationVioletItem='agentNotificationViolet'; AgentNotificationAquaItem='agentNotificationAqua'; AgentNotificationAmberItem='agentNotificationAmber'; AgentNotificationCustomItem='agentNotificationCustom';
@@ -1390,6 +1394,22 @@ function Set-TaskAttention {
     Write-HudDebug ('Attention triggered: {0} {1} r{2}' -f [string]$State.Workspace,$Reason,[int]$State.AttentionRevision)
 }
 
+function Invoke-HudCompletionSound {
+    param([string]$Sound = ([string]$config.completionSound))
+    if ($Sound -eq 'off') { return }
+    try {
+        $player = switch ($Sound) {
+            'exclamation' { [System.Media.SystemSounds]::Exclamation }
+            'beep' { [System.Media.SystemSounds]::Beep }
+            default { [System.Media.SystemSounds]::Asterisk }
+        }
+        $player.Play()
+        Write-HudDebug ('Completion sound played: ' + $Sound)
+    } catch {
+        Write-HudDebug ('Completion sound failed: ' + $_.Exception.Message)
+    }
+}
+
 function Clear-PendingTaskCompletion {
     param($State)
     $State.PendingCompletionTurnId = ''
@@ -1466,6 +1486,7 @@ function Confirm-PendingTaskCompletion {
     Reset-TerminalExitState $State
     Clear-PendingTaskCompletion $State
     Set-TaskAttention $State 'completed'
+    Invoke-HudCompletionSound
     return $true
 }
 
@@ -3187,6 +3208,7 @@ function Sync-ControlsFromConfig {
         Select-ComboTag $dotBrightnessCombo ([string]$config.attention.dotBrightness)
         Select-ComboTag $dotSpeedCombo ([string]$config.attention.dotSpeed)
         Select-ComboTag $attentionDurationCombo ([string][int]$config.attention.durationSeconds)
+        Select-ComboTag $completionSoundCombo ([string]$config.completionSound)
         Select-ComboTag $agentNotificationPermissionCombo ([string]$config.agentNotifications.permission)
         Select-ComboTag $agentNotificationModeCombo ([string]$config.agentNotifications.mode)
         Select-ComboTag $agentNotificationGlowPresetCombo ([string]$config.agentNotifications.glowPreset)
@@ -3319,6 +3341,7 @@ function Apply-ControlsToConfig {
     $dotBrightness = Get-ComboTag $dotBrightnessCombo
     $dotSpeed = Get-ComboTag $dotSpeedCombo
     $attentionDuration = Get-ComboTag $attentionDurationCombo
+    $completionSound = Get-ComboTag $completionSoundCombo
     $agentNotificationPermission = Get-ComboTag $agentNotificationPermissionCombo
     $agentNotificationMode = Get-ComboTag $agentNotificationModeCombo
     $agentNotificationGlowPreset = Get-ComboTag $agentNotificationGlowPresetCombo
@@ -3364,6 +3387,7 @@ function Apply-ControlsToConfig {
     if ($dotBrightness) { $config.attention.dotBrightness = $dotBrightness }
     if ($dotSpeed) { $config.attention.dotSpeed = $dotSpeed }
     if ($attentionDuration) { $config.attention.durationSeconds = [int]$attentionDuration }
+    if ($completionSound) { $config.completionSound = $completionSound }
     if ($agentNotificationPermission) { $config.agentNotifications.permission = $agentNotificationPermission }
     if ($agentNotificationMode) { $config.agentNotifications.mode = $agentNotificationMode }
     if ($agentNotificationGlowPreset) {
@@ -4195,7 +4219,7 @@ function Apply-SliderPreview {
 $liveControls = @(
     $languageCombo,$layoutCombo,$numberCombo,$positionCombo,$monitorScopeCombo,$activeWindowCombo,$taskRetentionCombo,$terminalExitModeCombo,
     $displayModeCombo,$listStyleCombo,$listDensityCombo,$listDetailCombo,$taskNameModeCombo,$maxSplitCombo,$numberCooldownCombo,
-    $summaryAttentionModeCombo,$listAttentionModeCombo,$taskBubbleAttentionModeCombo,$dotPatternCombo,$dotBrightnessCombo,$dotSpeedCombo,$attentionDurationCombo,$transparencyModeCombo,
+    $summaryAttentionModeCombo,$listAttentionModeCombo,$taskBubbleAttentionModeCombo,$dotPatternCombo,$dotBrightnessCombo,$dotSpeedCombo,$attentionDurationCombo,$completionSoundCombo,$transparencyModeCombo,
     $agentNotificationPermissionCombo,$agentNotificationModeCombo,$agentNotificationIntensityCombo,$agentNotificationDurationCombo,
     $idleIndicatorDelayCombo,$idleIndicatorLayoutCombo,$idleIndicatorTaskStyleCombo,
     $alwaysOnTopCheck,$mousePassthroughCheck,$statusDotCheck,$animateCheck,$autoSplitCheck,$sourceDesktopCheck,$sourceVsCodeCheck,$sourceDefaultCliCheck,$sourceDeepSeekCliCheck,
@@ -4206,6 +4230,10 @@ foreach ($control in $liveControls) {
     if ($control -is [Windows.Controls.ComboBox]) { $control.Add_SelectionChanged({ Apply-ControlsToConfig }) }
     else { $control.Add_Click({ Apply-ControlsToConfig }) }
 }
+$completionSoundPreviewButton.Add_Click({
+    $sound = Get-ComboTag $completionSoundCombo
+    if ($sound) { Invoke-HudCompletionSound $sound }
+})
 foreach ($control in @($contextThreshold1Text,$contextThreshold2Text,$contextThreshold3Text)) { $control.Add_LostFocus({ Apply-ControlsToConfig }) }
 $contextAlertsEnabledCheck.Add_Click({
     if($syncingControls){return}

@@ -27,6 +27,7 @@ The Windows Release bundles a private .NET/WPF runtime so it can run without req
 - A source badge before every task number, so Desktop, VS Code, OpenAI CLI, and DeepSeek CLI work cannot be mistaken for one another.
 - Cache hit rate and context usage are per-task signals, so they stay on list rows and detached bubbles instead of being meaninglessly added into the summary. Each row uses that task's provider-reported context window; GPT and DeepSeek values are never mixed.
 - Optional API-list-price equivalent cost estimate, clearly marked as an estimate rather than a subscription bill or credit balance.
+- Optional completion sound after the false-positive grace period, with Off, system notification, prominent alert, and classic beep choices plus an in-Settings preview.
 
 ![English task-list screenshot with weekly and 5-hour allowance](assets/hud-multitask-en.png)
 

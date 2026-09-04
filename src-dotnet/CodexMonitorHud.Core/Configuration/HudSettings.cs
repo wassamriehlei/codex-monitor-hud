@@ -110,6 +110,7 @@ public sealed record HudSettings
     public required MultiTaskSettings MultiTask { get; init; }
     public required BehaviorSettings Behavior { get; init; }
     public required AttentionSettings Attention { get; init; }
+    public required string CompletionSound { get; init; }
     public required AgentNotificationSettings AgentNotifications { get; init; }
     public required QuotaGuardSettings QuotaGuard { get; init; }
     public required OfficialAllowanceSettings OfficialAllowance { get; init; }
@@ -199,6 +200,7 @@ public sealed record HudSettings
                 Boolean(attention, "onCompleted", true),
                 Boolean(attention, "onAbortedOrError", true),
                 Boolean(attention, "onSettled")),
+            CompletionSound = Text(document, "completionSound", "off"),
             AgentNotifications = new AgentNotificationSettings(
                 Boolean(notices, "enabled"),
                 Text(notices, "permission", "text"),

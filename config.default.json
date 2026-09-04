@@ -70,6 +70,7 @@
     "onAbortedOrError": true,
     "onSettled": false
   },
+  "completionSound": "off",
   "agentNotifications": {
     "enabled": false,
     "permission": "text",
