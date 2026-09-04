@@ -59,19 +59,20 @@
       <DockPanel LastChildFill="True">
         <Ellipse x:Name="TaskBubbleStatusDot" DockPanel.Dock="Left" Width="8" Height="8" Margin="0,0,9,0" VerticalAlignment="Center" />
         <Button x:Name="TaskBubbleDismissButton" DockPanel.Dock="Right" Style="{StaticResource HudIconButton}" Margin="5,0,0,0">
-          <Viewbox Width="12" Height="12">
-            <Path Data="M2.5,2.5 L9.5,9.5 M9.5,2.5 L2.5,9.5"
+          <Viewbox Width="14" Height="14">
+            <Path Data="M18,6 L6,18 M6,6 L18,18"
                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
-                  StrokeThickness="1.45"
+                  StrokeThickness="1.8"
                   StrokeStartLineCap="Round"
-                  StrokeEndLineCap="Round" />
+                  StrokeEndLineCap="Round"
+                  StrokeLineJoin="Round" />
           </Viewbox>
         </Button>
         <Button x:Name="TaskBubbleMergeButton" DockPanel.Dock="Right" Style="{StaticResource HudIconButton}" Margin="9,0,0,0">
-          <Viewbox Width="13" Height="13">
-            <Path Data="M1.5,1.5 L10.5,1.5 L10.5,10.5 L1.5,10.5 Z M9.1,2.9 L4.1,7.9 M4.1,4.8 L4.1,7.9 L7.2,7.9"
+          <Viewbox Width="15" Height="15">
+            <Path Data="M14,10 L21,3 M20,10 H14 V4 M3,21 L10,14 M4,14 H10 V20"
                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
-                  StrokeThickness="1.35"
+                  StrokeThickness="1.7"
                   StrokeStartLineCap="Round"
                   StrokeEndLineCap="Round"
                   StrokeLineJoin="Round" />
@@ -113,11 +114,17 @@
       <Thumb.Template>
         <ControlTemplate TargetType="{x:Type Thumb}">
           <Grid Background="Transparent">
-            <Path Data="M4,13 L13,4 M8,13 L13,8"
+            <Path Data="M19,13 V19 H13 M5,11 V5 H11 M19,5 L12,12 M5,19 L12,12"
                   Stroke="#A60A84FF"
-                  StrokeThickness="1.35"
+                  StrokeThickness="1.6"
+                  Stretch="Uniform"
+                  Width="14"
+                  Height="14"
+                  HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
                   StrokeStartLineCap="Round"
-                  StrokeEndLineCap="Round" />
+                  StrokeEndLineCap="Round"
+                  StrokeLineJoin="Round" />
           </Grid>
         </ControlTemplate>
       </Thumb.Template>

@@ -83,7 +83,7 @@ Metric values update in place. List rows rebuild only when their structural proj
 
 Attention is surface-local: summary mode affects the summary, list mode the matching row, and split mode the matching independent bubble. Context alerts animate only the context metric.
 
-Each visible task has exactly one source badge after its status dot and before its stable number. Desktop uses a window outline, VS Code uses its compact ribbon, normal OpenAI CLI uses a terminal mark, and the isolated DeepSeek CLI profile uses a wave-terminal mark. Closing a detached bubble changes only its projection ownership and merges it back into the main HUD; list-row dismissal is the separate operation that temporarily removes a task from the visible set.
+Each visible task has exactly one source badge after its status dot and before its stable number. The shared Lucide-derived visual language uses a monitor for Desktop, code brackets for VS Code, a terminal prompt for the normal OpenAI CLI, and horizontal waves for the isolated DeepSeek CLI profile. Closing a detached bubble changes only its projection ownership and merges it back into the main HUD; list-row dismissal is the separate operation that temporarily removes a task from the visible set.
 
 ## Settings process
 

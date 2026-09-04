@@ -31,4 +31,7 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool GetCursorPos(out Point point);
+
+    [LibraryImport("user32.dll")]
+    internal static partial int SetWindowCompositionAttribute(nint window, ref WindowBackdrop.WindowCompositionAttributeData data);
 }

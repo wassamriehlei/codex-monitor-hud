@@ -40,8 +40,13 @@ public sealed record IdleIndicatorSettings(
     string TaskStyle,
     bool IncludeTaskBubbles);
 
+public sealed record EdgeSnapSettings(
+    bool Enabled,
+    double Distance);
+
 public sealed record BehaviorSettings(
     bool OpenTaskOnDoubleClick,
+    EdgeSnapSettings EdgeSnap,
     IdleIndicatorSettings IdleIndicator,
     bool ContextAlertsEnabled,
     IReadOnlyList<double> ContextThresholds);
@@ -82,6 +87,7 @@ public sealed record QuotaGuardSettings(
 public sealed record OfficialAllowanceSettings(bool Enabled);
 
 public sealed record ThemeStyleSettings(
+    string Backdrop,
     string Surface,
     string GradientStart,
     string GradientEnd,
@@ -149,6 +155,7 @@ public sealed record HudSettings
         var multi = Object(document, "multiTask");
         var sources = Object(document, "sessionSources");
         var behavior = Object(document, "behavior");
+        var edgeSnap = Object(behavior, "edgeSnap");
         var idle = Object(behavior, "idleIndicator");
         var context = Object(behavior, "contextAlerts");
         var attention = Object(document, "attention");
@@ -184,6 +191,9 @@ public sealed record HudSettings
                 MetricFields(Object(multi, "bubbleFields"))),
             Behavior = new BehaviorSettings(
                 Boolean(behavior, "openTaskOnDoubleClick"),
+                new EdgeSnapSettings(
+                    Boolean(edgeSnap, "enabled", true),
+                    Number(edgeSnap, "distance", 28)),
                 new IdleIndicatorSettings(
                     Boolean(idle, "enabled"),
                     Number(idle, "afterMinutes", 15),
@@ -240,6 +250,7 @@ public sealed record HudSettings
             ShowStatusDot = Boolean(document, "showStatusDot", true),
             AnimateUpdates = Boolean(document, "animateUpdates", true),
             ThemeStyle = new ThemeStyleSettings(
+                Text(theme, "backdrop", "acrylic"),
                 Text(theme, "surface", "solid"),
                 Text(theme, "gradientStart"),
                 Text(theme, "gradientEnd"),

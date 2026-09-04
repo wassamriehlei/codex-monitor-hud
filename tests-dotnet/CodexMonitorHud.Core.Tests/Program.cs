@@ -683,6 +683,12 @@ void TestPlacement()
     var unsnapped = HudPlacement.ClampCustom(12 - 18, 15 - 18, 0, 0, 1920, 1040, 700, 80, 18);
     Equal(-6d, unsnapped.Left, "near-left custom placement is not snapped");
     Equal(-3d, unsnapped.Top, "near-top custom placement is not snapped");
+    var snappedCorner = HudPlacement.SnapCustom(10, 960, 0, 0, 1920, 1040, 700, 80, 18, 28);
+    Equal(-18d, snappedCorner.Left, "near-left placement snaps visible shell to work area");
+    Equal(978d, snappedCorner.Top, "near-bottom placement snaps visible shell to work area");
+    var free = HudPlacement.SnapCustom(240, 320, 0, 0, 1920, 1040, 700, 80, 18, 28);
+    Equal(240d, free.Left, "center placement remains freely positioned");
+    Equal(320d, free.Top, "center placement keeps its vertical position");
 }
 
 void TestSurfaceEffects()
@@ -723,6 +729,9 @@ void TestConfiguration()
         Equal("#FF34C759", settings.StatusColors["active"], "wrong dictionary scalar type retains default");
         Equal("off", settings.CompletionSound, "invalid completion sound falls back to off");
         Equal(900d, settings.HudWidth, "default HUD width projection");
+        Equal(true, settings.Behavior.EdgeSnap.Enabled, "edge snap defaults to enabled");
+        Equal(28d, settings.Behavior.EdgeSnap.Distance, "edge snap distance projection");
+        Equal("acrylic", settings.ThemeStyle.Backdrop, "native glass backdrop projection");
         IsTrue(settings.ThemeStyle.FontFamily.StartsWith("HarmonyOS Sans SC", StringComparison.Ordinal), "legacy default font migrates to HarmonyOS Sans SC");
         ((JsonObject)config["agentNotifications"]!)["enabled"] = true;
         ((JsonObject)config["agentNotifications"]!)["permission"] = "expressive";

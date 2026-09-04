@@ -261,6 +261,8 @@ function Get-HudConfig {
     }
     if (-not $languageAvailable) { $result.language = 'en' }
     $result.behavior.openTaskOnDoubleClick = [bool]$result.behavior.openTaskOnDoubleClick
+    $result.behavior.edgeSnap.enabled = [bool]$result.behavior.edgeSnap.enabled
+    $result.behavior.edgeSnap.distance = [Math]::Max(0.0,[Math]::Min(160.0,[double]$result.behavior.edgeSnap.distance))
     $result.behavior.idleIndicator.enabled = [bool]$result.behavior.idleIndicator.enabled
     $result.behavior.idleIndicator.includeTaskBubbles = [bool]$result.behavior.idleIndicator.includeTaskBubbles
     $result.behavior.idleIndicator.afterMinutes = [Math]::Max(0.01,[Math]::Min(1440,[double]$result.behavior.idleIndicator.afterMinutes))
@@ -312,6 +314,7 @@ function Get-HudConfig {
     if (@('uniform','layered','focus') -notcontains [string]$result.transparencyMode) { $result.transparencyMode = 'uniform' }
     $result.opacity = [Math]::Max(0.0, [Math]::Min(1.0, [double]$result.opacity))
     $result.hudWidth = [Math]::Max(360.0, [Math]::Min(1600.0, [double]$result.hudWidth))
+    if (@('none','blur','acrylic') -notcontains [string]$result.themeStyle.backdrop) { $result.themeStyle.backdrop = 'acrylic' }
     if (@('solid','gradient','image') -notcontains [string]$result.themeStyle.surface) { $result.themeStyle.surface = 'solid' }
     if (@('uniform','uniformToFill','fill','none') -notcontains [string]$result.themeStyle.imageStretch) { $result.themeStyle.imageStretch = 'uniformToFill' }
     if (@('none','soft','deep') -notcontains [string]$result.themeStyle.shadow) { $result.themeStyle.shadow = 'soft' }

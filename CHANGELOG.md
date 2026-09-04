@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased - UI customization and desktop polish
+
+- Add selectable completion sounds, including local WAV, MP3, WMA, M4A, and AAC files with an in-Settings preview.
+- Make the main HUD width adjustable, let summary metrics wrap responsively, and keep narrow task-row actions visible.
+- Let users choose an installed Windows font, prefer HarmonyOS Sans SC by default, and independently toggle directory, time, context, status/listening, model, cache hit rate, call total, task total, estimated cost, and update time in the main task list.
+- Add optional Windows Blur and Acrylic glass backdrops plus configurable automatic edge/corner snapping.
+- Refresh source and action artwork with offline Lucide-derived vector icons and include the ISC attribution in the distributed package.
+
 ## 3.2.1 - Windows Release installer repair
 
 - Make the verified Windows Release install use its bundled private runtime even when a system .NET SDK is present, rather than unexpectedly rebuilding source during installation.

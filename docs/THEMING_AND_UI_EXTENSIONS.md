@@ -17,7 +17,7 @@ ZIP packs cannot contain scripts, fonts, DLLs, remote resources, arbitrary file 
 
 Themes may style:
 
-- solid, gradient, or bounded local-image surfaces;
+- solid, gradient, or bounded local-image surfaces over an optional native Windows Blur/Acrylic backdrop;
 - ARGB foreground, muted, accent, border, and seven status colors;
 - typography, font size, radius, opacity, border width, shadow, and status-dot size;
 - metric layout, list style/density, and task-name visibility;

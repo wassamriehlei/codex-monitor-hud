@@ -43,6 +43,10 @@
   },
   "behavior": {
     "openTaskOnDoubleClick": false,
+    "edgeSnap": {
+      "enabled": true,
+      "distance": 28
+    },
     "idleIndicator": {
       "enabled": false,
       "afterMinutes": 15,
@@ -112,6 +116,7 @@
   "showStatusDot": true,
   "animateUpdates": true,
   "themeStyle": {
+    "backdrop": "acrylic",
     "surface": "solid",
     "gradientStart": "#EAF7F8FA",
     "gradientEnd": "#EAF7F8FA",

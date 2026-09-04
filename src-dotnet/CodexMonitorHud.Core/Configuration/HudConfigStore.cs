@@ -110,6 +110,8 @@ public static partial class HudConfigStore
         }
 
         SetBool(result, GetBool(result, false, "behavior", "openTaskOnDoubleClick"), "behavior", "openTaskOnDoubleClick");
+        SetBool(result, GetBool(result, true, "behavior", "edgeSnap", "enabled"), "behavior", "edgeSnap", "enabled");
+        SetDouble(result, Math.Clamp(GetDouble(result, 28, "behavior", "edgeSnap", "distance"), 0, 160), "behavior", "edgeSnap", "distance");
         SetBool(result, GetBool(result, false, "behavior", "idleIndicator", "enabled"), "behavior", "idleIndicator", "enabled");
         SetBool(result, GetBool(result, true, "behavior", "idleIndicator", "includeTaskBubbles"), "behavior", "idleIndicator", "includeTaskBubbles");
         SetDouble(result, Math.Clamp(GetDouble(result, 15, "behavior", "idleIndicator", "afterMinutes"), 0.01, 1440), "behavior", "idleIndicator", "afterMinutes");
@@ -176,6 +178,7 @@ public static partial class HudConfigStore
         SetAllowed(result, "uniform", new[] { "uniform", "layered", "focus" }, "transparencyMode");
         SetDouble(result, Math.Clamp(GetDouble(result, 0.97, "opacity"), 0, 1), "opacity");
         SetDouble(result, Math.Clamp(GetDouble(result, 900, "hudWidth"), 360, 1600), "hudWidth");
+        SetAllowed(result, "acrylic", new[] { "none", "blur", "acrylic" }, "themeStyle", "backdrop");
         SetAllowed(result, "solid", new[] { "solid", "gradient", "image" }, "themeStyle", "surface");
         SetAllowed(result, "uniformToFill", new[] { "uniform", "uniformToFill", "fill", "none" }, "themeStyle", "imageStretch");
         SetAllowed(result, "soft", new[] { "none", "soft", "deep" }, "themeStyle", "shadow");

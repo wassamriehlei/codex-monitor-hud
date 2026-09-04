@@ -5,6 +5,19 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $sourceRoot = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
+
+function Get-Sha256Hex {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $stream = [IO.File]::OpenRead($Path)
+    $algorithm = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-','').ToLowerInvariant()
+    } finally {
+        $algorithm.Dispose()
+        $stream.Dispose()
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
     $OutputRoot = Join-Path $sourceRoot ("artifacts\\release-v{0}-{1}" -f $Version,$stamp)
@@ -52,7 +65,7 @@ $packageFiles = Get-ChildItem -LiteralPath $stageRoot -File -Recurse -Force | Fo
 } | Sort-Object
 $packageFiles | Set-Content -LiteralPath (Join-Path $outputRoot 'PACKAGE_FILES.txt') -Encoding utf8
 Compress-Archive -Path (Join-Path $stageRoot '*') -DestinationPath $archivePath -CompressionLevel Optimal -Force
-$hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $archivePath).Hash.ToLowerInvariant()
+$hash = Get-Sha256Hex $archivePath
 "$hash  $archiveName" | Set-Content -LiteralPath (Join-Path $outputRoot 'SHA256SUMS.txt') -Encoding ascii
 
 $upload = @"

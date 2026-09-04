@@ -487,7 +487,7 @@
                       <StackPanel Orientation="Horizontal">
                         <Border Width="28" Height="28" CornerRadius="9" Background="#120A84FF" BorderBrush="#300A84FF" BorderThickness="1" Margin="2,0,10,0">
                           <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Path Data="M1.4,2.1 L12.6,2.1 Q13,2.1 13,2.5 L13,11.5 Q13,11.9 12.6,11.9 L1.4,11.9 Q1,11.9 1,11.5 L1,2.5 Q1,2.1 1.4,2.1 Z M1.4,4.8 L12.6,4.8 M3,3.45 L3.08,3.45 M4.75,3.45 L4.83,3.45" Stroke="#FF0A84FF" StrokeThickness="1.45" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            <Path Data="M4,3 H20 A2,2 0 0 1 22,5 V15 A2,2 0 0 1 20,17 H4 A2,2 0 0 1 2,15 V5 A2,2 0 0 1 4,3 M8,21 H16 M12,17 V21" Stroke="#FF0A84FF" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
                           </Viewbox>
                         </Border>
                         <TextBlock x:Name="SourceDesktopOptionText" Text="Codex 桌面端（OpenAI）" VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -497,7 +497,7 @@
                       <StackPanel Orientation="Horizontal">
                         <Border Width="28" Height="28" CornerRadius="9" Background="#12007ACC" BorderBrush="#30007ACC" BorderThickness="1" Margin="2,0,10,0">
                           <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Path Data="M11.52,0.29 A0.98,0.98 0 0 0 10.82,0.33 L4.21,3.33 L1.5,1.29 A1,1 0 0 0 0,2.09 L0,13.91 A1,1 0 0 0 1.5,14.71 L4.21,12.68 L10.82,15.67 A0.98,0.98 0 0 0 11.52,15.71 L15,14.11 A1,1 0 0 0 15.6,13 L15.6,3 A1,1 0 0 0 15,2.09 Z M11,11.26 L5.73,8 L11,4.74 Z" Fill="#FF007ACC" Stroke="#FF007ACC" StrokeThickness="0.8" StrokeLineJoin="Round" />
+                            <Path Data="M18,16 L22,12 L18,8 M6,8 L2,12 L6,16 M14.5,4 L9.5,20" Stroke="#FF007ACC" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
                           </Viewbox>
                         </Border>
                         <TextBlock x:Name="SourceVsCodeOptionText" Text="Codex in VS Code (OpenAI)" VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -507,7 +507,7 @@
                       <StackPanel Orientation="Horizontal">
                         <Border Width="28" Height="28" CornerRadius="9" Background="#128B5CF6" BorderBrush="#308B5CF6" BorderThickness="1" Margin="2,0,10,0">
                           <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Path Data="M1.4,2.1 L12.6,2.1 Q13,2.1 13,2.5 L13,11.5 Q13,11.9 12.6,11.9 L1.4,11.9 Q1,11.9 1,11.5 L1,2.5 Q1,2.1 1.4,2.1 Z M3,5.15 L5.85,7.15 L3,9.15 M7.15,9.15 L10.65,9.15" Stroke="#FF8B5CF6" StrokeThickness="1.45" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            <Path Data="M12,19 H20 M4,17 L10,11 L4,5" Stroke="#FF8B5CF6" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
                           </Viewbox>
                         </Border>
                         <TextBlock x:Name="SourceDefaultCliOptionText" Text="Codex CLI——默认 Profile（通常为 OpenAI / GPT）" VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -517,7 +517,7 @@
                       <StackPanel Orientation="Horizontal">
                         <Border Width="28" Height="28" CornerRadius="9" Background="#1200A7B5" BorderBrush="#3000A7B5" BorderThickness="1" Margin="2,0,10,0">
                           <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Path Data="M1.4,2.1 L12.6,2.1 Q13,2.1 13,2.5 L13,11.5 Q13,11.9 12.6,11.9 L1.4,11.9 Q1,11.9 1,11.5 L1,2.5 Q1,2.1 1.4,2.1 Z M2.8,8.4 C4.1,5.7 5.55,10.4 7.05,7.65 C8.15,5.65 9.3,7.25 11.2,5.75" Stroke="#FF00A7B5" StrokeThickness="1.45" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                            <Path Data="M2,12 Q4.5,14 7,12 T12,12 T17,12 T22,12 M2,19 Q4.5,21 7,19 T12,19 T17,19 T22,19 M2,5 Q4.5,7 7,5 T12,5 T17,5 T22,5" Stroke="#FF00A7B5" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
                           </Viewbox>
                         </Border>
                         <TextBlock x:Name="SourceDeepSeekCliOptionText" Text="Codex CLI——DeepSeek Profile（.codex-deepseek）" VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -886,6 +886,25 @@
 
               <Border Width="620" HorizontalAlignment="Left" Background="#080A84FF" BorderBrush="#200A84FF" BorderThickness="1" CornerRadius="13" Padding="14,12" Margin="0,0,0,10">
                 <StackPanel>
+                  <TextBlock x:Name="EdgeSnapTitle" Text="自动贴边" FontSize="14" FontWeight="SemiBold" />
+                  <TextBlock x:Name="EdgeSnapHint" Text="拖动结束后靠近当前显示器工作区边缘时，自动吸附到边缘或角落。" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,3,0,8" TextWrapping="Wrap" />
+                  <CheckBox x:Name="EdgeSnapEnabledCheck" Content="启用自动贴边" Margin="0,0,0,8" />
+                  <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <TextBlock x:Name="EdgeSnapDistanceLabel" Text="吸附距离" VerticalAlignment="Center" Foreground="{StaticResource Muted}" />
+                    <ComboBox x:Name="EdgeSnapDistanceCombo" Grid.Column="1">
+                      <ComboBoxItem x:Name="EdgeSnap12Item" Content="12 px" Tag="12" />
+                      <ComboBoxItem x:Name="EdgeSnap20Item" Content="20 px" Tag="20" />
+                      <ComboBoxItem x:Name="EdgeSnap28Item" Content="28 px" Tag="28" />
+                      <ComboBoxItem x:Name="EdgeSnap40Item" Content="40 px" Tag="40" />
+                      <ComboBoxItem x:Name="EdgeSnap64Item" Content="64 px" Tag="64" />
+                    </ComboBox>
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <Border Width="620" HorizontalAlignment="Left" Background="#080A84FF" BorderBrush="#200A84FF" BorderThickness="1" CornerRadius="13" Padding="14,12" Margin="0,0,0,10">
+                <StackPanel>
                   <TextBlock x:Name="TaskNavigationTitle" Text="任务跳转" FontSize="14" FontWeight="SemiBold" />
                   <TextBlock x:Name="TaskNavigationHint" Text="双击任务列表项或独立气泡，在 Codex 中打开对应任务。" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,3,0,8" TextWrapping="Wrap" />
                   <CheckBox x:Name="OpenTaskOnDoubleClickCheck" Content="双击打开 Codex 任务详情" />
@@ -1020,6 +1039,15 @@
             <Border Background="#080A84FF" BorderBrush="#180A84FF" BorderThickness="1" CornerRadius="10" Padding="12,8" Margin="0,8,0,2">
               <TextBlock x:Name="FontPreviewText" Text="字体预览：Codex 正在监听 · 123 ABC" FontSize="15" TextWrapping="Wrap" />
             </Border>
+            <StackPanel Margin="0,10,0,8">
+              <TextBlock x:Name="BackdropLabel" Text="玻璃材质" FontSize="12" Foreground="{StaticResource Muted}" />
+              <ComboBox x:Name="BackdropCombo" HorizontalAlignment="Left">
+                <ComboBoxItem x:Name="BackdropNoneItem" Content="关闭" Tag="none" />
+                <ComboBoxItem x:Name="BackdropBlurItem" Content="模糊" Tag="blur" />
+                <ComboBoxItem x:Name="BackdropAcrylicItem" Content="亚克力玻璃" Tag="acrylic" />
+              </ComboBox>
+              <TextBlock x:Name="BackdropHint" Text="使用 Windows 原生背景材质；透明度滑块同时控制玻璃染色强度。" MaxWidth="620" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,4,0,0" />
+            </StackPanel>
             <StackPanel Margin="0,10,0,8">
               <TextBlock x:Name="TransparencyModeLabel" Text="透明方式" FontSize="12" Foreground="{StaticResource Muted}" />
               <ComboBox x:Name="TransparencyModeCombo" HorizontalAlignment="Left">

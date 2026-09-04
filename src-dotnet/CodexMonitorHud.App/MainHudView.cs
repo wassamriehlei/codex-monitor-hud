@@ -62,6 +62,11 @@ internal sealed class MainHudView : IDisposable
     private bool _closing;
     private bool _mousePassthrough;
     private bool _hasSynchronizedStates;
+    private bool _edgeSnapEnabled = true;
+    private double _edgeSnapDistance = 28;
+    private string _backdropMode = "none";
+    private string _backdropTint = "#EAF7F8FA";
+    private double _backdropOpacity = 0.97;
 
     public MainHudView(string hudXamlPath, string taskBubbleXamlPath)
     {
@@ -92,6 +97,7 @@ internal sealed class MainHudView : IDisposable
         {
             _handle = new WindowInteropHelper(Window).Handle;
             _baseStyle = _handle == 0 ? 0 : NativeMethods.GetWindowLong(_handle, NativeMethods.GwlExStyle);
+            _ = WindowBackdrop.Apply(_handle, _backdropMode, _backdropTint, _backdropOpacity);
             SetMousePassthrough(_mousePassthrough);
         };
         Window.Closing += (_, args) =>
@@ -143,7 +149,7 @@ internal sealed class MainHudView : IDisposable
         // list supplies the shared width, so the collapse arrow naturally sits
         // at the same far-right edge without creating an empty toolbar row.
         _taskListToggle.Visibility = states.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        _taskListToggle.Content = listExpanded ? "\u2303" : $"{states.Count} \u25BE";
+        UpdateTaskListToggle(states.Count, listExpanded, settings);
         _taskListToggle.ToolTip = Get(settingsLocale, "activeTasks");
         RenderTaskList(settings, settingsLocale, locale, states, statusFor, now, listExpanded);
         SynchronizeBubbles(settings, settingsLocale, locale, states, statusFor, now);
@@ -244,6 +250,11 @@ internal sealed class MainHudView : IDisposable
 
     private void ApplyAppearance(HudSettings settings, string status, bool hasAttention)
     {
+        _edgeSnapEnabled = settings.Behavior.EdgeSnap.Enabled;
+        _edgeSnapDistance = settings.Behavior.EdgeSnap.Distance;
+        _backdropMode = settings.ThemeStyle.Backdrop;
+        _backdropTint = settings.Background;
+        _backdropOpacity = settings.Opacity;
         var signature = string.Join('|',
             settings.Preset,
             settings.Layout,
@@ -271,7 +282,10 @@ internal sealed class MainHudView : IDisposable
         _metricsSignature = string.Empty;
         _listSignature = string.Empty;
         Window.Topmost = settings.AlwaysOnTop;
-        Window.Opacity = settings.TransparencyMode == "uniform" ? settings.Opacity : 1;
+        Window.Opacity = settings.TransparencyMode == "uniform" && !WindowBackdrop.IsEnabled(settings.ThemeStyle.Backdrop)
+            ? settings.Opacity
+            : 1;
+        _ = WindowBackdrop.Apply(_handle, _backdropMode, _backdropTint, _backdropOpacity);
         try
         {
             Window.FontFamily = new FontFamily(settings.ThemeStyle.FontFamily);
@@ -583,17 +597,13 @@ internal sealed class MainHudView : IDisposable
             var sourceColor = GetSourceColor(state, settings);
             var sourceIcon = new System.Windows.Shapes.Path
             {
-                Data = Geometry.Parse(GetSourceGeometry(state)),
+                Data = Geometry.Parse(HudIcons.Source(state)),
                 Stroke = _brushes.Create(sourceColor, "#FF64748B", BrushRole.Primary, settings, status, false),
-                StrokeThickness = string.Equals(state.ClientSurface, "vscode", StringComparison.OrdinalIgnoreCase) ? 0.45 : 1.45,
+                StrokeThickness = 1.7,
                 StrokeStartLineCap = PenLineCap.Round,
                 StrokeEndLineCap = PenLineCap.Round,
                 StrokeLineJoin = PenLineJoin.Round
             };
-            if (string.Equals(state.ClientSurface, "vscode", StringComparison.OrdinalIgnoreCase))
-            {
-                sourceIcon.Fill = sourceIcon.Stroke;
-            }
             var sourceViewbox = new Viewbox { Width = 14, Height = 14, Child = sourceIcon };
             var sourceBadge = new Border
             {
@@ -737,7 +747,7 @@ internal sealed class MainHudView : IDisposable
 
             var detached = _detached.Contains(state.Path);
             var action = NewIconButton(
-                detached ? MergeGeometry : DetachGeometry,
+                detached ? HudIcons.Minimize : HudIcons.ExternalLink,
                 settings.Accent,
                 density.ActionSize,
                 density.ActionMargin,
@@ -746,7 +756,7 @@ internal sealed class MainHudView : IDisposable
             Grid.SetColumn(action, 5);
             row.Children.Add(action);
             var dismiss = NewIconButton(
-                DismissGeometry,
+                HudIcons.Close,
                 settings.Muted,
                 density.ActionSize,
                 new Thickness(1, 0, 2, 0),
@@ -1047,7 +1057,7 @@ internal sealed class MainHudView : IDisposable
             return;
         }
         Window.UpdateLayout();
-        var work = SystemParameters.WorkArea;
+        var work = GetCurrentScreenBounds();
         const double gap = 8;
         var isBottom = settings.Position.StartsWith("bottom", StringComparison.Ordinal) ||
                        settings.Position == "custom" && Window.Top + Window.ActualHeight / 2 > work.Top + work.Height / 2;
@@ -1267,7 +1277,7 @@ internal sealed class MainHudView : IDisposable
     {
         if (_handle != 0)
         {
-            var bounds = Forms.Screen.FromHandle(_handle).Bounds;
+            var bounds = Forms.Screen.FromHandle(_handle).WorkingArea;
             var dpi = VisualTreeHelper.GetDpi(Window);
             return new Rect(
                 bounds.Left / dpi.DpiScaleX,
@@ -1457,7 +1467,7 @@ internal sealed class MainHudView : IDisposable
             return;
         }
 
-        var pixelBounds = Forms.Screen.FromPoint(new System.Drawing.Point(cursor.X, cursor.Y)).Bounds;
+        var pixelBounds = Forms.Screen.FromPoint(new System.Drawing.Point(cursor.X, cursor.Y)).WorkingArea;
         var dpi = VisualTreeHelper.GetDpi(Window);
         var screen = new Rect(
             pixelBounds.Left / dpi.DpiScaleX,
@@ -1466,16 +1476,30 @@ internal sealed class MainHudView : IDisposable
             pixelBounds.Height / dpi.DpiScaleY);
         var desiredLeft = screen.Left + (cursor.X - pixelBounds.Left) / dpi.DpiScaleX - grabPoint.X;
         var desiredTop = screen.Top + (cursor.Y - pixelBounds.Top) / dpi.DpiScaleY - grabPoint.Y;
-        var point = HudPlacement.ClampCustom(
-            desiredLeft,
-            desiredTop,
-            screen.Left,
-            screen.Top,
-            screen.Width,
-            screen.Height,
-            Math.Max(1, Window.ActualWidth),
-            Math.Max(1, Window.ActualHeight),
-            MainChromeInset);
+        var width = Math.Max(1, Window.ActualWidth);
+        var height = Math.Max(1, Window.ActualHeight);
+        var point = _edgeSnapEnabled
+            ? HudPlacement.SnapCustom(
+                desiredLeft,
+                desiredTop,
+                screen.Left,
+                screen.Top,
+                screen.Width,
+                screen.Height,
+                width,
+                height,
+                MainChromeInset,
+                _edgeSnapDistance)
+            : HudPlacement.ClampCustom(
+                desiredLeft,
+                desiredTop,
+                screen.Left,
+                screen.Top,
+                screen.Width,
+                screen.Height,
+                width,
+                height,
+                MainChromeInset);
         Window.Left = point.Left;
         Window.Top = point.Top;
     }
@@ -1484,11 +1508,11 @@ internal sealed class MainHudView : IDisposable
     {
         var icon = new System.Windows.Shapes.Path
         {
-            Width = 13,
-            Height = 13,
+            Width = 15,
+            Height = 15,
             Stretch = Stretch.Uniform,
             Stroke = BrushFactory.Convert(color, "#FF0A84FF"),
-            StrokeThickness = 1.35,
+            StrokeThickness = 1.7,
             StrokeStartLineCap = PenLineCap.Round,
             StrokeEndLineCap = PenLineCap.Round,
             StrokeLineJoin = PenLineJoin.Round,
@@ -1503,6 +1527,40 @@ internal sealed class MainHudView : IDisposable
             Margin = margin,
             ToolTip = tooltip
         };
+    }
+
+    private void UpdateTaskListToggle(int count, bool expanded, HudSettings settings)
+    {
+        var foreground = _brushes.Create(settings.Accent, "#FF0A84FF", BrushRole.Primary, settings, "idle", false);
+        var content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        content.Children.Add(new TextBlock
+        {
+            Text = count.ToString(),
+            FontFamily = new FontFamily(settings.ThemeStyle.FontFamily),
+            FontSize = Math.Max(11, settings.FontSize - 2),
+            FontWeight = FontWeights.SemiBold,
+            Foreground = foreground,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 5, 0)
+        });
+        content.Children.Add(new System.Windows.Shapes.Path
+        {
+            Data = Geometry.Parse(expanded ? HudIcons.ChevronUp : HudIcons.ChevronDown),
+            Width = 12,
+            Height = 12,
+            Stretch = Stretch.Uniform,
+            Stroke = foreground,
+            StrokeThickness = 1.8,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            StrokeLineJoin = PenLineJoin.Round,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        _taskListToggle.Content = content;
     }
 
     private static string GetTaskMetricsText(
@@ -1683,25 +1741,6 @@ internal sealed class MainHudView : IDisposable
     private static bool CanOpenTask(SessionState state) =>
         string.Equals(state.ClientSurface, "desktop", StringComparison.OrdinalIgnoreCase);
 
-    private static string GetSourceGeometry(SessionState state)
-    {
-        if (string.Equals(state.ClientSurface, "vscode", StringComparison.OrdinalIgnoreCase))
-        {
-            // Official VS Code ribbon silhouette with an even-odd center cutout.
-            return "M11.52,0.29 A0.98,0.98 0 0 0 10.82,0.33 L4.21,3.33 L1.5,1.29 A1,1 0 0 0 0,2.09 L0,13.91 A1,1 0 0 0 1.5,14.71 L4.21,12.68 L10.82,15.67 A0.98,0.98 0 0 0 11.52,15.71 L15,14.11 A1,1 0 0 0 15.6,13 L15.6,3 A1,1 0 0 0 15,2.09 Z M11,11.26 L5.73,8 L11,4.74 Z";
-        }
-        if (string.Equals(state.ClientSurface, "desktop", StringComparison.OrdinalIgnoreCase))
-        {
-            return "M1.4,2.1 L12.6,2.1 Q13,2.1 13,2.5 L13,11.5 Q13,11.9 12.6,11.9 L1.4,11.9 Q1,11.9 1,11.5 L1,2.5 Q1,2.1 1.4,2.1 Z M1.4,4.8 L12.6,4.8 M3,3.45 L3.08,3.45 M4.75,3.45 L4.83,3.45";
-        }
-        if (string.Equals(state.ModelProvider, "deepseek", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(state.ProfileId, SessionProfile.DeepSeekId, StringComparison.OrdinalIgnoreCase))
-        {
-            return "M1.4,2.1 L12.6,2.1 Q13,2.1 13,2.5 L13,11.5 Q13,11.9 12.6,11.9 L1.4,11.9 Q1,11.9 1,11.5 L1,2.5 Q1,2.1 1.4,2.1 Z M2.8,8.4 C4.1,5.7 5.55,10.4 7.05,7.65 C8.15,5.65 9.3,7.25 11.2,5.75";
-        }
-        return "M1.4,2.1 L12.6,2.1 Q13,2.1 13,2.5 L13,11.5 Q13,11.9 12.6,11.9 L1.4,11.9 Q1,11.9 1,11.5 L1,2.5 Q1,2.1 1.4,2.1 Z M3,5.15 L5.85,7.15 L3,9.15 M7.15,9.15 L10.65,9.15";
-    }
-
     private static string ProjectName(SessionState state, IReadOnlyDictionary<string, string> locale) =>
         string.IsNullOrWhiteSpace(state.Workspace) ? Get(locale, "unnamedWorkspace") : state.Workspace;
 
@@ -1773,7 +1812,4 @@ internal sealed class MainHudView : IDisposable
     private const double MainChromeInset = 18;
     private const double TaskBubbleChromeInset = 16;
 
-    private const string DetachGeometry = "M1.5,4.5 L1.5,10.5 L7.5,10.5 M5.2,1.5 L10.5,1.5 L10.5,6.8 M10.2,1.8 L4.5,7.5";
-    private const string MergeGeometry = "M1.5,1.5 L10.5,1.5 L10.5,10.5 L1.5,10.5 Z M9.1,2.9 L4.1,7.9 M4.1,4.8 L4.1,7.9 L7.2,7.9";
-    private const string DismissGeometry = "M2.5,2.5 L9.5,9.5 M9.5,2.5 L2.5,9.5";
 }

@@ -51,4 +51,44 @@ public static class HudPlacement
             Math.Clamp(top, minTop, maxTop));
     }
 
+    public static HudPoint SnapCustom(
+        double left,
+        double top,
+        double screenLeft,
+        double screenTop,
+        double screenWidth,
+        double screenHeight,
+        double windowWidth,
+        double windowHeight,
+        double chromeInset,
+        double distance)
+    {
+        var clamped = ClampCustom(
+            left,
+            top,
+            screenLeft,
+            screenTop,
+            screenWidth,
+            screenHeight,
+            windowWidth,
+            windowHeight,
+            chromeInset);
+        var threshold = Math.Max(0, distance);
+        var minLeft = screenLeft - chromeInset;
+        var minTop = screenTop - chromeInset;
+        var maxLeft = Math.Max(minLeft, screenLeft + screenWidth - windowWidth + chromeInset);
+        var maxTop = Math.Max(minTop, screenTop + screenHeight - windowHeight + chromeInset);
+        var snappedLeft = Math.Abs(clamped.Left - minLeft) <= threshold
+            ? minLeft
+            : Math.Abs(clamped.Left - maxLeft) <= threshold
+                ? maxLeft
+                : clamped.Left;
+        var snappedTop = Math.Abs(clamped.Top - minTop) <= threshold
+            ? minTop
+            : Math.Abs(clamped.Top - maxTop) <= threshold
+                ? maxTop
+                : clamped.Top;
+        return new HudPoint(snappedLeft, snappedTop);
+    }
+
 }

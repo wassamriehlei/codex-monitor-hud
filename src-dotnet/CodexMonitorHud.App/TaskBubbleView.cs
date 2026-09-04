@@ -40,6 +40,9 @@ internal sealed class TaskBubbleView : IDisposable
     private bool _contextVisualActive;
     private Brush? _baseBorderBrush;
     private Thickness _baseBorderThickness;
+    private string _backdropMode = "none";
+    private string _backdropTint = "#EAF7F8FA";
+    private double _backdropOpacity = 0.97;
 
     public TaskBubbleView(string xamlPath, SessionState state, BrushFactory brushes)
     {
@@ -75,6 +78,7 @@ internal sealed class TaskBubbleView : IDisposable
         {
             _handle = new WindowInteropHelper(Window).Handle;
             _baseStyle = _handle == 0 ? 0 : NativeMethods.GetWindowLong(_handle, NativeMethods.GwlExStyle);
+            _ = WindowBackdrop.Apply(_handle, _backdropMode, _backdropTint, _backdropOpacity);
             SetMousePassthrough(_mousePassthrough);
         };
         Window.Closing += (_, args) =>
@@ -111,6 +115,9 @@ internal sealed class TaskBubbleView : IDisposable
         string metricsText,
         bool hasAttention)
     {
+        _backdropMode = settings.ThemeStyle.Backdrop;
+        _backdropTint = settings.Background;
+        _backdropOpacity = settings.Opacity;
         var contextVisible = settings.Fields.TryGetValue("context", out var showContext) && showContext;
         var contextText = state.Snapshot is null
             ? Get(locale, "waiting")
@@ -145,7 +152,10 @@ internal sealed class TaskBubbleView : IDisposable
         {
             _appearanceSignature = appearanceSignature;
             Window.Topmost = settings.AlwaysOnTop;
-            Window.Opacity = settings.TransparencyMode == "uniform" ? settings.Opacity : 1;
+            Window.Opacity = settings.TransparencyMode == "uniform" && !WindowBackdrop.IsEnabled(settings.ThemeStyle.Backdrop)
+                ? settings.Opacity
+                : 1;
+            _ = WindowBackdrop.Apply(_handle, _backdropMode, _backdropTint, _backdropOpacity);
             _shell.CornerRadius = new CornerRadius(Math.Max(12, settings.CornerRadius - 4));
             _shell.Background = _brushes.CreateSurface(settings, status, hasAttention);
             _shell.BorderBrush = _brushes.Create(settings.Border, "#22FFFFFF", BrushRole.Decoration, settings, status, hasAttention);
@@ -156,12 +166,10 @@ internal sealed class TaskBubbleView : IDisposable
             _dot.Height = settings.ThemeStyle.StatusDotSize;
             _dot.Fill = _brushes.Create(StatusColor(settings, status), "#FF8E8E93", BrushRole.Status, settings, status, hasAttention);
             _number.Foreground = _brushes.Create(settings.Accent, "#FF0A84FF", BrushRole.Primary, settings, status, hasAttention);
-            _sourceIcon.Data = Geometry.Parse(GetSourceGeometry(state));
+            _sourceIcon.Data = Geometry.Parse(HudIcons.Source(state));
             _sourceIcon.Stroke = _brushes.Create(sourceColor, "#FF64748B", BrushRole.Primary, settings, status, hasAttention);
-            _sourceIcon.Fill = string.Equals(state.ClientSurface, "vscode", StringComparison.OrdinalIgnoreCase)
-                ? _sourceIcon.Stroke
-                : null;
-            _sourceIcon.StrokeThickness = string.Equals(state.ClientSurface, "vscode", StringComparison.OrdinalIgnoreCase) ? 0.45 : 1.45;
+            _sourceIcon.Fill = null;
+            _sourceIcon.StrokeThickness = 1.7;
             _sourceBadge.Background = ColorBrush(ParseColor(sourceColor, "#FF64748B"), 24);
             _sourceBadge.BorderBrush = ColorBrush(ParseColor(sourceColor, "#FF64748B"), 72);
             _sourceBadge.ToolTip = sourceLabel;
@@ -401,21 +409,4 @@ internal sealed class TaskBubbleView : IDisposable
         return brush;
     }
 
-    private static string GetSourceGeometry(SessionState state)
-    {
-        if (string.Equals(state.ClientSurface, "vscode", StringComparison.OrdinalIgnoreCase))
-        {
-            return "M11.52,0.29 A0.98,0.98 0 0 0 10.82,0.33 L4.21,3.33 L1.5,1.29 A1,1 0 0 0 0,2.09 L0,13.91 A1,1 0 0 0 1.5,14.71 L4.21,12.68 L10.82,15.67 A0.98,0.98 0 0 0 11.52,15.71 L15,14.11 A1,1 0 0 0 15.6,13 L15.6,3 A1,1 0 0 0 15,2.09 Z M11,11.26 L5.73,8 L11,4.74 Z";
-        }
-        if (string.Equals(state.ClientSurface, "desktop", StringComparison.OrdinalIgnoreCase))
-        {
-            return "M1.4,2.1 L12.6,2.1 Q13,2.1 13,2.5 L13,11.5 Q13,11.9 12.6,11.9 L1.4,11.9 Q1,11.9 1,11.5 L1,2.5 Q1,2.1 1.4,2.1 Z M1.4,4.8 L12.6,4.8 M3,3.45 L3.08,3.45 M4.75,3.45 L4.83,3.45";
-        }
-        if (string.Equals(state.ModelProvider, "deepseek", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(state.ProfileId, SessionProfile.DeepSeekId, StringComparison.OrdinalIgnoreCase))
-        {
-            return "M1.4,2.1 L12.6,2.1 Q13,2.1 13,2.5 L13,11.5 Q13,11.9 12.6,11.9 L1.4,11.9 Q1,11.9 1,11.5 L1,2.5 Q1,2.1 1.4,2.1 Z M2.8,8.4 C4.1,5.7 5.55,10.4 7.05,7.65 C8.15,5.65 9.3,7.25 11.2,5.75";
-        }
-        return "M1.4,2.1 L12.6,2.1 Q13,2.1 13,2.5 L13,11.5 Q13,11.9 12.6,11.9 L1.4,11.9 Q1,11.9 1,11.5 L1,2.5 Q1,2.1 1.4,2.1 Z M3,5.15 L5.85,7.15 L3,9.15 M7.15,9.15 L10.65,9.15";
-    }
 }

@@ -31,6 +31,9 @@ Windows Release 会随包携带一套私有 .NET/WPF 运行时，因此无需用
 - 主气泡列表可分别开关目录、开始时间、上下文占用、任务状态（含监听）、模型名称、缓存命中率、本次合计、任务累计、成本估算和数据更新时间。
 - 字体可从 Windows 已安装字体中选择，默认优先使用 HarmonyOS Sans SC（鸿蒙字体），并保留中文系统字体回退。
 - 可选的任务完成提示音；经过防误报等待后播放一次，除系统通知、醒目提示和经典蜂鸣外，也可浏览选择本地 WAV、MP3、WMA、M4A 或 AAC 文件，并在设置中试听。
+- 支持 Windows 原生背景模糊和 Acrylic 亚克力玻璃；染色强度跟随透明度滑块，系统合成不可用时保留半透明回退外观。
+- 支持按当前显示器工作区自动吸附到边缘或四角，可关闭并可调吸附距离。
+- 来源与操作图标采用 ISC 许可的 [Lucide 免费图标库](https://lucide.dev/) 并以内嵌矢量路径离线显示；归属见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ![中文任务列表示例，包含周额度和 5 小时额度](assets/hud-multitask.png)
 
@@ -42,10 +45,10 @@ Windows Release 会随包携带一套私有 .NET/WPF 运行时，因此无需用
 
 | 来源 | 徽标 | 监听的本地 Profile |
 | --- | --- | --- |
-| Codex Desktop | 窗口轮廓 | 普通 `CODEX_HOME`（默认 `~/.codex`） |
-| VS Code 中的 Codex | VS Code 丝带图形 | 普通 `CODEX_HOME`（默认 `~/.codex`） |
-| Codex CLI · OpenAI | 终端 `>_` | 普通 `CODEX_HOME` |
-| Codex CLI · DeepSeek | 带波形的终端 | `~/.codex-deepseek` |
+| Codex Desktop | 显示器 | 普通 `CODEX_HOME`（默认 `~/.codex`） |
+| VS Code 中的 Codex | 代码括号 | 普通 `CODEX_HOME`（默认 `~/.codex`） |
+| Codex CLI · OpenAI | 终端提示符 | 普通 `CODEX_HOME` |
+| Codex CLI · DeepSeek | 水平波纹 | `~/.codex-deepseek` |
 
 徽标位于状态点之后、稳定任务编号之前，在主列表和独立小气泡中都会出现。汇总栏可显示各来源数量；**设置 > 监控来源** 可以分别开关四类来源。VS Code 通过它自己的 `codex_vscode` 会话来源识别，不会再被显示为桌面端任务。识别逻辑读取受限的会话元数据，不依赖写死的模型名称列表，因此以后出现新模型时仍能正常监控；只有价格未知时成本显示为 `--`。
 
@@ -71,7 +74,7 @@ Windows Release 会随包携带一套私有 .NET/WPF 运行时，因此无需用
 
 - 点击任务数量，展开或收起主 HUD 内的列表。
 - 拆出单个任务，或从 HUD / 通知区域菜单选择“全部分裂”。
-- 拖动主 HUD 保存自定义位置；双击主 HUD 打开设置。
+- 拖动主 HUD 保存自定义位置；开启自动贴边后会停靠到最近的屏幕边缘或角落。双击主 HUD 打开设置。
 - 关闭独立小气泡只会把该气泡合回主 HUD，监控不会中断。主列表中的“移除任务”才会暂时移除当前 HUD 视图中的任务；对应对话开始下一轮时会自动回来。
 - 透明度支持 **0% 到 100%**。0% 会让 HUD 故意完全不可见，请用通知区域菜单或设置快捷方式恢复。
 - 开启鼠标穿透后，可从通知区域菜单关闭，或直接让 Codex 关闭。

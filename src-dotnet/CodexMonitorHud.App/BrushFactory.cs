@@ -28,13 +28,13 @@ internal sealed class BrushFactory
         string status,
         bool hasAttention)
     {
-        var key = string.Join('|', value, fallback, role, settings.TransparencyMode, settings.Opacity, status, hasAttention);
+        var key = string.Join('|', value, fallback, role, settings.ThemeStyle.Backdrop, settings.TransparencyMode, settings.Opacity, status, hasAttention);
         if (_brushCache.TryGetValue(key, out var cached))
         {
             return cached;
         }
         var brush = Convert(value, fallback);
-        if (settings.TransparencyMode == "uniform")
+        if (settings.TransparencyMode == "uniform" && !WindowBackdrop.IsEnabled(settings.ThemeStyle.Backdrop))
         {
             // Uniform opacity is applied to the whole window.  Make the shell
             // source color opaque first, so 100% is truly opaque instead of
@@ -81,6 +81,7 @@ internal sealed class BrushFactory
             imageWrite,
             settings.ThemeStyle.ImageOpacity,
             settings.ThemeStyle.ImageStretch,
+            settings.ThemeStyle.Backdrop,
             settings.TransparencyMode,
             settings.Opacity,
             status,
@@ -111,7 +112,9 @@ internal sealed class BrushFactory
             var imageBrush = new ImageBrush(source)
             {
                 Stretch = ParseStretch(settings.ThemeStyle.ImageStretch),
-                Opacity = settings.TransparencyMode == "uniform" ? 1 : settings.ThemeStyle.ImageOpacity
+                Opacity = settings.TransparencyMode == "uniform" && !WindowBackdrop.IsEnabled(settings.ThemeStyle.Backdrop)
+                    ? 1
+                    : settings.ThemeStyle.ImageOpacity
             };
             imageBrush.Freeze();
             result = imageBrush;
@@ -123,7 +126,7 @@ internal sealed class BrushFactory
             var factor = GetRoleOpacity(BrushRole.Background, settings, status, hasAttention);
             start.A = (byte)Math.Round(start.A * factor);
             end.A = (byte)Math.Round(end.A * factor);
-            if (settings.TransparencyMode == "uniform")
+            if (settings.TransparencyMode == "uniform" && !WindowBackdrop.IsEnabled(settings.ThemeStyle.Backdrop))
             {
                 start.A = byte.MaxValue;
                 end.A = byte.MaxValue;
@@ -184,7 +187,9 @@ internal sealed class BrushFactory
     {
         if (settings.TransparencyMode == "uniform")
         {
-            return 1;
+            return WindowBackdrop.IsEnabled(settings.ThemeStyle.Backdrop) && role == BrushRole.Background
+                ? 0.28 + 0.42 * Math.Clamp(settings.Opacity, 0, 1)
+                : 1;
         }
 
         var level = Math.Clamp(settings.Opacity, 0, 1);

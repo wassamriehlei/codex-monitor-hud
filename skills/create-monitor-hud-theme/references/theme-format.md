@@ -57,6 +57,7 @@ Colors accept WPF-compatible hex ARGB. Prefer `#AARRGGBB`. Layout: `chips`, `com
 ```json
 {
   "themeStyle": {
+    "backdrop": "acrylic",
     "surface": "gradient",
     "gradientStart": "#F0071A2B",
     "gradientEnd": "#E90B4962",
@@ -72,6 +73,7 @@ Colors accept WPF-compatible hex ARGB. Prefer `#AARRGGBB`. Layout: `chips`, `com
 }
 ```
 
+- `backdrop`: `none`, `blur`, or `acrylic`. Blur/Acrylic use the native Windows compositor and retain a translucent color fallback.
 - `surface`: `solid`, `gradient`, or `image`.
 - `gradientAngle`: any degree value; normalized to 0-359.
 - `backgroundImage`: only for ZIP packs, relative to `theme.json`, normally `assets/background.png`.
@@ -178,7 +180,7 @@ Only `theme.json` and `.png`, `.jpg`, or `.jpeg` files below `assets/` are accep
     "cornerRadius":24,
     "opacity":0.97,
     "transparencyMode":"layered",
-    "themeStyle":{"surface":"gradient","gradientStart":"#F0061827","gradientEnd":"#E9084E68","gradientAngle":28,"shadow":"deep","borderWidth":1.2,"statusDotSize":8.5,"fontFamily":"HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI"},
+    "themeStyle":{"backdrop":"acrylic","surface":"gradient","gradientStart":"#F0061827","gradientEnd":"#E9084E68","gradientAngle":28,"shadow":"deep","borderWidth":1.2,"statusDotSize":8.5,"fontFamily":"HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI"},
     "multiTask":{"listStyle":"rail","listDensity":"compact","nameMode":"always"},
     "attention":{"summaryMode":"halo","listMode":"flow","taskBubbleMode":"flow","dotEnabled":true,"dotPattern":"heartbeat","dotBrightness":"balanced","dotSpeed":"normal","dotBreathing":true}
   }

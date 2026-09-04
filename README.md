@@ -31,6 +31,9 @@ The Windows Release bundles a private .NET/WPF runtime so it can run without req
 - Independent main-list switches for directory, start time, context usage, task status (including listening), model name, cache hit rate, call total, task total, estimated cost, and data update time.
 - Select any installed Windows font. HarmonyOS Sans SC is the default preference, with Chinese system-font fallbacks.
 - Optional completion sound after the false-positive grace period, with built-in system sounds or a user-selected WAV, MP3, WMA, M4A, or AAC file plus an in-Settings preview.
+- Optional native Windows Blur or Acrylic glass, with tint strength linked to the opacity control and a translucent fallback when composition is unavailable.
+- Automatic edge/corner snapping against the current monitor work area, with an on/off switch and adjustable snap distance.
+- Crisp source and action artwork adapted from the ISC-licensed [Lucide icon library](https://lucide.dev/); attribution is included in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ![English task-list screenshot with weekly and 5-hour allowance](assets/hud-multitask-en.png)
 
@@ -42,10 +45,10 @@ The HUD uses one compact visual language across every surface, while giving each
 
 | Source | Badge | Local profile watched |
 | --- | --- | --- |
-| Codex Desktop | Window outline | the normal `CODEX_HOME` (`~/.codex` by default) |
-| Codex in VS Code | VS Code ribbon | the normal `CODEX_HOME` (`~/.codex` by default) |
-| Codex CLI · OpenAI | Terminal `>_` | the normal `CODEX_HOME` |
-| Codex CLI · DeepSeek | Terminal with a wave | `~/.codex-deepseek` |
+| Codex Desktop | Monitor | the normal `CODEX_HOME` (`~/.codex` by default) |
+| Codex in VS Code | Code brackets | the normal `CODEX_HOME` (`~/.codex` by default) |
+| Codex CLI · OpenAI | Terminal prompt | the normal `CODEX_HOME` |
+| Codex CLI · DeepSeek | Horizontal waves | `~/.codex-deepseek` |
 
 The badge appears after the status dot and before the stable task number in both list rows and detached bubbles. The summary can show a source-count breakdown, and **Settings > Sources** can independently include or exclude all four categories. VS Code is identified from its own `codex_vscode` session originator, so it is not presented as a Desktop task. The classifier uses bounded session metadata, not a hard-coded model-name allowlist, so future models continue to be monitored even when no price is known for them.
 
@@ -71,7 +74,7 @@ The aggregate count button is only a list expand/collapse control. If task bubbl
 
 - Click the task count to expand or retract the embedded list.
 - Detach one task, or choose **Split all** from the HUD or notification-area menu.
-- Drag the main HUD to a custom position; double-click it to open Settings.
+- Drag the main HUD to a custom position; when edge snapping is enabled it settles against the nearest screen edge or corner. Double-click it to open Settings.
 - Closing a detached bubble merges only that bubble back into the main HUD; monitoring continues. The list-row dismiss action removes a task from the current HUD view, and it returns when that conversation starts another turn.
 - Set opacity anywhere from **0% to 100%**. At 0% the overlay is intentionally invisible; use the notification-area menu or settings shortcut to recover it.
 - If mouse click-through is enabled, use the notification-area menu or ask Codex to disable it.
