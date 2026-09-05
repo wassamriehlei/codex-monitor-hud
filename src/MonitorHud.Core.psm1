@@ -312,9 +312,11 @@ function Get-HudConfig {
     if ($result.quotaGuard.prepareInstruction.Length -gt 1200) { $result.quotaGuard.prepareInstruction = $result.quotaGuard.prepareInstruction.Substring(0,1200) }
     if ($result.quotaGuard.handoffInstruction.Length -gt 1200) { $result.quotaGuard.handoffInstruction = $result.quotaGuard.handoffInstruction.Substring(0,1200) }
     if (@('uniform','layered','focus') -notcontains [string]$result.transparencyMode) { $result.transparencyMode = 'uniform' }
+    if (@('window','ball') -notcontains [string]$result.surfaceMode) { $result.surfaceMode = 'window' }
     $result.opacity = [Math]::Max(0.0, [Math]::Min(1.0, [double]$result.opacity))
     $result.hudWidth = [Math]::Max(360.0, [Math]::Min(1600.0, [double]$result.hudWidth))
-    if (@('none','blur','acrylic') -notcontains [string]$result.themeStyle.backdrop) { $result.themeStyle.backdrop = 'acrylic' }
+    # Retired native backdrop metadata remains readable for old settings/themes.
+    $result.themeStyle.backdrop = 'none'
     if (@('solid','gradient','image') -notcontains [string]$result.themeStyle.surface) { $result.themeStyle.surface = 'solid' }
     if (@('uniform','uniformToFill','fill','none') -notcontains [string]$result.themeStyle.imageStretch) { $result.themeStyle.imageStretch = 'uniformToFill' }
     if (@('none','soft','deep') -notcontains [string]$result.themeStyle.shadow) { $result.themeStyle.shadow = 'soft' }

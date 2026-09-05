@@ -306,11 +306,6 @@
   "fontSize": "Font size",
   "cornerRadius": "Corner radius",
   "opacity": "Opacity",
-  "backdrop": "Glass material",
-  "backdropNone": "○ Off",
-  "backdropBlur": "◌ Blur",
-  "backdropAcrylic": "◉ Acrylic",
-  "backdropHint": "Native Windows backdrop; opacity controls tint strength.",
   "transparencyMode": "Transparency behavior",
   "transparencyUniform": "Uniform opacity",
   "transparencyLayered": "Layered clarity",
@@ -351,5 +346,10 @@
   "colorPickerValue": "Value",
   "colorPickerAlpha": "Alpha",
   "cancel": "Cancel",
-  "apply": "Apply"
+  "apply": "Apply",
+  "surfaceMode": "Floating surface",
+  "surfaceWindow": "▣ Window",
+  "surfaceBall": "● Ball (hover)",
+  "surfaceModeHint": "Hover to expand; leave to collapse. Click-through keeps the window expanded.",
+  "surfaceBallHint": "Hover to expand · Double-click for settings · Drag to move"
 }

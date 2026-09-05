@@ -130,6 +130,7 @@ public sealed record HudSettings
     public double? CustomLeft { get; init; }
     public double? CustomTop { get; init; }
     public required double HudWidth { get; init; }
+    public string SurfaceMode { get; init; } = "window";
     public required double FontSize { get; init; }
     public required double CornerRadius { get; init; }
     public required double Opacity { get; init; }
@@ -169,6 +170,7 @@ public sealed record HudSettings
             Document = document,
             Preset = Text(document, "preset"),
             Language = Text(document, "language", "en"),
+            SurfaceMode = Text(document, "surfaceMode", "window") == "ball" ? "ball" : "window",
             Layout = Text(document, "layout", "chips"),
             NumberFormat = Text(document, "numberFormat", "exact"),
             MonitorScope = Text(document, "monitorScope", "aggregate"),
@@ -250,7 +252,7 @@ public sealed record HudSettings
             ShowStatusDot = Boolean(document, "showStatusDot", true),
             AnimateUpdates = Boolean(document, "animateUpdates", true),
             ThemeStyle = new ThemeStyleSettings(
-                Text(theme, "backdrop", "acrylic"),
+                "none", // Compatibility field: native glass is no longer rendered.
                 Text(theme, "surface", "solid"),
                 Text(theme, "gradientStart"),
                 Text(theme, "gradientEnd"),

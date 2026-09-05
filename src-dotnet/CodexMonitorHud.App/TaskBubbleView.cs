@@ -40,9 +40,6 @@ internal sealed class TaskBubbleView : IDisposable
     private bool _contextVisualActive;
     private Brush? _baseBorderBrush;
     private Thickness _baseBorderThickness;
-    private string _backdropMode = "none";
-    private string _backdropTint = "#EAF7F8FA";
-    private double _backdropOpacity = 0.97;
 
     public TaskBubbleView(string xamlPath, SessionState state, BrushFactory brushes)
     {
@@ -52,7 +49,6 @@ internal sealed class TaskBubbleView : IDisposable
         TaskNumber = state.Number;
         Window = XamlLoader.LoadWindow(xamlPath);
         _shell = XamlLoader.Require<Border>(Window, "TaskBubbleShell");
-        WindowBackdrop.TrackShell(Window, _shell, () => _backdropMode);
         _dot = XamlLoader.Require<Ellipse>(Window, "TaskBubbleStatusDot");
         _dismiss = XamlLoader.Require<Button>(Window, "TaskBubbleDismissButton");
         _merge = XamlLoader.Require<Button>(Window, "TaskBubbleMergeButton");
@@ -79,7 +75,6 @@ internal sealed class TaskBubbleView : IDisposable
         {
             _handle = new WindowInteropHelper(Window).Handle;
             _baseStyle = _handle == 0 ? 0 : NativeMethods.GetWindowLong(_handle, NativeMethods.GwlExStyle);
-            _ = WindowBackdrop.Apply(_handle, _backdropMode, _backdropTint, _backdropOpacity);
             SetMousePassthrough(_mousePassthrough);
         };
         Window.Closing += (_, args) =>
@@ -116,9 +111,6 @@ internal sealed class TaskBubbleView : IDisposable
         string metricsText,
         bool hasAttention)
     {
-        _backdropMode = settings.ThemeStyle.Backdrop;
-        _backdropTint = settings.Background;
-        _backdropOpacity = settings.Opacity;
         var contextVisible = settings.Fields.TryGetValue("context", out var showContext) && showContext;
         var contextText = state.Snapshot is null
             ? Get(locale, "waiting")
@@ -153,10 +145,9 @@ internal sealed class TaskBubbleView : IDisposable
         {
             _appearanceSignature = appearanceSignature;
             Window.Topmost = settings.AlwaysOnTop;
-            Window.Opacity = settings.TransparencyMode == "uniform" && !WindowBackdrop.IsEnabled(settings.ThemeStyle.Backdrop)
+            Window.Opacity = settings.TransparencyMode == "uniform"
                 ? settings.Opacity
                 : 1;
-            _ = WindowBackdrop.Apply(_handle, _backdropMode, _backdropTint, _backdropOpacity);
             _shell.CornerRadius = new CornerRadius(Math.Max(12, settings.CornerRadius - 4));
             _shell.Background = _brushes.CreateSurface(settings, status, hasAttention);
             _shell.BorderBrush = _brushes.Create(settings.Border, "#22FFFFFF", BrushRole.Decoration, settings, status, hasAttention);

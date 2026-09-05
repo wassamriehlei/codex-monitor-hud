@@ -31,11 +31,23 @@ The Windows Release bundles a private .NET/WPF runtime so it can run without req
 - Independent main-list switches for directory, start time, context usage, task status (including listening), model name, cache hit rate, call total, task total, estimated cost, and data update time.
 - Select any installed Windows font. HarmonyOS Sans SC is the default preference, with Chinese system-font fallbacks.
 - Optional completion sound after the false-positive grace period, with built-in system sounds or a user-selected WAV, MP3, WMA, M4A, or AAC file plus an in-Settings preview.
-- Optional native Windows Blur or Acrylic glass, with tint strength linked to the opacity control and a translucent fallback when composition is unavailable.
+- Lightweight gradients and adjustable transparency, without native Windows Blur/Acrylic composition.
 - Automatic edge/corner snapping against the current monitor work area, with an on/off switch and adjustable snap distance.
 - Crisp source and action artwork adapted from the ISC-licensed [Lucide icon library](https://lucide.dev/); attribution is included in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-![English task-list screenshot with weekly and 5-hour allowance](assets/hud-multitask-en.png)
+## iOS 26-inspired Liquid design
+
+In **Settings > General > Floating surface**, choose a window or a floating ball. The ball shows only the number of active/listening tasks (zero when none); completed, idle, and error tasks are excluded. Hover to expand and leave for 450 ms to collapse. Mouse click-through keeps the window expanded so controls remain recoverable. This option is independent of summary/list/split layout.
+
+Dragging pauses nonessential polling and automatic placement until release. Plain clicks no longer save or snap the window. Settings generates its color wheel only when opening the picker, and repeated Settings requests focus the existing window.
+
+The new default uses a pearl gradient, fine reflective rim, compact neutral task cards, capsule actions, and HarmonyOS Sans SC (with installed-system-font fallbacks). Settings and the color picker share rounded controls, green switches, subtle blue accents, and responsive segmented navigation. Existing saved appearance and field preferences are preserved.
+
+Choose **Settings > General > iOS 26 · Liquid**, or drop [the shareable theme](themes/00-ios26-liquid.json) onto **Settings > General > Theme workshop**. Width, font, transparency, and per-task fields remain configurable. Selecting the theme changes appearance only, not sound files, notification permissions, monitoring sources, or task data.
+
+This is a lightweight WPF interpretation of the iOS 26 visual language, not Apple's native Liquid Glass refraction. Native Windows Blur/Acrylic and their Settings controls have been removed. Old settings and imported themes containing those modes are normalized to `none`; customizable WPF corners and transparency remain available without the former rectangular native backdrop.
+
+![English task-list screenshot with weekly and 5-hour allowance (previous design)](assets/hud-multitask-en.png)
 
 The weekly and 5-hour values are never guessed or summed across tasks. By default they use the newest local observation. In **Settings > Allowance handoff guard**, you can opt in to the already signed-in official local Codex interface, which reads only those two percentages from the normal profile; it does not read conversations, prompts, provider configuration, or credentials. If the selected source is unavailable, both values show `--` rather than mixing values from another account.
 

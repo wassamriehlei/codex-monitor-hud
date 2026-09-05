@@ -726,12 +726,24 @@ void TestConfiguration()
         Equal(true, settings.AlwaysOnTop, "wrong scalar type retains default boolean");
         Equal(14d, settings.FontSize, "wrong scalar type retains default number");
         Equal(false, settings.Fields["context"], "wrong nested scalar type retains default");
-        Equal("#FF34C759", settings.StatusColors["active"], "wrong dictionary scalar type retains default");
+        Equal("#FF248A3D", settings.StatusColors["active"], "wrong dictionary scalar type retains Liquid default");
         Equal("off", settings.CompletionSound, "invalid completion sound falls back to off");
         Equal(900d, settings.HudWidth, "default HUD width projection");
+        Equal("window", settings.SurfaceMode, "existing settings retain window mode");
+        config["surfaceMode"] = "invalid";
+        HudConfigStore.Save(paths, config);
+        Equal("window", HudSettings.From(HudConfigStore.Load(paths)).SurfaceMode, "invalid surface mode recovers to window");
+        config["surfaceMode"] = "ball";
         Equal(true, settings.Behavior.EdgeSnap.Enabled, "edge snap defaults to enabled");
         Equal(28d, settings.Behavior.EdgeSnap.Distance, "edge snap distance projection");
-        Equal("acrylic", settings.ThemeStyle.Backdrop, "native glass backdrop projection");
+        Equal("none", settings.ThemeStyle.Backdrop, "Liquid defaults to compositor-independent glass styling");
+        foreach (var retiredBackdrop in new[] { "blur", "acrylic" })
+        {
+            ((JsonObject)config["themeStyle"]!)["backdrop"] = retiredBackdrop;
+            Equal("none", HudSettings.From(config).ThemeStyle.Backdrop, "retired native glass is ignored by typed settings");
+            HudConfigStore.Save(paths, config);
+            Equal("none", HudConfigStore.Load(paths)["themeStyle"]!["backdrop"]!.GetValue<string>(), "retired native glass is normalized on reload");
+        }
         IsTrue(settings.ThemeStyle.FontFamily.StartsWith("HarmonyOS Sans SC", StringComparison.Ordinal), "legacy default font migrates to HarmonyOS Sans SC");
         ((JsonObject)config["agentNotifications"]!)["enabled"] = true;
         ((JsonObject)config["agentNotifications"]!)["permission"] = "expressive";
@@ -747,6 +759,7 @@ void TestConfiguration()
         HudConfigStore.Save(paths, config);
         NotNull(JsonNode.Parse(File.ReadAllText(paths.ConfigPath)), "saved config JSON");
         var reloaded = HudSettings.From(HudConfigStore.Load(paths));
+        Equal("ball", reloaded.SurfaceMode, "floating ball preference survives config merge");
         Equal(true, reloaded.AgentNotifications.Enabled, "saved agent-notification boolean survives config merge");
         Equal("expressive", reloaded.AgentNotifications.Permission, "saved agent-notification permission survives config merge");
         Equal("file", reloaded.CompletionSound, "saved completion sound survives config merge");

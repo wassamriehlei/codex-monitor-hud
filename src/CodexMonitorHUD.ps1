@@ -10,6 +10,10 @@ param(
     [string]$RenderPreview,
     [string]$RenderSettingsPreview,
     [string]$RenderColorPickerPreview,
+    [string]$PreviewTheme = '',
+    [ValidateSet('window','ball')][string]$PreviewSurfaceMode = 'window',
+    [ValidateRange(760,1600)][int]$PreviewSettingsWidth = 900,
+    [ValidateRange(700,1200)][int]$PreviewSettingsHeight = 820,
     [string]$ImportThemeFile,
     [switch]$PreviewSettingsAdvanced,
     [switch]$PreviewSettingsReminders,
@@ -42,18 +46,23 @@ if (-not ('HudNativeMethods' -as [type])) {
     Add-Type @'
 using System;
 using System.Runtime.InteropServices;
-public struct HudAccentPolicy {
-    public int State;
-    public int Flags;
-    public int GradientColor;
-    public int AnimationId;
-}
-public struct HudWindowCompositionAttributeData {
-    public int Attribute;
-    public IntPtr Data;
-    public int SizeOfData;
-}
 public static class HudNativeMethods {
+    public static byte[] CreateColorWheelPixels() {
+        const int size=240; const double radius=118, center=120;
+        var pixels=new byte[size*size*4];
+        for (int y=0;y<size;y++) for (int x=0;x<size;x++) {
+            double dx=x-center,dy=y-center,distance=Math.Sqrt(dx*dx+dy*dy);
+            if (distance>radius) continue;
+            double h=Math.Atan2(dy,dx)*180/Math.PI;if(h<0)h+=360;
+            double s=Math.Min(1,distance/radius),c=s,part=c*(1-Math.Abs((h/60)%2-1)),m=1-c;
+            double r=0,g=0,b=0;
+            if(h<60){r=c;g=part;}else if(h<120){r=part;g=c;}else if(h<180){g=c;b=part;}
+            else if(h<240){g=part;b=c;}else if(h<300){r=part;b=c;}else{r=c;b=part;}
+            int i=(y*size+x)*4;
+            pixels[i]=(byte)Math.Round((b+m)*255);pixels[i+1]=(byte)Math.Round((g+m)*255);pixels[i+2]=(byte)Math.Round((r+m)*255);pixels[i+3]=255;
+        }
+        return pixels;
+    }
     [DllImport("user32.dll", EntryPoint="GetWindowLongW", SetLastError=true)]
     public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
     [DllImport("user32.dll", EntryPoint="SetWindowLongW", SetLastError=true)]
@@ -70,14 +79,6 @@ public static class HudNativeMethods {
     [DllImport("user32.dll", SetLastError=true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
-    [DllImport("user32.dll")]
-    public static extern int SetWindowCompositionAttribute(IntPtr hWnd, ref HudWindowCompositionAttributeData data);
-    [DllImport("gdi32.dll")]
-    public static extern IntPtr CreateRoundRectRgn(int left, int top, int right, int bottom, int ellipseWidth, int ellipseHeight);
-    [DllImport("user32.dll")]
-    public static extern int SetWindowRgn(IntPtr window, IntPtr region, bool redraw);
-    [DllImport("gdi32.dll")]
-    public static extern bool DeleteObject(IntPtr value);
     [DllImport("kernel32.dll")]
     public static extern IntPtr GetCurrentProcess();
     [DllImport("kernel32.dll", SetLastError=true)]
@@ -120,6 +121,7 @@ function Write-HudDebug {
 }
 $openSignal = Join-Path $paths.StateRoot 'open-settings.signal'
 $reloadSettingsSignal = Join-Path $paths.StateRoot 'reload-settings.signal'
+$settingsHostOpenSignal = Join-Path $paths.StateRoot 'settings-host-open.signal'
 $showSignal = Join-Path $paths.StateRoot 'show.signal'
 $hideSignal = Join-Path $paths.StateRoot 'hide.signal'
 $pauseSignal = Join-Path $paths.StateRoot 'pause.signal'
@@ -137,6 +139,7 @@ if (-not $isUtilityRun) {
     $mutexSuffix = if ($SettingsHost) { '-settings' } elseif ([string]::IsNullOrWhiteSpace($InstanceId)) { '' } else { '-' + ([regex]::Replace($InstanceId, '[^A-Za-z0-9_.-]', '_')) }
     $mutex = New-Object Threading.Mutex($true, ('Local\CodexMonitorHUD' + $mutexSuffix), [ref]$createdNew)
     if (-not $createdNew) {
+        if ($SettingsHost) { [IO.File]::WriteAllText($settingsHostOpenSignal, [DateTime]::UtcNow.ToString('O')) }
         if ($OpenSettings) { [IO.File]::WriteAllText($openSignal, [DateTime]::UtcNow.ToString('O')) }
         exit 0
     }
@@ -239,9 +242,6 @@ function New-HudBrush {
 function Get-HudRoleOpacity {
     param([ValidateSet('background','primary','secondary','decoration','status')][string]$Role)
     if ([string]$config.transparencyMode -eq 'uniform') {
-        if ($Role -eq 'background' -and @('blur','acrylic') -contains [string]$config.themeStyle.backdrop) {
-            return 0.28 + (0.42 * [Math]::Max(0.0,[Math]::Min(1.0,[double]$config.opacity)))
-        }
         return 1.0
     }
     $level = [Math]::Max(0.0,[Math]::Min(1.0,[double]$config.opacity))
@@ -270,8 +270,7 @@ function Get-HudRoleOpacity {
 function New-HudRoleBrush {
     param([string]$Value, [string]$Fallback = '#FFFFFFFF', [ValidateSet('background','primary','secondary','decoration','status')][string]$Role = 'primary')
     $brush = New-HudBrush $Value $Fallback
-    $glassEnabled = @('blur','acrylic') -contains [string]$config.themeStyle.backdrop
-    if ([string]$config.transparencyMode -eq 'uniform' -and -not $glassEnabled) {
+    if ([string]$config.transparencyMode -eq 'uniform') {
         if ($Role -eq 'background' -and $brush -is [Windows.Media.SolidColorBrush]) {
             $color = $brush.Color
             $color.A = [byte]255
@@ -281,9 +280,7 @@ function New-HudRoleBrush {
     }
     if ($Role -eq 'status' -or $brush -isnot [Windows.Media.SolidColorBrush]) { return $brush }
     $color = $brush.Color
-    $factor = if ([string]$config.transparencyMode -eq 'uniform' -and $glassEnabled -and $Role -eq 'background') {
-        0.28 + (0.42 * [Math]::Max(0.0,[Math]::Min(1.0,[double]$config.opacity)))
-    } else { Get-HudRoleOpacity $Role }
+    $factor = Get-HudRoleOpacity $Role
     $color.A = [byte][Math]::Round($color.A * $factor)
     return New-Object Windows.Media.SolidColorBrush($color)
 }
@@ -299,7 +296,7 @@ function New-HudSurfaceBrush {
             $bitmap.Freeze()
             $brush = New-Object Windows.Media.ImageBrush($bitmap)
             $brush.Stretch = [Windows.Media.Stretch]([string]$config.themeStyle.imageStretch)
-            $brush.Opacity = if ([string]$config.transparencyMode -eq 'uniform' -and [string]$config.themeStyle.backdrop -eq 'none') { 1.0 } else { [double]$config.themeStyle.imageOpacity }
+            $brush.Opacity = if ([string]$config.transparencyMode -eq 'uniform') { 1.0 } else { [double]$config.themeStyle.imageOpacity }
             return $brush
         } catch { }
     }
@@ -310,7 +307,7 @@ function New-HudSurfaceBrush {
             $factor = Get-HudRoleOpacity 'background'
             $start.A = [byte][Math]::Round($start.A * $factor)
             $end.A = [byte][Math]::Round($end.A * $factor)
-            if ([string]$config.transparencyMode -eq 'uniform' -and [string]$config.themeStyle.backdrop -eq 'none') { $start.A = [byte]255; $end.A = [byte]255 }
+            if ([string]$config.transparencyMode -eq 'uniform') { $start.A = [byte]255; $end.A = [byte]255 }
             $angle = [double]$config.themeStyle.gradientAngle * [Math]::PI / 180.0
             $dx = [Math]::Cos($angle) * 0.5
             $dy = [Math]::Sin($angle) * 0.5
@@ -323,74 +320,6 @@ function New-HudSurfaceBrush {
         } catch { }
     }
     return New-HudRoleBrush ([string]$config.background) '#EAFFFFFF' 'background'
-}
-
-function Set-HudWindowBackdrop {
-    param([IntPtr]$Handle)
-    if ($Handle -eq [IntPtr]::Zero) { return $false }
-    $mode = [string]$config.themeStyle.backdrop
-    $state = switch ($mode) { 'blur' { 3 } 'acrylic' { 4 } default { 0 } }
-    $policy = New-Object HudAccentPolicy
-    $policy.State = $state
-    $policy.Flags = if ($state -eq 4) { 2 } else { 0 }
-    if ($state -ne 0) {
-        try { $color = [Windows.Media.ColorConverter]::ConvertFromString([string]$config.background) }
-        catch { $color = [Windows.Media.Color]::FromRgb(247,248,250) }
-        $level = [Math]::Max(0.0,[Math]::Min(1.0,[double]$config.opacity))
-        $alpha = if ($state -eq 4) { [byte][Math]::Round(32 + (80 * $level)) } else { [byte][Math]::Round(1 + (47 * $level)) }
-        $packed = ([uint32]$alpha -shl 24) -bor ([uint32]$color.B -shl 16) -bor ([uint32]$color.G -shl 8) -bor [uint32]$color.R
-        $policy.GradientColor = [BitConverter]::ToInt32([BitConverter]::GetBytes([uint32]$packed),0)
-    }
-    $pointer = [IntPtr]::Zero
-    try {
-        $size = [Runtime.InteropServices.Marshal]::SizeOf($policy)
-        $pointer = [Runtime.InteropServices.Marshal]::AllocHGlobal($size)
-        [Runtime.InteropServices.Marshal]::StructureToPtr($policy,$pointer,$false)
-        $data = New-Object HudWindowCompositionAttributeData
-        $data.Attribute = 19
-        $data.Data = $pointer
-        $data.SizeOfData = $size
-        return [HudNativeMethods]::SetWindowCompositionAttribute($Handle,[ref]$data) -ne 0
-    } catch {
-        Write-HudDebug ('Native backdrop could not be applied: ' + $_.Exception.Message)
-        return $false
-    } finally {
-        if ($pointer -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::FreeHGlobal($pointer) }
-    }
-}
-
-function Sync-HudShellRegion {
-    param($Window, $Shell, $RegionState)
-    $handle = (New-Object Windows.Interop.WindowInteropHelper($Window)).Handle
-    if ($handle -eq [IntPtr]::Zero) { return }
-    if (@('blur','acrylic') -notcontains [string]$config.themeStyle.backdrop) {
-        if ($RegionState.Signature -ne '' -and [HudNativeMethods]::SetWindowRgn($handle,[IntPtr]::Zero,$true) -ne 0) { $RegionState.Signature = '' }
-        return
-    }
-    if (-not $Shell.IsArrangeValid -or $Shell.ActualWidth -le 0 -or $Shell.ActualHeight -le 0) { return }
-    $dpi = [Windows.Media.VisualTreeHelper]::GetDpi($Window)
-    $bounds = $Shell.TransformToAncestor($Window).TransformBounds((New-Object Windows.Rect($Shell.RenderSize)))
-    $radius = [Math]::Min([double]$Shell.CornerRadius.TopLeft,[Math]::Min($bounds.Width,$bounds.Height)/2)
-    $left = [int][Math]::Round($bounds.Left * $dpi.DpiScaleX)
-    $top = [int][Math]::Round($bounds.Top * $dpi.DpiScaleY)
-    $right = [int][Math]::Round($bounds.Right * $dpi.DpiScaleX) + 1
-    $bottom = [int][Math]::Round($bounds.Bottom * $dpi.DpiScaleY) + 1
-    $diameterX = [int][Math]::Round(2 * $radius * $dpi.DpiScaleX)
-    $diameterY = [int][Math]::Round(2 * $radius * $dpi.DpiScaleY)
-    $signature = "$left,$top,$right,$bottom,$diameterX,$diameterY"
-    if ($RegionState.Signature -eq $signature) { return }
-    $region = [HudNativeMethods]::CreateRoundRectRgn($left,$top,$right,$bottom,$diameterX,$diameterY)
-    if ($region -eq [IntPtr]::Zero) { return }
-    if ([HudNativeMethods]::SetWindowRgn($handle,$region,$true) -ne 0) { $RegionState.Signature = $signature }
-    else { [void][HudNativeMethods]::DeleteObject($region) }
-}
-
-function Register-HudShellRegion {
-    param($Window, $Shell)
-    $regionState = @{ Signature = '' }
-    $handler = [EventHandler]({ Sync-HudShellRegion $Window $Shell $regionState }.GetNewClosure())
-    $Window.Add_LayoutUpdated($handler)
-    $Window.Add_Closed(({ $Window.Remove_LayoutUpdated($handler) }).GetNewClosure())
 }
 
 function Get-HudEffectProfile {
@@ -488,6 +417,12 @@ $currentStatus = 'idle'
 $lastMainAttentionRevision = 0
 $attentionSequence = 0
 $isMainIndicatorCollapsed = $false
+$ballModeActive = $false
+$isFloatingBallExpanded = $false
+$wasBallCollapsed = $false
+$ballCollapseTimer = $null
+$isHudDragging = $false
+$colorWheelBitmap = $null
 $contextMetricContainer = $null
 $lastUpdateAnimationSignature = ''
 $lastQuietIndicatorSignature = ''
@@ -521,7 +456,6 @@ $hud = Load-XamlWindow (Join-Path $PSScriptRoot 'HudWindow.xaml')
 Set-HudWindowIcon $hud
 Write-HudDebug 'HUD XAML loaded.'
 $hudShell = Find-Control $hud 'HudShell'
-Register-HudShellRegion $hud $hudShell
 $hudContentPanel = Find-Control $hud 'HudContentPanel'
 $statusDot = Find-Control $hud 'StatusDot'
 $metricsPanel = Find-Control $hud 'MetricsPanel'
@@ -530,6 +464,8 @@ $taskListDivider = Find-Control $hud 'TaskListDivider'
 $taskListScroller = Find-Control $hud 'TaskListScroller'
 $taskListPanel = Find-Control $hud 'TaskListPanel'
 $quietIndicatorPanel = Find-Control $hud 'QuietIndicatorPanel'
+$floatingBallPanel = Find-Control $hud 'FloatingBallPanel'
+$floatingBallCount = Find-Control $hud 'FloatingBallCount'
 $quietOverallHost = Find-Control $hud 'QuietOverallHost'
 $quietOverallRing = Find-Control $hud 'QuietOverallRing'
 $quietOverallDot = Find-Control $hud 'QuietOverallDot'
@@ -547,6 +483,7 @@ $closeSettingsButton = Find-Control $settings 'CloseSettingsButton'
 $themeWorkshopDropZone = Find-Control $settings 'ThemeWorkshopDropZone'
 $themeImportButton = Find-Control $settings 'ThemeImportButton'
 $languageCombo = Find-Control $settings 'LanguageCombo'
+$surfaceModeCombo = Find-Control $settings 'SurfaceModeCombo'
 $layoutCombo = Find-Control $settings 'LayoutCombo'
 $numberCombo = Find-Control $settings 'NumberCombo'
 $positionCombo = Find-Control $settings 'PositionCombo'
@@ -613,7 +550,6 @@ $contextThreshold1Text = Find-Control $settings 'ContextThreshold1Text'
 $contextThreshold2Text = Find-Control $settings 'ContextThreshold2Text'
 $contextThreshold3Text = Find-Control $settings 'ContextThreshold3Text'
 $transparencyModeCombo = Find-Control $settings 'TransparencyModeCombo'
-$backdropCombo = Find-Control $settings 'BackdropCombo'
 $fontFamilyCombo = Find-Control $settings 'FontFamilyCombo'
 $fontPreviewText = Find-Control $settings 'FontPreviewText'
 $hudWidthSlider = Find-Control $settings 'HudWidthSlider'
@@ -712,9 +648,10 @@ foreach ($key in @('Input','Cached','CacheHitRate','Uncached','Output','Reasonin
 
 $settingsTextControls = @{}
 foreach ($name in @(
+    'SurfaceModeLabel','SurfaceModeHint',
     'SettingsSubtitle','PresetsTitle','PresetsHint','ThemeWorkshopTitle','ThemeWorkshopHint','LanguageLayoutTitle','DisplayLanguageLabel','BubbleStyleLabel','SessionSourcesTitle','SessionSourcesHint','SessionSourcesPrivacy','SourceDesktopOptionText','SourceVsCodeOptionText','SourceDefaultCliOptionText','SourceDeepSeekCliOptionText',
     'NumberFormatLabel','PositionLabel','MonitorScopeLabel','ActiveWindowLabel','TaskRetentionLabel','TerminalExitModeLabel','TerminalExitHint','MetricsTitle','MetricsHint','PricingSourceTitle','PricingSourceHint','PricingPathLabel',
-    'AppearanceTitle','FontFamilyLabel','HudWidthLabel','FontSizeLabel','RadiusLabel','OpacityLabel','BackgroundColorLabel','ForegroundColorLabel','AccentColorLabel','FontPreviewText','BackdropLabel','BackdropHint',
+    'AppearanceTitle','FontFamilyLabel','HudWidthLabel','FontSizeLabel','RadiusLabel','OpacityLabel','BackgroundColorLabel','ForegroundColorLabel','AccentColorLabel','FontPreviewText',
     'MousePassthroughHint','StatusPalettesTitle','StatusPalettesHint','StatusPaletteCodexMicroSource','MultiTaskTitle','MultiTaskExplanation',
     'DisplayModeLabel','TaskNameModeLabel','MaxSplitLabel','NumberCooldownLabel','ListFieldsTitle','ListDetailHint','TaskBubbleFieldsTitle','TaskBubbleResizeHint',
     'ListDensityLabel',
@@ -728,6 +665,7 @@ foreach ($name in @(
 
 $settingsContentControls = @{}
 foreach ($name in @(
+    'SurfaceWindowItem','SurfaceBallItem',
     'PresetFrost','PresetMidnight','PresetAurora','PresetGraphite','PresetMinimal',
         'LanguageZhItem','LanguageEnItem','LanguageSymbolsItem','LayoutChipsItem','LayoutCompactItem','LayoutInlineItem','LayoutOutlineItem','LayoutCardsItem','LayoutStackedItem',
     'NumberExactItem','NumberCompactItem','NumberAutoItem','PositionCustomItem','PositionTopRightItem','PositionTopCenterItem','PositionTopLeftItem',
@@ -751,7 +689,7 @@ foreach ($name in @(
     'DotBrightnessSubtleItem','DotBrightnessBalancedItem','DotBrightnessBrightItem',
     'DotSpeedSlowItem','DotSpeedNormalItem','DotSpeedFastItem',
     'Attention4Item','Attention6Item','Attention10Item','Attention15Item',
-    'TransparencyUniformItem','TransparencyLayeredItem','TransparencyFocusItem','BackdropNoneItem','BackdropBlurItem','BackdropAcrylicItem',
+    'TransparencyUniformItem','TransparencyLayeredItem','TransparencyFocusItem',
     'IdleIndicator5Item','IdleIndicator15Item','IdleIndicator30Item','IdleIndicator60Item',
     'IdleIndicatorOverallItem','IdleIndicatorHorizontalItem','IdleIndicatorVerticalItem','IdleIndicatorTaskDotItem','IdleIndicatorTaskBarItem'
 )) { $settingsContentControls[$name] = Find-Control $settings $name }
@@ -884,11 +822,12 @@ function Apply-SettingsLanguage {
     $script:locale = Get-RuntimeHudLocale ([string]$config.language)
     $script:settingsLocale = if ([string]$config.language -eq 'symbols') { Get-RuntimeHudLocale 'en' } else { $locale }
     $map = @{
+        SurfaceModeLabel='surfaceMode'; SurfaceModeHint='surfaceModeHint';
         SettingsSubtitle='settingsSubtitle'; PresetsTitle='presetsTitle'; PresetsHint='presetsHint'; ThemeWorkshopTitle='themeWorkshopTitle'; ThemeWorkshopHint='themeWorkshopHint';
         LanguageLayoutTitle='languageLayoutTitle'; DisplayLanguageLabel='displayLanguage'; BubbleStyleLabel='bubbleStyle';
         SessionSourcesTitle='sessionSourcesTitle'; SessionSourcesHint='sessionSourcesHint'; SessionSourcesPrivacy='sessionSourcesPrivacy'; SourceDesktopOptionText='sourceDesktopOption'; SourceVsCodeOptionText='sourceVsCodeOption'; SourceDefaultCliOptionText='sourceDefaultCliOption'; SourceDeepSeekCliOptionText='sourceDeepSeekCliOption';
         NumberFormatLabel='numberFormat'; PositionLabel='position'; MonitorScopeLabel='monitorScope'; ActiveWindowLabel='activeWindow'; TaskRetentionLabel='taskRetention'; TerminalExitModeLabel='terminalExitMode'; TerminalExitHint='terminalExitHint';
-        MetricsTitle='metricsTitle'; MetricsHint='metricsHint'; PricingSourceTitle='pricingSourceTitle'; PricingSourceHint='pricingSourceHint'; PricingPathLabel='pricingPathLabel'; AppearanceTitle='appearanceTitle'; FontFamilyLabel='fontFamily'; HudWidthLabel='hudWidth'; FontSizeLabel='fontSize'; FontPreviewText='fontPreview'; BackdropLabel='backdrop'; BackdropHint='backdropHint';
+        MetricsTitle='metricsTitle'; MetricsHint='metricsHint'; PricingSourceTitle='pricingSourceTitle'; PricingSourceHint='pricingSourceHint'; PricingPathLabel='pricingPathLabel'; AppearanceTitle='appearanceTitle'; FontFamilyLabel='fontFamily'; HudWidthLabel='hudWidth'; FontSizeLabel='fontSize'; FontPreviewText='fontPreview';
         RadiusLabel='cornerRadius'; OpacityLabel='opacity'; BackgroundColorLabel='backgroundColor';
         ForegroundColorLabel='foregroundColor'; AccentColorLabel='accentColor'; MousePassthroughHint='mousePassthroughHint';
         StatusPalettesTitle='statusPalettesTitle'; StatusPalettesHint='statusPalettesHint'; StatusPaletteCodexMicroSource='statusPaletteCodexMicroSource';
@@ -916,6 +855,7 @@ function Apply-SettingsLanguage {
     }
 
     $contentMap = @{
+        SurfaceWindowItem='surfaceWindow'; SurfaceBallItem='surfaceBall';
         PresetFrost='presetFrost'; PresetMidnight='presetMidnight'; PresetAurora='presetAurora'; PresetGraphite='presetGraphite'; PresetMinimal='presetMinimal';
         LanguageZhItem='languageZh'; LanguageEnItem='languageEn'; LanguageSymbolsItem='languageSymbols';
         LayoutChipsItem='layoutChips'; LayoutCompactItem='layoutCompact'; LayoutInlineItem='layoutInline'; LayoutOutlineItem='layoutOutline'; LayoutCardsItem='layoutCards'; LayoutStackedItem='layoutStacked';
@@ -946,7 +886,7 @@ function Apply-SettingsLanguage {
         DotBrightnessSubtleItem='dotBrightnessSubtle'; DotBrightnessBalancedItem='dotBrightnessBalanced'; DotBrightnessBrightItem='dotBrightnessBright';
         DotSpeedSlowItem='dotSpeedSlow'; DotSpeedNormalItem='dotSpeedNormal'; DotSpeedFastItem='dotSpeedFast';
         Attention4Item='seconds4'; Attention6Item='seconds6'; Attention10Item='seconds10'; Attention15Item='seconds15';
-        TransparencyUniformItem='transparencyUniform'; TransparencyLayeredItem='transparencyLayered'; TransparencyFocusItem='transparencyFocus'; BackdropNoneItem='backdropNone'; BackdropBlurItem='backdropBlur'; BackdropAcrylicItem='backdropAcrylic';
+        TransparencyUniformItem='transparencyUniform'; TransparencyLayeredItem='transparencyLayered'; TransparencyFocusItem='transparencyFocus';
         IdleIndicator5Item='minutes5'; IdleIndicator15Item='minutes15'; IdleIndicator30Item='minutes30'; IdleIndicator60Item='minutes60';
         IdleIndicatorOverallItem='idleIndicatorOverall'; IdleIndicatorHorizontalItem='idleIndicatorHorizontal'; IdleIndicatorVerticalItem='idleIndicatorVertical';
         IdleIndicatorTaskDotItem='idleIndicatorTaskDot'; IdleIndicatorTaskBarItem='idleIndicatorTaskBar'
@@ -1088,22 +1028,12 @@ function Format-HudColor {
 }
 
 function New-ColorWheelBitmap {
-    $size=240; $radius=118.0; $center=120.0; $stride=$size*4
-    $pixels=New-Object byte[] ($stride*$size)
-    for($y=0;$y -lt $size;$y++){
-        for($x=0;$x -lt $size;$x++){
-            $dx=$x-$center; $dy=$y-$center; $distance=[Math]::Sqrt($dx*$dx+$dy*$dy)
-            $index=$y*$stride+$x*4
-            if($distance -le $radius){
-                $h=[Math]::Atan2($dy,$dx)*180/[Math]::PI; if($h -lt 0){$h+=360}
-                $color=Convert-HsvToColor $h ([Math]::Min(1,$distance/$radius)) 1 255
-                $pixels[$index]=$color.B; $pixels[$index+1]=$color.G; $pixels[$index+2]=$color.R; $pixels[$index+3]=255
-            }
-        }
+    if ($null -eq $script:colorWheelBitmap) {
+        $pixels = [HudNativeMethods]::CreateColorWheelPixels()
+        $script:colorWheelBitmap = [Windows.Media.Imaging.BitmapSource]::Create(240,240,96,96,[Windows.Media.PixelFormats]::Bgra32,$null,$pixels,960)
+        $script:colorWheelBitmap.Freeze()
     }
-    $bitmap=New-Object Windows.Media.Imaging.WriteableBitmap($size,$size,96,96,[Windows.Media.PixelFormats]::Bgra32,$null)
-    $bitmap.WritePixels((New-Object Windows.Int32Rect(0,0,$size,$size)),$pixels,$stride,0)
-    return $bitmap
+    return $script:colorWheelBitmap
 }
 
 function Get-PickerColor {
@@ -1140,6 +1070,7 @@ function Update-ColorSwatches {
 
 function Show-ColorPicker {
     param($TargetTextBox,$TargetButton)
+    if ($null -eq $colorWheelImage.Source) { $colorWheelImage.Source = New-ColorWheelBitmap }
     try{$color=[Windows.Media.ColorConverter]::ConvertFromString([string]$TargetTextBox.Text)}catch{$color=[Windows.Media.ColorConverter]::ConvertFromString('#FF0A84FF')}
     $hsv=Convert-ColorToHsv $color
     $script:pickerHue=$hsv.Hue; $script:pickerSaturation=$hsv.Saturation
@@ -1152,7 +1083,6 @@ function Show-ColorPicker {
 }
 
 if ($loadSettingsUi) {
-    $colorWheelImage.Source=New-ColorWheelBitmap
     $colorWheelCanvas.Add_MouseLeftButtonDown({$colorWheelCanvas.CaptureMouse()|Out-Null;Set-PickerFromPoint ($_.GetPosition($colorWheelCanvas))})
     $colorWheelCanvas.Add_MouseMove({if($_.LeftButton -eq [Windows.Input.MouseButtonState]::Pressed){Set-PickerFromPoint ($_.GetPosition($colorWheelCanvas))}})
     $colorWheelCanvas.Add_MouseLeftButtonUp({$colorWheelCanvas.ReleaseMouseCapture()})
@@ -1167,6 +1097,7 @@ if ($loadSettingsUi) {
 
 function Export-ColorPickerPreview {
     param([Parameter(Mandatory = $true)][string]$Path)
+    $colorWheelImage.Source = New-ColorWheelBitmap
     Set-ColorPickerLanguage $PreviewLanguage
     $script:pickerHue = 208.0
     $script:pickerSaturation = 0.82
@@ -1236,6 +1167,7 @@ function Get-HudClampedPosition {
 }
 
 function Move-HudToConfiguredPosition {
+    if ($isHudDragging) { return }
     $screen = Get-HudWorkArea $hud
     $hud.MaxWidth = [Math]::Max(480,$screen.Width + 36)
     $hud.UpdateLayout()
@@ -2183,8 +2115,7 @@ function Update-TaskBubble {
     $entry = $splitWindows[[string]$State.Path]
     $status = Get-TaskStatus $State
     $entry.Window.Topmost = [bool]$config.alwaysOnTop
-    $entry.Window.Opacity = if ([string]$config.transparencyMode -eq 'uniform' -and [string]$config.themeStyle.backdrop -eq 'none') { [double]$config.opacity } else { 1.0 }
-    [void](Set-HudWindowBackdrop $entry.Handle)
+    $entry.Window.Opacity = if ([string]$config.transparencyMode -eq 'uniform') { [double]$config.opacity } else { 1.0 }
     $entry.Shell.CornerRadius = New-Object Windows.CornerRadius([Math]::Max(12, [double]$config.cornerRadius - 4))
     $entry.Shell.Background = New-HudSurfaceBrush
     $agentAttentionActive = [string]$State.AttentionReason -eq 'agent' -and $State.AttentionUntil -gt [DateTimeOffset]::Now
@@ -2477,9 +2408,11 @@ function Set-TaskBubbleIndicatorCollapsed {
 }
 
 function Update-HudIdleIndicatorMode {
+    if ($isHudDragging) { return }
     $states = @(Get-HudUserTaskStates)
     $keepTerminalTaskLights = [bool]$script:isMainIndicatorCollapsed -and (Test-HudQuietLayoutShowsTasks)
-    $mainShouldCollapse = [bool]$config.behavior.idleIndicator.enabled -and $states.Count -gt 0 -and -not $hud.IsMouseOver -and @($states | Where-Object { -not (Test-HudStateQuiet $_ $keepTerminalTaskLights) }).Count -eq 0
+    $effectiveBall = [string]$config.surfaceMode -eq 'ball' -and -not [bool]$config.mousePassthrough
+    $mainShouldCollapse = -not $effectiveBall -and [bool]$config.behavior.idleIndicator.enabled -and $states.Count -gt 0 -and -not $hud.IsMouseOver -and @($states | Where-Object { -not (Test-HudStateQuiet $_ $keepTerminalTaskLights) }).Count -eq 0
     Set-HudIndicatorCollapsed $mainShouldCollapse
     foreach ($entry in @($splitWindows.Values)) {
         if (-not $sessionStates.ContainsKey([string]$entry.Path)) { continue }
@@ -2488,7 +2421,58 @@ function Update-HudIdleIndicatorMode {
         $bubbleShouldCollapse = [bool]$config.behavior.idleIndicator.enabled -and [bool]$config.behavior.idleIndicator.includeTaskBubbles -and -not $entry.Window.IsMouseOver -and (Test-HudStateQuiet $state $keepBubbleTerminalLight)
         Set-TaskBubbleIndicatorCollapsed $entry $state $bubbleShouldCollapse
     }
+    Update-HudFloatingSurface -TaskCount (@($states | Where-Object { @( 'active','listening' ) -contains (Get-TaskStatus $_) }).Count)
     Position-TaskBubbles
+}
+
+function Update-HudFloatingSurface {
+    param([int]$TaskCount)
+    $effectiveBall = [string]$config.surfaceMode -eq 'ball' -and -not [bool]$config.mousePassthrough
+    if ($script:ballModeActive -ne $effectiveBall) {
+        $script:ballModeActive = $effectiveBall
+        $script:isFloatingBallExpanded = $false
+        if ($null -ne $ballCollapseTimer) { $ballCollapseTimer.Stop() }
+    }
+    $collapsed = $effectiveBall -and -not $isFloatingBallExpanded
+    $floatingBallPanel.Visibility = if ($collapsed) { [Windows.Visibility]::Visible } else { [Windows.Visibility]::Collapsed }
+    $floatingBallCount.Foreground = New-HudRoleBrush ([string]$config.foreground) '#FF1C1C1E' 'primary'
+    $floatingBallCount.Text = [string]$TaskCount
+    $floatingBallPanel.ToolTip = [string]$settingsLocale.surfaceBallHint
+    if ($collapsed) {
+        $hudContentPanel.Visibility = [Windows.Visibility]::Collapsed
+        $quietIndicatorPanel.Visibility = [Windows.Visibility]::Collapsed
+        $hudShell.Width = 48
+        $hudShell.Height = 48
+        $hudShell.Padding = New-Object Windows.Thickness(1)
+        $hudShell.CornerRadius = New-Object Windows.CornerRadius(24)
+    } else {
+        $hudShell.Height = [double]::NaN
+        if ($script:wasBallCollapsed -and -not $isMainIndicatorCollapsed) {
+            $hudContentPanel.Visibility = [Windows.Visibility]::Visible
+            $script:lastHudAppearanceSignature = ''
+            [void](Apply-HudAppearance)
+        }
+    }
+    if ($script:wasBallCollapsed -ne $collapsed) {
+        $hud.UpdateLayout()
+        Move-HudToConfiguredPosition
+        Write-HudDebug ('Floating ball: ' + $(if ($collapsed) { 'collapsed' } else { 'expanded' }))
+    }
+    $script:wasBallCollapsed = $collapsed
+}
+
+function Set-HudBallExpanded {
+    param([bool]$Expanded)
+    if (-not $ballModeActive -or $isFloatingBallExpanded -eq $Expanded) { return }
+    $script:isFloatingBallExpanded = $Expanded
+    $script:lastHudAppearanceSignature = ''
+    Render-Hud
+}
+
+function Schedule-HudBallCollapse {
+    if (-not $ballModeActive -or -not $isFloatingBallExpanded -or $hud.IsMouseOver -or $closingApp -or $null -eq $ballCollapseTimer) { return }
+    $ballCollapseTimer.Stop()
+    $ballCollapseTimer.Start()
 }
 
 function Close-TaskBubble {
@@ -2532,12 +2516,11 @@ function Show-TaskBubble {
         IsIndicatorCollapsed = $false
     }
     $script:splitWindows[$path] = $entry
-    Register-HudShellRegion $window $entry.Shell
     $entryRecord = $entry
     $taskPath = $path
     $splitWindowMap = $script:splitWindows
     $sessionStateMap = $sessionStates
-    $window.Add_SourceInitialized(({ $entryRecord.Handle=(New-Object Windows.Interop.WindowInteropHelper($entryRecord.Window)).Handle;if($entryRecord.Handle-ne[IntPtr]::Zero){$entryRecord.BaseStyle=[HudNativeMethods]::GetWindowLong($entryRecord.Handle,-20);[void](Set-HudWindowBackdrop $entryRecord.Handle);Set-WindowMousePassthrough $entryRecord.Handle $entryRecord.BaseStyle ([bool]$config.mousePassthrough)} }).GetNewClosure())
+    $window.Add_SourceInitialized(({ $entryRecord.Handle=(New-Object Windows.Interop.WindowInteropHelper($entryRecord.Window)).Handle;if($entryRecord.Handle-ne[IntPtr]::Zero){$entryRecord.BaseStyle=[HudNativeMethods]::GetWindowLong($entryRecord.Handle,-20);Set-WindowMousePassthrough $entryRecord.Handle $entryRecord.BaseStyle ([bool]$config.mousePassthrough)} }).GetNewClosure())
     $entry.Merge.Add_Click(({ Set-SessionDetached $taskPath $false }).GetNewClosure())
     $entry.Dismiss.Add_Click(({ Set-SessionDetached $taskPath $false }).GetNewClosure())
     $window.Add_MouseLeftButtonDown(({ param($sender,$eventArgs)
@@ -2787,8 +2770,10 @@ function Render-TaskList {
                 $card.CornerRadius = New-Object Windows.CornerRadius([double]$density.CardRadius)
                 $card.Padding = $density.CardPadding
                 $card.Margin = $density.CardMargin
-                $card.Background = New-HudRoleBrush '#0D0A84FF' '#0D0A84FF' 'decoration'
-                $card.BorderBrush = New-HudRoleBrush '#220A84FF' '#220A84FF' 'decoration'
+                $ink = (New-HudBrush ([string]$config.foreground) '#FF1C1C1E').Color
+                $lightSurface = (0.2126 * $ink.R + 0.7152 * $ink.G + 0.0722 * $ink.B) -lt 128
+                $card.Background = New-HudRoleBrush $(if ($lightSurface) { '#80FFFFFF' } else { '#0AFFFFFF' }) '#0AFFFFFF' 'decoration'
+                $card.BorderBrush = New-HudRoleBrush $(if ($lightSurface) { '#CCFFFFFF' } else { '#24FFFFFF' }) '#24FFFFFF' 'decoration'
                 $card.BorderThickness = New-Object Windows.Thickness(1)
                 $card.Child = $row
                 $listItem = $card
@@ -3114,8 +3099,7 @@ function Apply-HudAppearance {
     $effectiveHudWidth = [Math]::Min([double]$config.hudWidth,[Math]::Max(360.0,[double]$currentWorkArea.Width - 36.0))
     $hudShell.Width = if ($isMainIndicatorCollapsed) { [double]::NaN } else { $effectiveHudWidth }
     Set-HudMousePassthrough ([bool]$config.mousePassthrough)
-    $hud.Opacity = if ([string]$config.transparencyMode -eq 'uniform' -and [string]$config.themeStyle.backdrop -eq 'none') { [double]$config.opacity } else { 1.0 }
-    [void](Set-HudWindowBackdrop $hudHandle)
+    $hud.Opacity = if ([string]$config.transparencyMode -eq 'uniform') { [double]$config.opacity } else { 1.0 }
     $hudShell.CornerRadius = New-Object Windows.CornerRadius([double]$config.cornerRadius)
     if (-not $summaryFlowActive) {
         $hudShell.BorderBrush = New-HudRoleBrush ([string]$config.border) '#22FFFFFF' 'decoration'
@@ -3185,7 +3169,14 @@ function Render-Hud {
 function Export-HudPreview {
     param([Parameter(Mandatory = $true)][string]$Path)
     $script:config = Get-Content -Raw -Encoding UTF8 -LiteralPath $paths.DefaultConfigPath | ConvertFrom-Json
+    if (-not [string]::IsNullOrWhiteSpace($PreviewTheme)) {
+        $selectedTheme = $themes | Where-Object { $_.id -eq $PreviewTheme } | Select-Object -First 1
+        if ($null -eq $selectedTheme) { throw "Preview theme not found: $PreviewTheme" }
+        [void](Assert-HudThemeDefinition $selectedTheme ($selectedTheme.SourceKind -eq 'user'))
+        Apply-HudThemeDefinition $selectedTheme
+    }
     $script:config.language = $PreviewLanguage
+    $script:config.surfaceMode = $PreviewSurfaceMode
     $script:config.layout = $PreviewLayout
     $script:config.multiTask.displayMode = $PreviewHudMode
     $script:config.multiTask.listStyle = $PreviewListStyle
@@ -3314,11 +3305,6 @@ function Export-HudPreview {
     try { $encoder.Save($stream) } finally { $stream.Dispose() }
 }
 
-if (-not [string]::IsNullOrWhiteSpace($RenderPreview)) {
-    try { Export-HudPreview $RenderPreview } finally { Release-HudMutex }
-    exit 0
-}
-
 function Assert-HudThemeDefinition {
     param($Theme, [bool]$AllowAssets)
     if ($null -eq $Theme -or [string]$Theme.id -notmatch '^[a-z0-9][a-z0-9-]{1,47}$') { throw 'Theme id must use 2-48 lowercase letters, numbers, or hyphens.' }
@@ -3374,6 +3360,11 @@ function Apply-HudThemeDefinition {
     param($Theme)
     $defaults = Get-Content -Raw -Encoding UTF8 -LiteralPath $paths.DefaultConfigPath | ConvertFrom-Json
     $config.themeStyle = $defaults.themeStyle
+    # Older color-only themes must not inherit the new default's pearl gradient.
+    $config.themeStyle.surface = 'solid'
+    $themeBackground = if ($null -ne $Theme.settings.PSObject.Properties['background']) { [string]$Theme.settings.background } else { [string]$config.background }
+    $config.themeStyle.gradientStart = $themeBackground
+    $config.themeStyle.gradientEnd = $themeBackground
     foreach ($key in @('background','foreground','muted','accent','border','cornerRadius','opacity','fontSize','layout','separator','transparencyMode','showStatusDot','animateUpdates')) {
         if ($null -ne $Theme.settings.PSObject.Properties[$key] -and $null -ne $config.PSObject.Properties[$key]) { $config.$key = $Theme.settings.$key }
     }
@@ -3405,7 +3396,14 @@ function Apply-HudThemeDefinition {
         foreach ($key in @('active','listening','idle','paused','error','completed','aborted')) { if ($null -ne $Theme.settings.statusColors.PSObject.Properties[$key]) { $config.statusColors.$key = $Theme.settings.statusColors.$key } }
         $config.statusPalette = 'custom'
     }
+    # Accept legacy theme metadata, but native glass has been removed.
+    $config.themeStyle.backdrop = 'none'
     $config.preset = [string]$Theme.id
+}
+
+if (-not [string]::IsNullOrWhiteSpace($RenderPreview)) {
+    try { Export-HudPreview $RenderPreview } finally { Release-HudMutex }
+    exit 0
 }
 
 function Import-HudThemeFile {
@@ -3561,7 +3559,7 @@ function Sync-ControlsFromConfig {
         $quotaGuardPrepareInstructionText.Text = if ([string]::IsNullOrWhiteSpace([string]$config.quotaGuard.prepareInstruction)) { [string]$settingsLocale.quotaGuardPrepareDefault } else { [string]$config.quotaGuard.prepareInstruction }
         $quotaGuardHandoffInstructionText.Text = if ([string]::IsNullOrWhiteSpace([string]$config.quotaGuard.handoffInstruction)) { [string]$settingsLocale.quotaGuardHandoffDefault } else { [string]$config.quotaGuard.handoffInstruction }
         Select-ComboTag $transparencyModeCombo ([string]$config.transparencyMode)
-        Select-ComboTag $backdropCombo ([string]$config.themeStyle.backdrop)
+        Select-ComboTag $surfaceModeCombo ([string]$config.surfaceMode)
         Select-FontFamilyChoice ([string]$config.themeStyle.fontFamily)
         $hudWidthSlider.Value = [double]$config.hudWidth
         Select-ComboTag $idleIndicatorDelayCombo ([string][int]$config.behavior.idleIndicator.afterMinutes)
@@ -3637,11 +3635,11 @@ function Export-SettingsPreview {
         $advancedStatusExpander.IsExpanded = $true
     }
     $settingsShell.Effect = $null
-    $settingsShell.Background = New-HudBrush '#FFFFFFFF'
+    # Keep the real surface in previews; a white replacement hides the Liquid gradient.
     $content = $settings.Content
-    $size = New-Object Windows.Size(900, 820)
+    $size = New-Object Windows.Size($PreviewSettingsWidth, $PreviewSettingsHeight)
     $content.Measure($size)
-    $content.Arrange((New-Object Windows.Rect(0, 0, 900, 820)))
+    $content.Arrange((New-Object Windows.Rect(0, 0, $PreviewSettingsWidth, $PreviewSettingsHeight)))
     $content.UpdateLayout()
     $settingsScrollViewer.ScrollToHome()
     if ($PreviewSettingsAdvanced) {
@@ -3651,7 +3649,7 @@ function Export-SettingsPreview {
     } else { $settingsScrollViewer.ScrollToTop() }
     $content.UpdateLayout()
     [void]$content.Dispatcher.Invoke([Action]{}, [Windows.Threading.DispatcherPriority]::Render)
-    $bitmap = New-Object Windows.Media.Imaging.RenderTargetBitmap(900, 820, 96, 96, [Windows.Media.PixelFormats]::Pbgra32)
+    $bitmap = New-Object Windows.Media.Imaging.RenderTargetBitmap($PreviewSettingsWidth, $PreviewSettingsHeight, 96, 96, [Windows.Media.PixelFormats]::Pbgra32)
     $bitmap.Render($content)
     $encoder = New-Object Windows.Media.Imaging.PngBitmapEncoder
     $encoder.Frames.Add([Windows.Media.Imaging.BitmapFrame]::Create($bitmap))
@@ -3704,7 +3702,7 @@ function Apply-ControlsToConfig {
     if ($quotaGuardPrepareInstruction.Length -gt 1200) { $quotaGuardPrepareInstruction = $quotaGuardPrepareInstruction.Substring(0,1200) }
     if ($quotaGuardHandoffInstruction.Length -gt 1200) { $quotaGuardHandoffInstruction = $quotaGuardHandoffInstruction.Substring(0,1200) }
     $transparencyMode = Get-ComboTag $transparencyModeCombo
-    $backdrop = Get-ComboTag $backdropCombo
+    $surfaceMode = Get-ComboTag $surfaceModeCombo
     $edgeSnapDistance = Get-ComboTag $edgeSnapDistanceCombo
     $idleIndicatorDelay = Get-ComboTag $idleIndicatorDelayCombo
     $idleIndicatorLayout = Get-ComboTag $idleIndicatorLayoutCombo
@@ -3760,7 +3758,7 @@ function Apply-ControlsToConfig {
     $config.quotaGuard.prepareInstruction = $quotaGuardPrepareInstruction
     $config.quotaGuard.handoffInstruction = $quotaGuardHandoffInstruction
     if ($transparencyMode) { $config.transparencyMode = $transparencyMode }
-    if ($backdrop) { $config.themeStyle.backdrop = $backdrop }
+    if ($surfaceMode) { $config.surfaceMode = $surfaceMode }
     if ($edgeSnapDistance) { $config.behavior.edgeSnap.distance = [double]$edgeSnapDistance }
     if ($idleIndicatorDelay) { $config.behavior.idleIndicator.afterMinutes = [int]$idleIndicatorDelay }
     if ($idleIndicatorLayout) { $config.behavior.idleIndicator.layout = $idleIndicatorLayout }
@@ -4583,9 +4581,9 @@ function Apply-SliderPreview {
 }
 
 $liveControls = @(
-    $languageCombo,$layoutCombo,$numberCombo,$positionCombo,$monitorScopeCombo,$activeWindowCombo,$taskRetentionCombo,$terminalExitModeCombo,
+    $languageCombo,$surfaceModeCombo,$layoutCombo,$numberCombo,$positionCombo,$monitorScopeCombo,$activeWindowCombo,$taskRetentionCombo,$terminalExitModeCombo,
     $displayModeCombo,$listStyleCombo,$listDensityCombo,$listDetailCombo,$taskNameModeCombo,$maxSplitCombo,$numberCooldownCombo,
-    $summaryAttentionModeCombo,$listAttentionModeCombo,$taskBubbleAttentionModeCombo,$dotPatternCombo,$dotBrightnessCombo,$dotSpeedCombo,$attentionDurationCombo,$completionSoundCombo,$transparencyModeCombo,$backdropCombo,$fontFamilyCombo,
+    $summaryAttentionModeCombo,$listAttentionModeCombo,$taskBubbleAttentionModeCombo,$dotPatternCombo,$dotBrightnessCombo,$dotSpeedCombo,$attentionDurationCombo,$completionSoundCombo,$transparencyModeCombo,$fontFamilyCombo,
     $agentNotificationPermissionCombo,$agentNotificationModeCombo,$agentNotificationIntensityCombo,$agentNotificationDurationCombo,
     $idleIndicatorDelayCombo,$idleIndicatorLayoutCombo,$idleIndicatorTaskStyleCombo,
     $alwaysOnTopCheck,$mousePassthroughCheck,$statusDotCheck,$animateCheck,$autoSplitCheck,$sourceDesktopCheck,$sourceVsCodeCheck,$sourceDefaultCliCheck,$sourceDeepSeekCliCheck,
@@ -4723,7 +4721,17 @@ if ($SettingsHost) {
         $settings.Activate() | Out-Null
         $settings.Focus() | Out-Null
     })
-    try { $settingsApplication.Run($settings) | Out-Null } finally { Release-HudMutex }
+    $settingsRequestTimer = New-Object Windows.Threading.DispatcherTimer
+    $settingsRequestTimer.Interval = [TimeSpan]::FromMilliseconds(300)
+    $settingsRequestTimer.Add_Tick({
+        if ([IO.File]::Exists($settingsHostOpenSignal)) {
+            Remove-Item -LiteralPath $settingsHostOpenSignal -Force -ErrorAction SilentlyContinue
+            if ($settings.WindowState -eq [Windows.WindowState]::Minimized) { $settings.WindowState = [Windows.WindowState]::Normal }
+            [void]$settings.Activate()
+        }
+    })
+    $settingsRequestTimer.Start()
+    try { $settingsApplication.Run($settings) | Out-Null } finally { $settingsRequestTimer.Stop(); Release-HudMutex }
     exit 0
 }
 
@@ -4746,7 +4754,11 @@ $hud.Add_MouseLeftButtonDown({
     if ($_.ButtonState -eq [Windows.Input.MouseButtonState]::Pressed) {
         try {
             $grabPoint = $_.GetPosition($hud)
+            $dragOrigin = New-Object Windows.Point($hud.Left,$hud.Top)
+            $script:isHudDragging = $true
+            $ballCollapseTimer.Stop()
             $hud.DragMove()
+            if ([Math]::Abs($hud.Left - $dragOrigin.X) -lt 0.5 -and [Math]::Abs($hud.Top - $dragOrigin.Y) -lt 0.5) { return }
             $screen = Get-HudWorkArea $hud -AtCursor
             $cursorPosition = [System.Windows.Forms.Cursor]::Position
             $desiredLeft = [double]$screen.Left + (([double]$cursorPosition.X - [double]$screen.PixelLeft) / [double]$screen.DpiScaleX) - [double]$grabPoint.X
@@ -4760,9 +4772,20 @@ $hud.Add_MouseLeftButtonDown({
             Save-HudConfig $paths $config
             Position-TaskBubbles
         } catch { }
+        finally { $script:isHudDragging = $false; Schedule-HudBallCollapse }
     }
 })
-$hud.Add_MouseEnter({ if ($isMainIndicatorCollapsed) { Set-HudIndicatorCollapsed $false } })
+$ballCollapseTimer = New-Object Windows.Threading.DispatcherTimer
+$ballCollapseTimer.Interval = [TimeSpan]::FromMilliseconds(450)
+$ballCollapseTimer.Add_Tick({
+    $ballCollapseTimer.Stop()
+    if ($hud.IsMouseOver -or ($null -ne $hud.ContextMenu -and $hud.ContextMenu.IsOpen) -or $isHudDragging -or [Windows.Input.Mouse]::LeftButton -eq [Windows.Input.MouseButtonState]::Pressed) { return }
+    Set-HudBallExpanded $false
+})
+$hud.Add_MouseEnter({ $ballCollapseTimer.Stop(); if ($ballModeActive) { Set-HudBallExpanded $true } elseif ($isMainIndicatorCollapsed) { Set-HudIndicatorCollapsed $false } })
+$hud.Add_MouseLeave({ Schedule-HudBallCollapse })
+$hud.Add_ContextMenuClosing({ Schedule-HudBallCollapse })
+$hud.Add_LostMouseCapture({ Schedule-HudBallCollapse })
 
 $contextMenu = New-Object Windows.Controls.ContextMenu
 $statusItem = New-Object Windows.Controls.MenuItem
@@ -4873,6 +4896,7 @@ $timer.Add_Tick({
         $script:lastHudHeartbeat = Get-Date
         try { [IO.File]::WriteAllText($hudHeartbeat, [DateTime]::UtcNow.ToString('O')) } catch { }
     }
+    if ($isHudDragging) { return }
     if ($Managed) {
         $activeHosts = @()
         if (Test-Path -LiteralPath $hostsRoot) {
@@ -4959,7 +4983,6 @@ $hud.Add_SourceInitialized({
     $script:hudHandle = (New-Object Windows.Interop.WindowInteropHelper($hud)).Handle
     if ($hudHandle -ne [IntPtr]::Zero) {
         $script:hudBaseExtendedStyle = [HudNativeMethods]::GetWindowLong($hudHandle, -20)
-        [void](Set-HudWindowBackdrop $hudHandle)
         Set-HudMousePassthrough ([bool]$config.mousePassthrough)
     }
 })
@@ -4982,6 +5005,7 @@ $hud.Add_Loaded({
 })
 $hud.Add_Closed({
     $timer.Stop()
+    $ballCollapseTimer.Stop()
     $script:closingApp = $true
     try { if ($null -ne $script:completionMediaPlayer) { $script:completionMediaPlayer.Stop(); $script:completionMediaPlayer.Close() } } catch { }
     foreach ($path in @($splitWindows.Keys)) { Close-TaskBubble ([string]$path) }

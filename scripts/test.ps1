@@ -36,6 +36,7 @@ foreach ($path in $parsePaths) {
 [xml](Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src\SettingsWindow.xaml')) | Out-Null
 [xml](Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src\ColorPickerWindow.xaml')) | Out-Null
 [xml](Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src\TaskBubbleWindow.xaml')) | Out-Null
+& (Join-Path $root 'scripts\test-liquid-design.ps1')
 
 $legacySelfTestRoot = Join-Path $TestOutputRoot 'legacy-self-test'
 try {
@@ -193,17 +194,22 @@ if ([string]$defaultConfig.statusPalette -ne 'default') { throw 'Default status 
 if ([string]$defaultConfig.monitorScope -ne 'aggregate' -or [string]$defaultConfig.multiTask.displayMode -ne 'summary') { throw 'Lightweight summary defaults are missing.' }
 if (-not [bool]$defaultConfig.sessionSources.desktop -or -not [bool]$defaultConfig.sessionSources.vscode -or -not [bool]$defaultConfig.sessionSources.defaultCli -or -not [bool]$defaultConfig.sessionSources.deepSeekCli) { throw 'Desktop, VS Code, default CLI, and DeepSeek CLI monitoring must default to enabled.' }
 if ([int]$defaultConfig.multiTask.maxSplitBubbles -ne 6 -or [string]$defaultConfig.multiTask.nameMode -ne 'always') { throw 'Multi-task guardrail defaults are missing.' }
-if ([string]$defaultConfig.multiTask.listStyle -ne 'rows' -or [string]$defaultConfig.multiTask.listDensity -ne 'compact' -or [string]$defaultConfig.attention.summaryMode -ne 'halo' -or [string]$defaultConfig.attention.listMode -ne 'flow' -or [string]$defaultConfig.attention.taskBubbleMode -ne 'flow' -or [string]$defaultConfig.transparencyMode -ne 'uniform') { throw 'List density, per-surface attention or transparency defaults are missing.' }
-if (-not [bool]$defaultConfig.attention.dotEnabled -or -not [bool]$defaultConfig.attention.dotBreathing -or [string]$defaultConfig.attention.dotPattern -ne 'heartbeat' -or [string]$defaultConfig.attention.dotBrightness -ne 'balanced') { throw 'Independent status-dot reminder defaults are missing.' }
+if ([string]$defaultConfig.multiTask.listStyle -ne 'cards' -or [string]$defaultConfig.multiTask.listDensity -ne 'compact' -or [string]$defaultConfig.attention.summaryMode -ne 'halo' -or [string]$defaultConfig.attention.listMode -ne 'halo' -or [string]$defaultConfig.attention.taskBubbleMode -ne 'halo' -or [string]$defaultConfig.transparencyMode -ne 'uniform') { throw 'Liquid list density, per-surface attention or transparency defaults are missing.' }
+if (-not [bool]$defaultConfig.attention.dotEnabled -or -not [bool]$defaultConfig.attention.dotBreathing -or [string]$defaultConfig.attention.dotPattern -ne 'soft' -or [string]$defaultConfig.attention.dotBrightness -ne 'subtle') { throw 'Independent Liquid status-dot reminder defaults are missing.' }
 if ([bool]$defaultConfig.attention.onSettled -or [int]$defaultConfig.attention.completionGraceSeconds -ne 8) { throw 'Low-false-positive reminder defaults are missing.' }
 if ([string]$defaultConfig.completionSound -ne 'off') { throw 'Completion sound must default to off.' }
 if (-not [string]::IsNullOrEmpty([string]$defaultConfig.completionSoundFile)) { throw 'Custom completion audio must default to an empty path.' }
 if ([double]$defaultConfig.hudWidth -ne 900 -or [string]$defaultConfig.themeStyle.fontFamily -notmatch '^HarmonyOS Sans SC') { throw 'Responsive HUD width or HarmonyOS default font is missing.' }
-if ([string]$defaultConfig.themeStyle.backdrop -ne 'acrylic') { throw 'Native Acrylic backdrop must be the default glass material.' }
+if ([string]$defaultConfig.themeStyle.backdrop -ne 'none' -or [string]$defaultConfig.themeStyle.surface -ne 'gradient' -or [string]$defaultConfig.preset -ne 'ios26-liquid') { throw 'Liquid must use a compositor-independent gradient by default.' }
+$liquidTheme = $themes | Where-Object { $_.id -eq 'ios26-liquid' } | Select-Object -First 1
+if ($null -eq $liquidTheme) { throw 'The shareable Liquid theme is missing.' }
+foreach ($field in @('background','foreground','muted','accent','border','cornerRadius','opacity','layout')) {
+    if ($defaultConfig.$field -ne $liquidTheme.settings.$field) { throw "Liquid default/theme mismatch: $field" }
+}
 if (-not [bool]$defaultConfig.behavior.edgeSnap.enabled -or [double]$defaultConfig.behavior.edgeSnap.distance -ne 28) { throw 'Automatic edge-snap defaults are missing.' }
 foreach ($field in @('directory','time','context','status','model','cacheHitRate','callTotal')) { if (-not [bool]$defaultConfig.multiTask.listFields.$field) { throw "Main-list field '$field' must default to visible." } }
 if ([int]$defaultConfig.statusTiming.terminalHoldSeconds -ne 120 -or [string]$defaultConfig.statusTiming.terminalExitMode -ne 'gentle') { throw 'Completed-task retention must default to two minutes with the gentle departure cue.' }
-if ([string]$defaultConfig.themeStyle.surface -ne 'solid' -or [string]$defaultConfig.themeStyle.shadow -ne 'soft' -or [double]$defaultConfig.themeStyle.statusDotSize -ne 8.0) { throw 'Rich theme-style defaults are missing.' }
+if ([string]$defaultConfig.themeStyle.surface -ne 'gradient' -or [string]$defaultConfig.themeStyle.shadow -ne 'soft' -or [double]$defaultConfig.themeStyle.statusDotSize -ne 7.0) { throw 'Liquid theme-style defaults are missing.' }
 if ([bool]$defaultConfig.fields.estimatedCost -or [bool]$defaultConfig.multiTask.listFields.estimatedCost -or [bool]$defaultConfig.multiTask.bubbleFields.estimatedCost) { throw 'API-equivalent cost must remain opt-in on every surface.' }
 if ([bool]$defaultConfig.agentNotifications.enabled -or [string]$defaultConfig.agentNotifications.permission -ne 'text') { throw 'Codex proactive notifications must remain opt-in with text-only permission by default.' }
 if (@('violet','aqua','amber','custom') -notcontains [string]$defaultConfig.agentNotifications.glowPreset -or [string]$defaultConfig.agentNotifications.color -notmatch '^#[0-9A-Fa-f]{8}$') { throw 'Codex notification glow preset or color default is invalid.' }
@@ -257,7 +263,8 @@ foreach ($xamlPath in @('src\HudWindow.xaml','src\TaskBubbleWindow.xaml')) {
     $xamlText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root $xamlPath)
     $controlNames = @([regex]::Matches($xamlText, 'x:Name="([^"]+)"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
     foreach ($name in $controlNames) {
-        if ($name -in @('HudWindow','TaskBubbleWindow','IconChrome','ToggleChrome','TaskBubbleNumberBadge')) { continue }
+        # LiquidRim is declaratively bound and checked by test-liquid-design.ps1.
+        if ($name -in @('HudWindow','TaskBubbleWindow','IconChrome','ToggleChrome','TaskBubbleNumberBadge','LiquidRim')) { continue }
         if ($appSourceText -notmatch ('"' + [regex]::Escape($name) + '"')) { throw "Compiled HUD does not bind required XAML control '$name' from $xamlPath." }
     }
 }
@@ -335,8 +342,9 @@ foreach ($required in @('QuotaGuardEnabledCheck','QuotaGuardPrepareFiveHourText'
 foreach ($required in @('OfficialAllowanceEnabledCheck','OfficialCodexAllowanceReader','account/rateLimits/read','officialAllowance')) { if ($settingsXaml -notmatch [regex]::Escape($required) -and $compiledSourceText -notmatch [regex]::Escape($required) -and $mainText -notmatch [regex]::Escape($required)) { throw "Official allowance source '$required' is missing." } }
 foreach ($required in @('monitor_hud_quota_guard','disabled','entered_prepare','should_alert','quota_guard: registry.quota_guard')) { if ($mcpText -notmatch [regex]::Escape($required)) { throw "Allowance handoff MCP contract '$required' is missing." } }
 foreach ($required in @('BehaviorTab','EdgeSnapEnabledCheck','EdgeSnapDistanceCombo','OpenTaskOnDoubleClickCheck','IdleIndicatorEnabledCheck','IdleIndicatorDelayCombo','IdleIndicatorLayoutCombo','IdleIndicatorTaskStyleCombo','IdleIndicatorBubblesCheck','ContextMetricVisibleCheck','ContextAlertsEnabledCheck','ContextThreshold1Text','ContextThreshold2Text','ContextThreshold3Text')) { if ($settingsXaml -notmatch [regex]::Escape($required)) { throw "Behavior setting '$required' is missing." } }
-foreach ($required in @('BackdropCombo','BackdropNoneItem','BackdropBlurItem','BackdropAcrylicItem')) { if ($settingsXaml -notmatch [regex]::Escape($required)) { throw "Native-backdrop setting '$required' is missing." } }
-foreach ($required in @('Set-HudWindowBackdrop','SetWindowCompositionAttribute','Get-HudWorkArea','Get-HudClampedPosition')) { if ($mainText -notmatch [regex]::Escape($required) -and $compiledSourceText -notmatch [regex]::Escape($required)) { throw "Glass or edge-snap runtime path '$required' is missing." } }
+foreach ($retired in @('BackdropCombo','BackdropNoneItem','BackdropBlurItem','BackdropAcrylicItem')) { if ($settingsXaml -match [regex]::Escape($retired)) { throw "Retired native-glass control remains: $retired" } }
+foreach ($retired in @('Set-HudWindowBackdrop','SetWindowCompositionAttribute','TrackShell','Register-HudShellRegion')) { if ($mainText -match [regex]::Escape($retired) -or $compiledSourceText -match [regex]::Escape($retired)) { throw "Retired native-glass runtime remains: $retired" } }
+foreach ($required in @('Get-HudWorkArea','Get-HudClampedPosition')) { if ($mainText -notmatch [regex]::Escape($required) -and $compiledSourceText -notmatch [regex]::Escape($required)) { throw "Edge-snap runtime path '$required' is missing." } }
 foreach ($required in @('Open-HudTaskInCodex','Get-HudTaskDeepLink','Get-HudContextAlertThresholds','Get-HudContextAlertVisualSpec','Start-HudContextAlertAnimation','Stop-HudContextAlertAnimation','Reset-HudContextAlertRuntime','Update-HudIdleIndicatorMode','Set-TaskBubbleIndicatorCollapsed','Update-HudContextAlertState','ContextAlertLevel')) { if ($mainText -notmatch [regex]::Escape($required) -and (Get-Content -Raw -Encoding UTF8 -LiteralPath $core) -notmatch [regex]::Escape($required)) { throw "Behavior runtime path '$required' is missing." } }
 foreach ($required in @('monitor_hud_notify','boundedAnimation','notificationPermission','notificationsRoot','maxLength: 160','permission === "expressive"')) { if ($mcpText -notmatch [regex]::Escape($required)) { throw "Bounded Codex notification MCP path '$required' is missing." } }
 foreach ($required in @('Process-HudAgentNotifications','Start-HudAgentAnimation','AgentNoticeText','AgentNoticeRecipe','agentNotificationBadge','AttentionReason -eq ''agent''')) { if ($mainText -notmatch [regex]::Escape($required)) { throw "Targeted Codex notification runtime path '$required' is missing." } }

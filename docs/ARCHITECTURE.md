@@ -68,6 +68,8 @@ The task registry is deliberately smaller than the UI state. Registry v2 stores 
 
 ## Rendering
 
+`surfaceMode` selects the normal window or a 48 DIP count-only floating ball independently from summary/list/split. Both hosts count only visible `active` and `listening` states, expand immediately on hover, and collapse after a 450 ms leave delay outside menus and drags. Click-through disables effective ball mode. Dragging suspends polling/render/reposition work while retaining heartbeat updates; position persistence occurs only after actual movement. The short-lived Settings host is reused while open; its frozen color-wheel bitmap is generated lazily from compiled pixel code.
+
 The dispatcher uses an adaptive 250/800/1,500 ms cadence: bursts and parser backlog stay responsive, active/listening tasks retain the existing cadence, and idle state backs off. File-system changes for sessions, official titles, notices, and control signals coalesce into an immediate dispatcher wake, so the idle cadence does not add interaction latency. Directory discovery is separately bounded. A no-change tick advances lifecycle state without statting every session path, and a timer tick does not imply a full render.
 
 The runtime caches:
@@ -97,6 +99,9 @@ Performance numbers remain machine- and fixture-specific. The migration is an ar
 
 ## Windows integration
 
+- The Liquid visual layer uses WPF gradients and a non-hit-testable inner rim bound to the existing shell radius; it adds no native windows, shaders, assets, timers, or compositor changes. Both hosts share the XAML, while their dynamic list cards use the same foreground-luminance rule for light/dark inset surfaces.
+- `ios26-liquid` is the new default and a declarative, importable theme. Saved settings still win during configuration merge, except that retired native-backdrop metadata always normalizes to `none`. Color-only legacy themes explicitly reset to solid surfaces so they never inherit the new pearl gradient. Native Blur/Acrylic, compositor interop, and native-region tracking have been removed; rounded WPF surfaces and ordinary transparency remain.
+- Settings retain standard WPF control behavior behind custom templates, including named editing/slider/content parts, checked/disabled/focus states, and wrapping segmented headers. `scripts/test-liquid-design.ps1` loads actual templates, checks every tab at three window sizes, and verifies switches, sliders, scrolling, color-picker bounds, and radius bindings without reading user state.
 - WPF provides transparent always-on-top windows.
 - Per-Monitor V2 DPI awareness, layout rounding, and pixel snapping reduce mixed-DPI blur.
 - Win32 extended styles implement optional click-through.

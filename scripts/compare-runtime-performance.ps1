@@ -33,6 +33,9 @@ foreach ($mode in @('list','split')) {
         }
         if (-not (Test-Path -LiteralPath $metricsPath)) { throw "Performance metrics are missing: $metricsPath" }
         $metric = Get-Content -Raw -Encoding UTF8 -LiteralPath $metricsPath | ConvertFrom-Json
+        if ([int]$metric.schema_version -ne 2 -or [string]$metric.working_set_measurement -ne 'windows-process-high-water-mark') {
+            throw "Performance metrics need a fresh run with the Windows peak working-set measurement: $metricsPath"
+        }
         if ([string]$metric.host_mode -ne $hostMode -or [string]$metric.display_mode -ne $mode -or [int]$metric.task_count -ne $TaskCount -or [int]$metric.churn_cycles -ne $ChurnCycles) {
             throw "Performance metrics do not match the requested fixture: $metricsPath"
         }

@@ -161,6 +161,9 @@ function Add-RuntimeSample {
         label = $Label
         elapsed_ms = [Math]::Round(([DateTimeOffset]::UtcNow - $runtimeStartedAt).TotalMilliseconds, 1)
         working_set_bytes = [long]$process.WorkingSet64
+        # Windows retains this high-water mark even after the runtime trims
+        # its working set between our scenario checkpoints.
+        peak_working_set_bytes = [long]$process.PeakWorkingSet64
         private_memory_bytes = [long]$process.PrivateMemorySize64
         cpu_ms = [Math]::Round($process.TotalProcessorTime.TotalMilliseconds, 1)
         handles = [int]$process.HandleCount
@@ -337,8 +340,8 @@ try {
     }
 
     Add-RuntimeSample 'pre-exit'
-    & (Join-Path $PSScriptRoot 'test-window-region.ps1') -ProcessId $process.Id
-    # Exercise native clipping removal/reapplication and resized shell layout.
+    & (Join-Path $PSScriptRoot 'test-window-region.ps1') -ProcessId $process.Id -ExpectUnclipped
+    # Retired glass values must remain harmless on reload, including after resize.
     foreach ($material in @('none','blur','acrylic')) {
         $config.themeStyle.backdrop = $material
         $config.hudWidth = if ($material -eq 'blur') { 520 } else { 900 }
@@ -346,8 +349,9 @@ try {
         [IO.File]::WriteAllText((Join-Path $stateRoot 'settings.json'), ($config | ConvertTo-Json -Depth 8), $encoding)
         [IO.File]::WriteAllText((Join-Path $stateRoot 'reload-settings.signal'), [DateTime]::UtcNow.ToString('O'), $encoding)
         Start-Sleep -Seconds 2
-        & (Join-Path $PSScriptRoot 'test-window-region.ps1') -ProcessId $process.Id -ExpectUnclipped:($material -eq 'none')
+        & (Join-Path $PSScriptRoot 'test-window-region.ps1') -ProcessId $process.Id -ExpectUnclipped
     }
+    Add-RuntimeSample 'post-reload'
     [IO.File]::WriteAllText((Join-Path $stateRoot 'exit.signal'), [DateTime]::UtcNow.ToString('O'), $encoding)
     if (-not $process.WaitForExit(10000)) { throw 'Isolated HUD did not exit through its own signal.' }
     if ($process.ExitCode -ne 0) { throw ('Isolated HUD exit code: ' + $process.ExitCode) }
@@ -384,11 +388,12 @@ try {
     if (-not [string]::IsNullOrWhiteSpace($MetricsPath)) {
         $metricsDirectory = Split-Path -Parent $MetricsPath
         if (-not [string]::IsNullOrWhiteSpace($metricsDirectory)) { New-Item -ItemType Directory -Force -Path $metricsDirectory | Out-Null }
-        $peakWorkingSet = [long](($runtimeSamples | Measure-Object -Property working_set_bytes -Maximum).Maximum)
+        $peakWorkingSet = [long](($runtimeSamples | Measure-Object -Property peak_working_set_bytes -Maximum).Maximum)
         $peakPrivateMemory = [long](($runtimeSamples | Measure-Object -Property private_memory_bytes -Maximum).Maximum)
         $finalCpu = [double](($runtimeSamples | Measure-Object -Property cpu_ms -Maximum).Maximum)
         $metrics = [ordered]@{
-            schema_version = 1
+            schema_version = 2
+            working_set_measurement = 'windows-process-high-water-mark'
             host_mode = $HostMode
             display_mode = $Mode
             task_count = $TaskCount

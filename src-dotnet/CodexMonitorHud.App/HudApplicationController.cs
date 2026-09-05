@@ -68,6 +68,7 @@ internal sealed partial class HudApplicationController : IDisposable
     private bool _initialScanComplete;
     private bool _disposed;
     private bool _memoryTrimPending = true;
+    private Process? _settingsHostProcess;
     private int _wakePending;
 
     public HudApplicationController(
@@ -156,6 +157,7 @@ internal sealed partial class HudApplicationController : IDisposable
         _signalTracker.Dispose();
         _commands.Dispose();
         _completionMediaPlayer.Close();
+        _settingsHostProcess?.Dispose();
         _view.Dispose();
         TryDelete(_heartbeatPath);
     }
@@ -188,6 +190,7 @@ internal sealed partial class HudApplicationController : IDisposable
         _view.SettingsRequested += OpenSettings;
         _view.ExitRequested += StopByUser;
         _view.ToggleListRequested += ToggleTaskList;
+        _view.SurfaceChanged += () => Render(force: true);
         _view.DismissRequested += path =>
         {
             _engine.Dismiss(path);
@@ -200,7 +203,9 @@ internal sealed partial class HudApplicationController : IDisposable
             _configDocument["position"] = "custom";
             _configDocument["customLeft"] = left;
             _configDocument["customTop"] = top;
-            SaveAndReloadSettings();
+            // Position-only edits do not change monitor options, locales or pricing.
+            HudConfigStore.Save(_paths, _configDocument);
+            _settings = _settings with { Position = "custom", CustomLeft = left, CustomTop = top };
         };
         _view.DetachedChanged += (_, _) => Render(force: true);
         _view.AttentionPresented += (surface, path, reason) =>
@@ -245,6 +250,8 @@ internal sealed partial class HudApplicationController : IDisposable
             _lastHeartbeat = now;
             TryWriteText(_heartbeatPath, DateTime.UtcNow.ToString("O"));
         }
+        // DragMove pumps messages: avoid disk scans, GC and preset repositioning mid-drag.
+        if (_view.IsDragging) return;
 
         if (_arguments.Managed && now - _lastHostCheck >= TimeSpan.FromSeconds(2))
         {
@@ -430,6 +437,7 @@ internal sealed partial class HudApplicationController : IDisposable
 
     private void Render(bool force)
     {
+        if (_view.IsDragging) return;
         var now = DateTimeOffset.Now;
         var states = _engine.GetVisibleStates(now);
         var snapshot = BuildDisplaySnapshot(states);
@@ -768,7 +776,13 @@ internal sealed partial class HudApplicationController : IDisposable
         }
         try
         {
-            Process.Start(new ProcessStartInfo
+            if (_settingsHostProcess is not null && !_settingsHostProcess.HasExited)
+            {
+                TryWriteText(Path.Combine(_paths.StateRoot, "settings-host-open.signal"), DateTime.UtcNow.ToString("O"));
+                return;
+            }
+            _settingsHostProcess?.Dispose();
+            _settingsHostProcess = Process.Start(new ProcessStartInfo
             {
                 FileName = "powershell.exe",
                 UseShellExecute = false,

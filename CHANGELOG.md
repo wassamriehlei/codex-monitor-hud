@@ -2,13 +2,20 @@
 
 ## Unreleased - UI customization and desktop polish
 
-- Track rounded native window regions across layout, DPI, and material changes. Known issue: Windows glass composition can still paint a rectangular background outside the region; this remains unresolved.
+- Add a configurable floating ball showing only the active/listening task count, hover expansion, and delayed collapse; preserve normal window access with mouse click-through enabled.
+- Pause nonessential refresh and placement while dragging, avoid settings writes on plain clicks, generate/cache color-wheel pixels on demand in compiled code, and focus an existing Settings process on repeated requests.
+- Measure the performance gate's peak working set using Windows' process high-water mark, including settings reloads, instead of four sampled residency values that miss pre-trim peaks. Keep thresholds unchanged and reject older metric files.
+
+- Introduce an iOS 26-inspired Liquid design: pearl gradients, optical rims, neutral inset task cards, capsule actions, segmented Settings navigation, switch controls, rounded inputs/sliders, and a matching color picker. Keep HarmonyOS as the preferred font.
+- Ship the shareable `ios26-liquid` theme and use it for new/default configurations, preserving saved appearance preferences except the retired native-glass mode. The lightweight gradient is not Apple's native refraction.
+- Add off-screen WPF layout/interaction regression checks at 760, 900, and 1200 DIP; preserve old color-only themes and support theme-specific HUD previews and variable-size Settings previews.
+- Remove native Blur/Acrylic composition, its Settings controls, and the ineffective native-region workaround. Existing configuration/theme backdrop values normalize to `none`; regular transparency and customizable rounded corners remain.
 - Combine task numbers with their source icons in one compact badge and tighten task-list and detached-bubble spacing.
 - Move list status, model, totals, and context alongside the title, wrapping within the available width while preserving action buttons and optional field visibility.
 - Add selectable completion sounds, including local WAV, MP3, WMA, M4A, and AAC files with an in-Settings preview.
 - Make the main HUD width adjustable, let summary metrics wrap responsively, and keep narrow task-row actions visible.
 - Let users choose an installed Windows font, prefer HarmonyOS Sans SC by default, and independently toggle directory, time, context, status/listening, model, cache hit rate, call total, task total, estimated cost, and update time in the main task list.
-- Add optional Windows Blur and Acrylic glass backdrops plus configurable automatic edge/corner snapping.
+- Add configurable automatic edge/corner snapping.
 - Refresh source and action artwork with offline Lucide-derived vector icons and include the ISC attribution in the distributed package.
 - Apply the same bounded idle working-set trim to the compiled host and the compatibility host so installation performance comparisons use equivalent residency behavior.
 - Add a production `CODEX_MONITOR_HUD_HOME` override and documented `WSLENV` bridge so the native Windows HUD can monitor Codex CLI sessions stored inside WSL.

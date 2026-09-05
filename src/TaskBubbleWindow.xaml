@@ -23,8 +23,8 @@
       <Setter Property="Width" Value="30" />
       <Setter Property="Height" Value="30" />
       <Setter Property="Padding" Value="0" />
-      <Setter Property="Background" Value="#0A0A84FF" />
-      <Setter Property="BorderBrush" Value="#220A84FF" />
+      <Setter Property="Background" Value="#127B8DA8" />
+      <Setter Property="BorderBrush" Value="#30FFFFFF" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Foreground" Value="#FF0A84FF" />
       <Setter Property="FontFamily" Value="Segoe UI Symbol" />
@@ -35,7 +35,7 @@
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="{x:Type Button}">
-            <Border x:Name="IconChrome" CornerRadius="10" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+            <Border x:Name="IconChrome" CornerRadius="16" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <ControlTemplate.Triggers>
@@ -47,6 +47,7 @@
                 <Setter TargetName="IconChrome" Property="Background" Value="#280A84FF" />
                 <Setter Property="Opacity" Value="0.82" />
               </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="IconChrome" Property="BorderBrush" Value="#FF007AFF" /></Trigger>
               <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.35" /></Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -102,6 +103,16 @@
           </StackPanel>
         </StackPanel>
       </DockPanel>
+    </Border>
+    <!-- Non-interactive optical rim follows the configured shell; no compositor changes. -->
+    <Border x:Name="LiquidRim" IsHitTestVisible="False" Margin="1" BorderThickness="1" CornerRadius="{Binding CornerRadius, ElementName=TaskBubbleShell}" Opacity="0.5">
+      <Border.BorderBrush>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="0.2,1">
+          <GradientStop Color="#BFFFFFFF" Offset="0" />
+          <GradientStop Color="#00FFFFFF" Offset="0.48" />
+          <GradientStop Color="#207B8DA8" Offset="1" />
+        </LinearGradientBrush>
+      </Border.BorderBrush>
     </Border>
     <Thumb x:Name="TaskBubbleResizeThumb"
            Width="18"

@@ -176,9 +176,11 @@ public static partial class HudConfigStore
         SetBool(result, GetBool(result, false, "officialAllowance", "enabled"), "officialAllowance", "enabled");
 
         SetAllowed(result, "uniform", new[] { "uniform", "layered", "focus" }, "transparencyMode");
+        SetAllowed(result, "window", new[] { "window", "ball" }, "surfaceMode");
         SetDouble(result, Math.Clamp(GetDouble(result, 0.97, "opacity"), 0, 1), "opacity");
         SetDouble(result, Math.Clamp(GetDouble(result, 900, "hudWidth"), 360, 1600), "hudWidth");
-        SetAllowed(result, "acrylic", new[] { "none", "blur", "acrylic" }, "themeStyle", "backdrop");
+        // Native glass was retired; preserve old documents while disabling the mode.
+        SetString(result, "none", "themeStyle", "backdrop");
         SetAllowed(result, "solid", new[] { "solid", "gradient", "image" }, "themeStyle", "surface");
         SetAllowed(result, "uniformToFill", new[] { "uniform", "uniformToFill", "fill", "none" }, "themeStyle", "imageStretch");
         SetAllowed(result, "soft", new[] { "none", "soft", "deep" }, "themeStyle", "shadow");

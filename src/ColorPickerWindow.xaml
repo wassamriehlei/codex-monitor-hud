@@ -1,17 +1,114 @@
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="ColorPickerWindow" Title="颜色 / Color" Width="420" Height="580" WindowStartupLocation="CenterOwner" WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize" ShowInTaskbar="False">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="ColorPickerWindow" Title="颜色 / Color" Width="420" Height="580" WindowStartupLocation="CenterOwner" WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize" ShowInTaskbar="False" FontFamily="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+  <Window.Resources>
+    <SolidColorBrush x:Key="Ink" Color="#FF1C1C1E" />
+    <SolidColorBrush x:Key="Blue" Color="#FF007AFF" />
+    <Style TargetType="Button">
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="Background" Value="#CFFFFFFF" />
+      <Setter Property="BorderBrush" Value="#C0FFFFFF" />
+      <Setter Property="MinHeight" Value="34" />
+      <Setter Property="Padding" Value="14,9" />
+      <Setter Property="Margin" Value="0,0,8,8" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="ButtonBorder"
+                    CornerRadius="18"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="1"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.8" />
+                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#70007AFF" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.72" />
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#FF007AFF" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4" /></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="TextBox">
+      <Setter Property="FontFamily" Value="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="10,8" />
+      <Setter Property="Margin" Value="0,6,12,0" />
+      <Setter Property="MinWidth" Value="150" />
+      <Setter Property="BorderBrush" Value="#18000000" />
+      <Setter Property="Background" Value="#FFF7F8FA" />
+      <Setter Property="Foreground" Value="{StaticResource Ink}" />
+      <Setter Property="CaretBrush" Value="{StaticResource Blue}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border x:Name="InputChrome" CornerRadius="12" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Padding="{TemplateBinding Padding}">
+              <ScrollViewer x:Name="PART_ContentHost" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="InputChrome" Property="BorderBrush" Value="#FF007AFF" /></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4" /></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="Slider">
+      <Setter Property="MinHeight" Value="28" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Slider">
+            <Grid x:Name="SliderChrome" Background="Transparent">
+              <Track x:Name="PART_Track" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}" IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Command="Slider.DecreaseLarge" Focusable="False">
+                    <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="#FF007AFF" Height="6" CornerRadius="3" /></ControlTemplate></RepeatButton.Template>
+                  </RepeatButton>
+                </Track.DecreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb Width="28" Height="20" Cursor="Hand">
+                    <Thumb.Template><ControlTemplate TargetType="Thumb"><Border Background="White" BorderBrush="#18707D90" BorderThickness="1" CornerRadius="10"><Border.Effect><DropShadowEffect BlurRadius="5" ShadowDepth="1" Opacity="0.16" /></Border.Effect></Border></ControlTemplate></Thumb.Template>
+                  </Thumb>
+                </Track.Thumb>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Command="Slider.IncreaseLarge" Focusable="False">
+                    <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="#FFDCE1E9" Height="6" CornerRadius="3" /></ControlTemplate></RepeatButton.Template>
+                  </RepeatButton>
+                </Track.IncreaseRepeatButton>
+              </Track>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="SliderChrome" Property="Background" Value="#18007AFF" /></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4" /></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
   <Grid Margin="18">
-    <Border CornerRadius="24" Background="#FCFFFFFF" BorderBrush="#22000000" BorderThickness="1" Padding="24">
+    <Border CornerRadius="30" Background="#FCF2F4F9" BorderBrush="#EEFFFFFF" BorderThickness="1" Padding="24">
       <Border.Effect><DropShadowEffect BlurRadius="36" ShadowDepth="12" Direction="270" Opacity="0.25" Color="#40000000"/></Border.Effect>
       <StackPanel>
-        <Grid x:Name="ColorPickerTitleBar" Height="42"><TextBlock x:Name="ColorPickerTitle" Text="选择颜色 / Choose color" FontFamily="Segoe UI Variable Text, Microsoft YaHei UI" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/><Button x:Name="ColorPickerClose" Content="×" Width="34" Height="34" HorizontalAlignment="Right" Background="Transparent" BorderBrush="Transparent" FontSize="20"/></Grid>
+        <Grid x:Name="ColorPickerTitleBar" Height="42"><TextBlock x:Name="ColorPickerTitle" Text="选择颜色 / Choose color" FontFamily="HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/><Button x:Name="ColorPickerClose" Content="×" Width="34" Height="34" Padding="0" Margin="0" HorizontalAlignment="Right" Background="Transparent" BorderBrush="Transparent" FontSize="20"/></Grid>
         <Canvas x:Name="ColorWheelCanvas" Width="240" Height="240" HorizontalAlignment="Center" Margin="0,8,0,14" ClipToBounds="True">
           <Image x:Name="ColorWheelImage" Width="240" Height="240"/>
           <Ellipse x:Name="ColorWheelMarker" Width="16" Height="16" Stroke="White" StrokeThickness="3" Fill="#22000000"><Ellipse.Effect><DropShadowEffect BlurRadius="4" ShadowDepth="0" Opacity="0.8"/></Ellipse.Effect></Ellipse>
         </Canvas>
         <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions><TextBlock x:Name="PickerValueLabel" Text="亮度 / Value" VerticalAlignment="Center" Foreground="#FF667085"/><Slider x:Name="PickerValueSlider" Grid.Column="1" Minimum="0" Maximum="1" Value="1" IsMoveToPointEnabled="True"/><TextBlock x:Name="PickerValueText" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
         <Grid Margin="0,0,0,12"><Grid.ColumnDefinitions><ColumnDefinition Width="92"/><ColumnDefinition Width="*"/><ColumnDefinition Width="48"/></Grid.ColumnDefinitions><TextBlock x:Name="PickerAlphaLabel" Text="透明 / Alpha" VerticalAlignment="Center" Foreground="#FF667085"/><Slider x:Name="PickerAlphaSlider" Grid.Column="1" Minimum="0" Maximum="1" Value="1" IsMoveToPointEnabled="True"/><TextBlock x:Name="PickerAlphaText" Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center"/></Grid>
-        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/></Grid.ColumnDefinitions><TextBox x:Name="PickerHexText" FontFamily="Cascadia Code, Consolas" FontSize="14" Padding="10,8"/><Border x:Name="PickerPreview" Grid.Column="1" Margin="10,0,0,0" CornerRadius="10" BorderBrush="#22000000" BorderThickness="1"/></Grid>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0"><Button x:Name="PickerCancelButton" Content="取消（Cancel）" Padding="14,9" Margin="0,0,8,0"/><Button x:Name="PickerApplyButton" Content="应用（Apply）" Padding="16,9" Background="#FF0A84FF" Foreground="White" BorderBrush="Transparent"/></StackPanel>
+        <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/></Grid.ColumnDefinitions><TextBox x:Name="PickerHexText" FontFamily="Cascadia Code, Consolas" FontSize="14" Padding="10,8" Margin="0"/><Border x:Name="PickerPreview" Grid.Column="1" Margin="10,0,0,0" CornerRadius="10" BorderBrush="#22000000" BorderThickness="1"/></Grid>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0"><Button x:Name="PickerCancelButton" Content="取消（Cancel）" Padding="14,9" Margin="0,0,8,0"/><Button x:Name="PickerApplyButton" Content="应用（Apply）" Padding="16,9" Margin="0" Background="#FF0A84FF" Foreground="White" BorderBrush="Transparent"/></StackPanel>
       </StackPanel>
     </Border>
   </Grid>

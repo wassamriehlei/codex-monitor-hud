@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 using CodexMonitorHud.Core.Configuration;
 using CodexMonitorHud.Core.Models;
@@ -27,6 +28,11 @@ internal sealed class MainHudView : IDisposable
     private readonly ScrollViewer _taskListScroller;
     private readonly StackPanel _taskListPanel;
     private readonly StackPanel _quietPanel;
+    private readonly Grid _ballPanel;
+    private readonly TextBlock _ballCount;
+    private readonly DispatcherTimer _ballCollapseTimer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(450) };
+    private bool _ballMode;
+    private bool _ballExpanded;
     private readonly Grid _quietOverallHost;
     private readonly Ellipse _quietOverallRing;
     private readonly Ellipse _quietOverallDot;
@@ -64,16 +70,12 @@ internal sealed class MainHudView : IDisposable
     private bool _hasSynchronizedStates;
     private bool _edgeSnapEnabled = true;
     private double _edgeSnapDistance = 28;
-    private string _backdropMode = "none";
-    private string _backdropTint = "#EAF7F8FA";
-    private double _backdropOpacity = 0.97;
 
     public MainHudView(string hudXamlPath, string taskBubbleXamlPath)
     {
         _taskBubbleXaml = taskBubbleXamlPath;
         Window = XamlLoader.LoadWindow(hudXamlPath);
         _shell = XamlLoader.Require<Border>(Window, "HudShell");
-        WindowBackdrop.TrackShell(Window, _shell, () => _backdropMode);
         _contentPanel = XamlLoader.Require<StackPanel>(Window, "HudContentPanel");
         _statusDot = XamlLoader.Require<Ellipse>(Window, "StatusDot");
         _taskListToggle = XamlLoader.Require<Button>(Window, "TaskListToggleButton");
@@ -82,6 +84,8 @@ internal sealed class MainHudView : IDisposable
         _taskListScroller = XamlLoader.Require<ScrollViewer>(Window, "TaskListScroller");
         _taskListPanel = XamlLoader.Require<StackPanel>(Window, "TaskListPanel");
         _quietPanel = XamlLoader.Require<StackPanel>(Window, "QuietIndicatorPanel");
+        _ballPanel = XamlLoader.Require<Grid>(Window, "FloatingBallPanel");
+        _ballCount = XamlLoader.Require<TextBlock>(Window, "FloatingBallCount");
         _quietOverallHost = XamlLoader.Require<Grid>(Window, "QuietOverallHost");
         _quietOverallRing = XamlLoader.Require<Ellipse>(Window, "QuietOverallRing");
         _quietOverallDot = XamlLoader.Require<Ellipse>(Window, "QuietOverallDot");
@@ -94,11 +98,27 @@ internal sealed class MainHudView : IDisposable
             args.Handled = true;
         };
         Window.MouseLeftButtonDown += OnWindowMouseLeftButtonDown;
+        Window.MouseEnter += (_, _) =>
+        {
+            _ballCollapseTimer.Stop();
+            if (!_ballMode || _ballExpanded) return;
+            _ballExpanded = true;
+            SurfaceChanged?.Invoke();
+        };
+        Window.MouseLeave += (_, _) => ScheduleBallCollapse();
+        Window.ContextMenuClosing += (_, _) => ScheduleBallCollapse();
+        Window.LostMouseCapture += (_, _) => ScheduleBallCollapse();
+        _ballCollapseTimer.Tick += (_, _) =>
+        {
+            _ballCollapseTimer.Stop();
+            if (!_ballMode || !_ballExpanded || Window.IsMouseOver || Window.ContextMenu?.IsOpen == true || IsDragging || Mouse.LeftButton == MouseButtonState.Pressed) return;
+            _ballExpanded = false;
+            SurfaceChanged?.Invoke();
+        };
         Window.SourceInitialized += (_, _) =>
         {
             _handle = new WindowInteropHelper(Window).Handle;
             _baseStyle = _handle == 0 ? 0 : NativeMethods.GetWindowLong(_handle, NativeMethods.GwlExStyle);
-            _ = WindowBackdrop.Apply(_handle, _backdropMode, _backdropTint, _backdropOpacity);
             SetMousePassthrough(_mousePassthrough);
         };
         Window.Closing += (_, args) =>
@@ -113,6 +133,8 @@ internal sealed class MainHudView : IDisposable
 
     public Window Window { get; }
     public event Action? SettingsRequested;
+    public event Action? SurfaceChanged;
+    public bool IsDragging { get; private set; }
     public event Action? ExitRequested;
     public event Action? ToggleListRequested;
     public event Action<string>? DismissRequested;
@@ -154,9 +176,9 @@ internal sealed class MainHudView : IDisposable
         _taskListToggle.ToolTip = Get(settingsLocale, "activeTasks");
         RenderTaskList(settings, settingsLocale, locale, states, statusFor, now, listExpanded);
         SynchronizeBubbles(settings, settingsLocale, locale, states, statusFor, now);
-        PositionBubbles(settings);
         UpdateQuietMode(settings, settingsLocale, states, statusFor, overallStatus, now);
         UpdatePosition(settings);
+        PositionBubbles(settings);
         StartSummaryAttention(settings, states, now);
         StartUpdateAnimation(settings, states, statusFor, overallStatus, now);
     }
@@ -245,6 +267,7 @@ internal sealed class MainHudView : IDisposable
     public void Dispose()
     {
         _closing = true;
+        _ballCollapseTimer.Stop();
         MergeAll();
         Window.Close();
     }
@@ -253,9 +276,6 @@ internal sealed class MainHudView : IDisposable
     {
         _edgeSnapEnabled = settings.Behavior.EdgeSnap.Enabled;
         _edgeSnapDistance = settings.Behavior.EdgeSnap.Distance;
-        _backdropMode = settings.ThemeStyle.Backdrop;
-        _backdropTint = settings.Background;
-        _backdropOpacity = settings.Opacity;
         var signature = string.Join('|',
             settings.Preset,
             settings.Layout,
@@ -283,10 +303,9 @@ internal sealed class MainHudView : IDisposable
         _metricsSignature = string.Empty;
         _listSignature = string.Empty;
         Window.Topmost = settings.AlwaysOnTop;
-        Window.Opacity = settings.TransparencyMode == "uniform" && !WindowBackdrop.IsEnabled(settings.ThemeStyle.Backdrop)
+        Window.Opacity = settings.TransparencyMode == "uniform"
             ? settings.Opacity
             : 1;
-        _ = WindowBackdrop.Apply(_handle, _backdropMode, _backdropTint, _backdropOpacity);
         try
         {
             Window.FontFamily = new FontFamily(settings.ThemeStyle.FontFamily);
@@ -567,6 +586,9 @@ internal sealed class MainHudView : IDisposable
         }
 
         var density = Density(settings.MultiTask.ListDensity);
+        // Neutral inset glass keeps status colors meaningful and survives custom palettes.
+        var ink = ParseColor(settings.Foreground, "#FF1C1C1E");
+        var lightSurface = (0.2126 * ink.R + 0.7152 * ink.G + 0.0722 * ink.B) < 128;
         foreach (var state in states.OrderBy(static state => state.Number))
         {
             var status = statusFor(state);
@@ -767,8 +789,8 @@ internal sealed class MainHudView : IDisposable
                     CornerRadius = new CornerRadius(density.CardRadius),
                     Padding = density.CardPadding,
                     Margin = density.CardMargin,
-                    Background = _brushes.Create("#0D0A84FF", "#0D0A84FF", BrushRole.Decoration, settings, status, false),
-                    BorderBrush = _brushes.Create("#220A84FF", "#220A84FF", BrushRole.Decoration, settings, status, false),
+                    Background = _brushes.Create(lightSurface ? "#80FFFFFF" : "#0AFFFFFF", "#0AFFFFFF", BrushRole.Decoration, settings, status, false),
+                    BorderBrush = _brushes.Create(lightSurface ? "#CCFFFFFF" : "#24FFFFFF", "#24FFFFFF", BrushRole.Decoration, settings, status, false),
                     BorderThickness = new Thickness(1),
                     Child = row
                 };
@@ -1087,33 +1109,52 @@ internal sealed class MainHudView : IDisposable
         string overallStatus,
         DateTimeOffset now)
     {
+        if (IsDragging) return;
+        var ballMode = settings.SurfaceMode == "ball" && !settings.MousePassthrough;
+        if (_ballMode != ballMode)
+        {
+            _ballMode = ballMode;
+            _ballExpanded = false;
+            _ballCollapseTimer.Stop();
+        }
+        var ballCollapsed = _ballMode && !_ballExpanded;
+        _ballPanel.Visibility = ballCollapsed ? Visibility.Visible : Visibility.Collapsed;
+        _ballCount.Foreground = _brushes.Create(settings.Foreground, "#FF1C1C1E", BrushRole.Primary, settings, overallStatus, false);
+        var activeCount = states.Count(state => statusFor(state) is "active" or "listening");
+        _ballCount.Text = activeCount.ToString();
+        _ballPanel.ToolTip = Get(locale, "surfaceBallHint");
         _lastIdleIndicatorLayout = settings.Behavior.IdleIndicator.Layout;
         var taskLayout = settings.Behavior.IdleIndicator.Layout is "horizontal" or "vertical";
         var keepTerminalLights = _isMainIndicatorCollapsed && taskLayout;
-        var shouldCollapse = settings.Behavior.IdleIndicator.Enabled &&
+        var shouldCollapse = !_ballMode && settings.Behavior.IdleIndicator.Enabled &&
                              states.Count > 0 &&
                              !Window.IsMouseOver &&
                              states.All(state => IsQuiet(state, statusFor(state), settings, now, keepTerminalLights));
         var transition = shouldCollapse != _isMainIndicatorCollapsed;
         _isMainIndicatorCollapsed = shouldCollapse;
-        _shell.Width = shouldCollapse
+        _shell.Width = ballCollapsed ? 48 : shouldCollapse
             ? double.NaN
             : Math.Min(settings.HudWidth, Math.Max(360, GetCurrentScreenBounds().Width - MainChromeInset * 2));
-        _contentPanel.Visibility = shouldCollapse ? Visibility.Collapsed : Visibility.Visible;
+        _shell.Height = ballCollapsed ? 48 : double.NaN;
+        _contentPanel.Visibility = shouldCollapse || ballCollapsed ? Visibility.Collapsed : Visibility.Visible;
         _quietPanel.Visibility = shouldCollapse ? Visibility.Visible : Visibility.Collapsed;
-        if (shouldCollapse)
+        if (ballCollapsed)
+        {
+            _shell.Padding = new Thickness(1);
+            _shell.CornerRadius = new CornerRadius(24);
+        }
+        else if (shouldCollapse)
         {
             _shell.Padding = settings.Behavior.IdleIndicator.Layout == "vertical"
                 ? new Thickness(9, 10, 9, 9)
                 : new Thickness(10, 9, 10, 9);
             _shell.CornerRadius = new CornerRadius(16);
         }
-        else if (transition)
+        else
         {
             _shell.Padding = settings.Layout == "stacked" ? new Thickness(16, 13, 16, 13) : new Thickness(14, 10, 14, 10);
             _shell.CornerRadius = new CornerRadius(settings.CornerRadius);
-            _appearanceSignature = string.Empty;
-            _listSignature = string.Empty;
+            if (transition) { _appearanceSignature = string.Empty; _listSignature = string.Empty; }
         }
 
         var stateByPath = states.ToDictionary(static state => state.Path, StringComparer.OrdinalIgnoreCase);
@@ -1255,6 +1296,7 @@ internal sealed class MainHudView : IDisposable
 
     private void UpdatePosition(HudSettings settings)
     {
+        if (IsDragging) return;
         var screen = GetCurrentScreenBounds();
         Window.MaxWidth = Math.Max(480, screen.Width + MainChromeInset * 2);
         Window.UpdateLayout();
@@ -1410,14 +1452,32 @@ internal sealed class MainHudView : IDisposable
                 // preserves free dragging while still allowing the visible
                 // shell (inside the transparent chrome) to reach every edge.
                 var grabPoint = args.GetPosition(Window);
+                var dragOrigin = new Point(Window.Left, Window.Top);
+                IsDragging = true;
+                _ballCollapseTimer.Stop();
                 Window.DragMove();
+                // A click (including the first click of a double-click) must
+                // not snap the window or synchronously write settings.
+                if (Math.Abs(Window.Left - dragOrigin.X) < 0.5 && Math.Abs(Window.Top - dragOrigin.Y) < 0.5) return;
                 RestoreFreeDragPosition(grabPoint);
                 PositionChanged?.Invoke(Window.Left + MainChromeInset, Window.Top + MainChromeInset);
             }
             catch (InvalidOperationException)
             {
             }
+            finally
+            {
+                IsDragging = false;
+                ScheduleBallCollapse();
+            }
         }
+    }
+
+    private void ScheduleBallCollapse()
+    {
+        if (!_ballMode || !_ballExpanded || Window.IsMouseOver || _closing) return;
+        _ballCollapseTimer.Stop();
+        _ballCollapseTimer.Start();
     }
 
     private void RestoreFreeDragPosition(Point grabPoint)

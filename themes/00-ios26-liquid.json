@@ -1,0 +1,41 @@
+{
+  "format": "codex-monitor-hud-theme",
+  "formatVersion": 1,
+  "id": "ios26-liquid",
+  "order": 0,
+  "author": "Codex Monitor HUD contributors",
+  "description": "iOS 26-inspired pearl glass, quiet blue accents and compact rounded surfaces. Uses a lightweight gradient, not native refraction.",
+  "names": { "zh-CN": "iOS 26 · 流光", "en": "iOS 26 · Liquid", "symbols": "iOS 26 · Liquid" },
+  "settings": {
+    "background": "#F5F5F7FB",
+    "foreground": "#FF1C1C1E",
+    "muted": "#FF636773",
+    "accent": "#FF007AFF",
+    "border": "#E6FFFFFF",
+    "cornerRadius": 28,
+    "opacity": 0.97,
+    "fontSize": 14,
+    "layout": "compact",
+    "separator": "dot",
+    "transparencyMode": "uniform",
+    "showStatusDot": true,
+    "animateUpdates": true,
+    "themeStyle": {
+      "backdrop": "none",
+      "surface": "gradient",
+      "gradientStart": "#FAFFFFFF",
+      "gradientEnd": "#F0E8EEF7",
+      "gradientAngle": 105,
+      "backgroundImage": "",
+      "imageOpacity": 0.28,
+      "imageStretch": "uniformToFill",
+      "shadow": "soft",
+      "borderWidth": 1,
+      "statusDotSize": 7,
+      "fontFamily": "HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI"
+    },
+    "multiTask": { "listStyle": "cards", "listDensity": "compact", "nameMode": "always" },
+    "attention": { "summaryMode": "halo", "listMode": "halo", "taskBubbleMode": "halo", "dotEnabled": true, "dotPattern": "soft", "dotBrightness": "subtle", "dotSpeed": "slow", "dotBreathing": true },
+    "statusColors": { "active": "#FF248A3D", "listening": "#FF007AFF", "idle": "#FF8E8E93", "paused": "#FFB86E00", "error": "#FFD70015", "completed": "#FF248A3D", "aborted": "#FFD70015" }
+  }
+}

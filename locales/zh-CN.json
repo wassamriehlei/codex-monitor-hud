@@ -306,11 +306,6 @@
   "fontSize": "字号",
   "cornerRadius": "圆角",
   "opacity": "透明度",
-  "backdrop": "玻璃材质",
-  "backdropNone": "关闭",
-  "backdropBlur": "背景模糊",
-  "backdropAcrylic": "亚克力玻璃",
-  "backdropHint": "使用 Windows 原生背景材质；透明度滑块同时控制玻璃染色强度。",
   "transparencyMode": "透明方式",
   "transparencyUniform": "整体透明",
   "transparencyLayered": "分层清晰",
@@ -351,5 +346,10 @@
   "colorPickerValue": "亮度",
   "colorPickerAlpha": "透明度",
   "cancel": "取消",
-  "apply": "应用"
+  "apply": "应用",
+  "surfaceMode": "悬浮显示模式",
+  "surfaceWindow": "悬浮窗",
+  "surfaceBall": "悬浮球（悬停展开）",
+  "surfaceModeHint": "悬浮球在鼠标移入时展开，移出后自动收回。开启鼠标穿透时保持悬浮窗。",
+  "surfaceBallHint": "移入展开 · 双击设置 · 拖动移动"
 }
