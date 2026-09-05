@@ -1,6 +1,6 @@
 {
   "name": "codex-monitor-hud",
-  "version": "3.4.1",
+  "version": "3.4.2",
   "description": "A local real-time multi-task HUD for Codex Desktop, VS Code, and CLI on Windows.",
   "author": {
     "name": "Codex Monitor HUD Contributors"
@@ -39,12 +39,7 @@
     "brandColor": "#0A84FF",
     "composerIcon": "./assets/icon.svg",
     "screenshots": [
-      "./assets/screenshots/floating-ball.png",
-      "./assets/screenshots/hud-wsl.png",
-      "./assets/screenshots/settings-overview.png",
-      "./assets/screenshots/settings-sources.png",
-      "./assets/screenshots/settings-list.png",
-      "./assets/screenshots/settings-sound.png"
+      "./assets/screenshots/floating-ball.png"
     ]
   }
 }

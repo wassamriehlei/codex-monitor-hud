@@ -11,15 +11,13 @@
 
 Codex Monitor HUD 实时展示任务状态、Token 用量、上下文压力、额度窗口和任务来源，不上传会话数据。界面支持悬浮球、展开悬浮窗、任务列表和独立任务气泡。
 
-![同时监控 Windows 与 WSL 任务的展开悬浮窗](assets/screenshots/hud-wsl.png)
-
 ## 下载与运行
 
 从 [GitHub Releases](https://github.com/wassamriehlei/codex-monitor-hud/releases/latest) 下载最新正式版。
 
 | 发布包 | 运行方法 | 数据位置 |
 | --- | --- | --- |
-| `CodexMonitorHUD-Portable-3.4.1-windows-x64.zip` | 完整解压后双击 `CodexMonitorHUD.exe` | EXE 同目录下的 `portable-data\CodexMonitorHUD` |
+| `CodexMonitorHUD-Portable-3.4.2-windows-x64.zip` | 完整解压后双击 `CodexMonitorHUD.exe` | EXE 同目录下的 `portable-data\CodexMonitorHUD` |
 
 首次运行前，请安装微软官方 [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) 的 **Windows x64** 版本。请选择 **Desktop Runtime（桌面运行时）**，不需要 SDK，也不要选成 ASP.NET Core Runtime。
 
@@ -44,17 +42,11 @@ Codex Monitor HUD 实时展示任务状态、Token 用量、上下文压力、�
 
 ## 软件截图
 
-| 悬浮球 | 外观、字体与宽度 |
-| --- | --- |
-| ![只显示活跃任务数量的悬浮球](assets/screenshots/floating-ball.png) | ![字体、HUD 宽度、圆角和透明度设置](assets/screenshots/settings-overview.png) |
+<p align="center">
+  <img src="assets/screenshots/floating-ball.png" width="220" alt="当前悬浮球模式，显示三个活跃 Codex 任务">
+</p>
 
-| 监控来源 | 任务列表自定义 |
-| --- | --- |
-| ![可以独立开关的 Codex 监控来源](assets/screenshots/settings-sources.png) | ![任务列表字段与布局设置](assets/screenshots/settings-list.png) |
-
-| 完成提醒 | 多任务悬浮窗 |
-| --- | --- |
-| ![完成提示音与行为设置](assets/screenshots/settings-sound.png) | ![展开后的多任务监控悬浮窗](assets/screenshots/hud-wsl.png) |
+悬浮球只显示当前活跃任务数量，文字颜色与低开销背景动效会跟随任务状态变化；单击或短暂悬停即可展开完整 HUD。
 
 ## 配置 WSL Codex CLI
 

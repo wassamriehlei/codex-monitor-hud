@@ -11,15 +11,13 @@
 
 Codex Monitor HUD shows live task state, token usage, context pressure, allowances, and source identity without uploading session data. It supports a compact floating ball, an expandable window, task lists, and detached task bubbles.
 
-![Expanded HUD monitoring Windows and WSL tasks](assets/screenshots/hud-wsl.png)
-
 ## Download and run
 
 Download the latest stable assets from [GitHub Releases](https://github.com/wassamriehlei/codex-monitor-hud/releases/latest).
 
 | Package | How to run | Data location |
 | --- | --- | --- |
-| `CodexMonitorHUD-Portable-3.4.1-windows-x64.zip` | Extract all files, then double-click `CodexMonitorHUD.exe` | `portable-data\CodexMonitorHUD` beside the EXE |
+| `CodexMonitorHUD-Portable-3.4.2-windows-x64.zip` | Extract all files, then double-click `CodexMonitorHUD.exe` | `portable-data\CodexMonitorHUD` beside the EXE |
 
 Before first run, install Microsoft's [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) for **Windows x64**. Choose **Desktop Runtime**, not the SDK or ASP.NET Core Runtime.
 
@@ -44,17 +42,11 @@ To upgrade, exit the HUD, retain the existing `portable-data` directory, replace
 
 ## Screenshots
 
-| Floating ball | Appearance and sizing |
-| --- | --- |
-| ![Floating ball with active task count](assets/screenshots/floating-ball.png) | ![Appearance, font, width and opacity settings](assets/screenshots/settings-overview.png) |
+<p align="center">
+  <img src="assets/screenshots/floating-ball.png" width="220" alt="Current floating-ball mode showing three active Codex tasks">
+</p>
 
-| Monitoring sources | Task-list customization |
-| --- | --- |
-| ![Independent Codex source switches](assets/screenshots/settings-sources.png) | ![Task-list fields and layout controls](assets/screenshots/settings-list.png) |
-
-| Completion alerts | Expanded multi-task HUD |
-| --- | --- |
-| ![Completion sound and behavior settings](assets/screenshots/settings-sound.png) | ![Expanded HUD with multiple local tasks](assets/screenshots/hud-wsl.png) |
+The floating ball shows only the active-task count. Its foreground and low-cost background motion follow the current task state; click it or hover briefly to expand the full HUD.
 
 ## WSL Codex CLI
 

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "product": "Codex Monitor HUD",
-  "version": "3.4.1",
+  "version": "3.4.2",
   "repository": "https://github.com/wassamriehlei/codex-monitor-hud",
-  "releaseTag": "v3.4.1",
+  "releaseTag": "v3.4.2",
   "checksumAsset": "SHA256SUMS.txt",
   "platforms": {
     "windows-x64": {
-      "asset": "CodexMonitorHUD-Portable-3.4.1-windows-x64.zip",
+      "asset": "CodexMonitorHUD-Portable-3.4.2-windows-x64.zip",
       "entrypoint": "CodexMonitorHUD.exe",
       "settingsArgument": "--open-settings",
       "marker": "portable.marker",

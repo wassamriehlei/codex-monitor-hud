@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.4.2 - 2026-09-05
+
+- Remove screenshots of retired layouts and Settings controls from the repository and Portable package.
+- Replace the small legacy ball image with a current 234×234 floating-ball capture showing three active tasks.
+- Keep the English README, Chinese README, and plugin gallery aligned to the single current screenshot.
+
 ## 3.4.1 - 2026-09-05
 
 - Make every future release Portable-only: one versioned ZIP plus its SHA-256 checksum, with no installer or repository-compatibility archive.

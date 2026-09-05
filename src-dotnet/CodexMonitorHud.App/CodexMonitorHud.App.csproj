@@ -16,9 +16,9 @@
     <Copyright>Copyright © Codex Monitor HUD Contributors</Copyright>
     <ApplicationIcon>..\..\assets\codex-monitor-hud.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>3.4.1</Version>
-    <AssemblyVersion>3.4.1.0</AssemblyVersion>
-    <FileVersion>3.4.1.0</FileVersion>
+    <Version>3.4.2</Version>
+    <AssemblyVersion>3.4.2.0</AssemblyVersion>
+    <FileVersion>3.4.2.0</FileVersion>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\CodexMonitorHud.Core\CodexMonitorHud.Core.csproj" />

@@ -228,9 +228,12 @@ $mcpText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src\mc
 $settingsXaml = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src\SettingsWindow.xaml')
 $installText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'scripts\install.ps1')
 $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root '.codex-plugin\plugin.json') | ConvertFrom-Json
-if ([string]$manifest.version -ne '3.4.1' -or $mcpText -notmatch 'SERVER_VERSION = "3\.4\.1"' -or [string]$manifest.version -match 'preview') { throw 'Stable v3.4.1 manifest and MCP version are not aligned.' }
+if ([string]$manifest.version -ne '3.4.2' -or $mcpText -notmatch 'SERVER_VERSION = "3\.4\.2"' -or [string]$manifest.version -match 'preview') { throw 'Stable v3.4.2 manifest and MCP version are not aligned.' }
+$screenshotAssets = @($manifest.interface.screenshots)
+$screenshotFiles = @(Get-ChildItem -LiteralPath (Join-Path $root 'assets\screenshots') -File)
+if ($screenshotAssets.Count -ne 1 -or [string]$screenshotAssets[0] -ne './assets/screenshots/floating-ball.png' -or $screenshotFiles.Count -ne 1 -or $screenshotFiles[0].Name -ne 'floating-ball.png') { throw 'Plugin gallery must contain only the current floating-ball screenshot.' }
 $installManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'install-manifest.json') | ConvertFrom-Json
-if ([string]$installManifest.version -ne '3.4.1' -or [string]$installManifest.releaseTag -ne 'v3.4.1' -or -not [bool]$installManifest.rules.verifyChecksum -or -not [bool]$installManifest.rules.extractAllFiles -or -not [bool]$installManifest.rules.preservePortableData -or -not [bool]$installManifest.rules.systemDotnetRequired -or $null -ne $installManifest.platforms.'macos-arm64') { throw 'Deterministic Windows v3.4.1 Portable manifest is invalid.' }
+if ([string]$installManifest.version -ne '3.4.2' -or [string]$installManifest.releaseTag -ne 'v3.4.2' -or -not [bool]$installManifest.rules.verifyChecksum -or -not [bool]$installManifest.rules.extractAllFiles -or -not [bool]$installManifest.rules.preservePortableData -or -not [bool]$installManifest.rules.systemDotnetRequired -or $null -ne $installManifest.platforms.'macos-arm64') { throw 'Deterministic Windows v3.4.2 Portable manifest is invalid.' }
 $dotnetRequired = @(
     'CodexMonitorHud.slnx',
     'src-dotnet/CodexMonitorHud.Core/CodexMonitorHud.Core.csproj',
@@ -244,7 +247,7 @@ $dotnetRequired = @(
     'scripts/compare-runtime-performance.ps1'
 )
 foreach ($relativePath in $dotnetRequired) {
-    if (-not (Test-Path -LiteralPath (Join-Path $root $relativePath))) { throw "v3.4.1 compiled architecture file is missing: $relativePath" }
+    if (-not (Test-Path -LiteralPath (Join-Path $root $relativePath))) { throw "v3.4.2 compiled architecture file is missing: $relativePath" }
 }
 $coreProjectText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src-dotnet\CodexMonitorHud.Core\CodexMonitorHud.Core.csproj')
 $coreSourceText = (Get-ChildItem -LiteralPath (Join-Path $root 'src-dotnet\CodexMonitorHud.Core') -Recurse -Filter *.cs | ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }) -join "`n"
@@ -318,11 +321,11 @@ foreach ($localOnlyPath in @('docs/MAINTENANCE_WORKFLOW.md','docs/MACOS_PREVIEW_
 }
 if ($installText -notmatch '\$excludedRootNames' -or $installText -notmatch '\$excludedRelativePaths' -or $installText -notmatch "-notlike '\.test-output\*'") { throw 'Installer exclusion boundary is missing.' }
 $releaseText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'scripts\prepare-release.ps1')
-foreach ($required in @("[string]`$Version = '3.4.1'",'$portableStage','codex-monitor-hud-portable-stage-','CodexMonitorHUD.exe','portable.marker','SmallestSize',"'.cmd'",'Remove-Item -LiteralPath $portableStage')) {
-    if ($releaseText -notmatch [regex]::Escape($required)) { throw "Portable-only v3.4.1 release default '$required' is missing." }
+foreach ($required in @("[string]`$Version = '3.4.2'",'$portableStage','codex-monitor-hud-portable-stage-','CodexMonitorHUD.exe','portable.marker','SmallestSize',"'.cmd'",'Remove-Item -LiteralPath $portableStage')) {
+    if ($releaseText -notmatch [regex]::Escape($required)) { throw "Portable-only v3.4.2 release default '$required' is missing." }
 }
 if ($releaseText -notmatch 'SHA256') { throw 'Release package checksum generation is missing.' }
-if ([string]$installManifest.platforms.'windows-x64'.asset -ne 'CodexMonitorHUD-Portable-3.4.1-windows-x64.zip' -or $releaseText -notmatch 'CodexMonitorHUD-Portable-\$Version-windows-x64\.zip') { throw 'Portable release asset name and manifest are not aligned.' }
+if ([string]$installManifest.platforms.'windows-x64'.asset -ne 'CodexMonitorHUD-Portable-3.4.2-windows-x64.zip' -or $releaseText -notmatch 'CodexMonitorHUD-Portable-\$Version-windows-x64\.zip') { throw 'Portable release asset name and manifest are not aligned.' }
 if ($releaseText -match 'stage-repository|CodexMonitorHUD-windows-x64\.zip|CodexMonitorHUD-Setup-|InnoCompiler|SkipInstaller') { throw 'Obsolete installer or repository compatibility packaging remains enabled.' }
 if ($releaseText -match 'CodexMonitorHUD-Settings\.exe') { throw 'Portable release must contain only the main EXE.' }
 if ($releaseText -match "'runtime'") { throw 'Portable release must use the user-installed .NET Desktop Runtime.' }
