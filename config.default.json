@@ -13,7 +13,12 @@
     "desktop": true,
     "vscode": true,
     "defaultCli": true,
-    "deepSeekCli": true
+    "deepSeekCli": true,
+    "wsl": true
+  },
+  "wsl": {
+    "distribution": "",
+    "home": ""
   },
   "multiTask": {
     "displayMode": "list",

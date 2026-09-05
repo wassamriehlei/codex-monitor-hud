@@ -89,7 +89,10 @@ internal sealed partial class HudApplicationController : IDisposable
         _locales = new LocaleCatalog(paths.LocaleRoot);
         _locale = _locales.Get(_settings.Language);
         _settingsLocale = _settings.Language == "symbols" ? _locales.Get("en") : _locale;
-        _profiles = SessionProfile.CreateDefaultSet(paths);
+        var configuredWslHome = _settings.SessionSources.Wsl
+            ? (_settings.Wsl.Home.Length > 0 ? _settings.Wsl.Home : Environment.GetEnvironmentVariable("CODEX_MONITOR_HUD_HOME"))
+            : null;
+        _profiles = SessionProfile.CreateDefaultSet(paths, configuredWslHome);
         _engine = new SessionMonitorEngine(
             _profiles,
             _settings.ToRuntimeOptions(),
@@ -123,7 +126,7 @@ internal sealed partial class HudApplicationController : IDisposable
 
     public void Start()
     {
-        _log.Write($"Compiled HUD v3.3.0 starting. config={_paths.ConfigPath}; profiles={string.Join(',', _profiles.Select(static profile => profile.Id))}; agentNotices={_settings.AgentNotifications.Enabled}/{_settings.AgentNotifications.Permission}");
+        _log.Write($"Compiled HUD v3.3.1 starting. config={_paths.ConfigPath}; profiles={string.Join(',', _profiles.Select(static profile => profile.Id))}; agentNotices={_settings.AgentNotifications.Enabled}/{_settings.AgentNotifications.Permission}");
         var now = DateTimeOffset.Now;
         _engine.RefreshActiveSessions(now);
         _engine.Poll(now);

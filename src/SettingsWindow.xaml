@@ -640,7 +640,7 @@
                         <TextBlock x:Name="SourceDefaultCliOptionText" Text="Codex CLI——默认 Profile（通常为 OpenAI / GPT）" VerticalAlignment="Center" TextWrapping="Wrap" />
                       </StackPanel>
                     </CheckBox>
-                    <CheckBox x:Name="SourceDeepSeekCliCheck">
+                    <CheckBox x:Name="SourceDeepSeekCliCheck" Margin="0,0,0,10">
                       <StackPanel Orientation="Horizontal">
                         <Border Width="28" Height="28" CornerRadius="9" Background="#1200A7B5" BorderBrush="#3000A7B5" BorderThickness="1" Margin="2,0,10,0">
                           <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -650,6 +650,32 @@
                         <TextBlock x:Name="SourceDeepSeekCliOptionText" Text="Codex CLI——DeepSeek Profile（.codex-deepseek）" VerticalAlignment="Center" TextWrapping="Wrap" />
                       </StackPanel>
                     </CheckBox>
+                    <CheckBox x:Name="SourceWslCheck">
+                      <StackPanel Orientation="Horizontal">
+                        <Border Width="28" Height="28" CornerRadius="9" Background="#122D9D78" BorderBrush="#302D9D78" BorderThickness="1" Margin="2,0,10,0">
+                          <Viewbox Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Path Data="M12,19 H20 M4,17 L10,11 L4,5 M17,5 A2,2 0 1 0 17,9 A2,2 0 1 0 17,5" Stroke="#FF2D9D78" StrokeThickness="1.7" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" />
+                          </Viewbox>
+                        </Border>
+                        <TextBlock x:Name="SourceWslOptionText" Text="WSL 中的 Codex（CLI / VS Code Remote）" VerticalAlignment="Center" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </CheckBox>
+                  </StackPanel>
+                </Border>
+                <Border Width="620" HorizontalAlignment="Left" Background="#0B2D9D78" BorderBrush="#282D9D78" BorderThickness="1" CornerRadius="14" Padding="14,12" Margin="0,0,0,12">
+                  <StackPanel>
+                    <TextBlock x:Name="WslSettingsTitle" Text="WSL 连接" FontWeight="SemiBold" />
+                    <TextBlock x:Name="WslSettingsHint" Text="选择发行版并自动获取 Linux 主目录，也可以填写 \\wsl.localhost\发行版\home\用户名。修改后 HUD 会自动重启。" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,4,0,8" />
+                    <WrapPanel>
+                      <StackPanel>
+                        <TextBlock x:Name="WslDistributionLabel" Text="发行版" FontSize="12" Foreground="{StaticResource Muted}" />
+                        <ComboBox x:Name="WslDistributionCombo" IsEditable="True" IsTextSearchEnabled="True" Width="250" />
+                      </StackPanel>
+                      <Button x:Name="WslDetectButton" Content="检测发行版与主目录" VerticalAlignment="Bottom" Margin="0,6,0,0" />
+                    </WrapPanel>
+                    <TextBlock x:Name="WslHomeLabel" Text="WSL 主目录" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,10,0,0" />
+                    <TextBox x:Name="WslHomeText" Width="590" HorizontalAlignment="Left" ToolTip="例如：\\wsl.localhost\Ubuntu\home\user" />
+                    <TextBlock x:Name="WslConnectionStatus" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,5,0,0" />
                   </StackPanel>
                 </Border>
                 <Border Width="620" HorizontalAlignment="Left" Background="#0800A7B5" BorderBrush="#2400A7B5" BorderThickness="1" CornerRadius="12" Padding="12,10">

@@ -38,6 +38,7 @@ foreach ($path in $parsePaths) {
 [xml](Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src\TaskBubbleWindow.xaml')) | Out-Null
 & (Join-Path $root 'scripts\test-liquid-design.ps1')
 & (Join-Path $root 'scripts\test-startup-portable.ps1')
+& (Join-Path $root 'scripts\test-wsl-source.ps1')
 & (Join-Path $root 'scripts\test-bundled-audio.ps1')
 
 $legacySelfTestRoot = Join-Path $TestOutputRoot 'legacy-self-test'
@@ -195,7 +196,7 @@ if ([bool]$defaultConfig.mousePassthrough) { throw 'Mouse click-through must def
 if ([string]$defaultConfig.statusPalette -ne 'custom') { throw 'Personal status palette marker is missing.' }
 if ([string]$defaultConfig.monitorScope -ne 'aggregate' -or [string]$defaultConfig.multiTask.displayMode -ne 'list') { throw 'Personal aggregate/list defaults are missing.' }
 if ([string]$defaultConfig.surfaceMode -ne 'ball' -or [double]$defaultConfig.floatingBallSize -ne 60 -or [bool]$defaultConfig.showProviderLabel) { throw 'Personal floating-ball defaults are missing.' }
-if (-not [bool]$defaultConfig.sessionSources.desktop -or -not [bool]$defaultConfig.sessionSources.vscode -or -not [bool]$defaultConfig.sessionSources.defaultCli -or -not [bool]$defaultConfig.sessionSources.deepSeekCli) { throw 'Desktop, VS Code, default CLI, and DeepSeek CLI monitoring must default to enabled.' }
+if (-not [bool]$defaultConfig.sessionSources.desktop -or -not [bool]$defaultConfig.sessionSources.vscode -or -not [bool]$defaultConfig.sessionSources.defaultCli -or -not [bool]$defaultConfig.sessionSources.deepSeekCli -or -not [bool]$defaultConfig.sessionSources.wsl) { throw 'Desktop, VS Code, Windows CLI, DeepSeek CLI, and WSL monitoring must default to enabled.' }
 if ([int]$defaultConfig.multiTask.maxSplitBubbles -ne 6 -or [string]$defaultConfig.multiTask.nameMode -ne 'always') { throw 'Multi-task guardrail defaults are missing.' }
 if ([string]$defaultConfig.multiTask.listStyle -ne 'cards' -or [string]$defaultConfig.multiTask.listDensity -ne 'compact' -or [string]$defaultConfig.attention.summaryMode -ne 'halo' -or [string]$defaultConfig.attention.listMode -ne 'halo' -or [string]$defaultConfig.attention.taskBubbleMode -ne 'halo' -or [string]$defaultConfig.transparencyMode -ne 'uniform') { throw 'Liquid list density, per-surface attention or transparency defaults are missing.' }
 if (-not [bool]$defaultConfig.attention.dotEnabled -or -not [bool]$defaultConfig.attention.dotBreathing -or [string]$defaultConfig.attention.dotPattern -ne 'soft' -or [string]$defaultConfig.attention.dotBrightness -ne 'subtle') { throw 'Independent Liquid status-dot reminder defaults are missing.' }
@@ -228,9 +229,9 @@ $settingsXaml = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 's
 $installText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'scripts\install.ps1')
 $windowsInstaller = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'scripts\install-windows-from-repository.ps1')
 $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root '.codex-plugin\plugin.json') | ConvertFrom-Json
-if ([string]$manifest.version -ne '3.3.0' -or $mcpText -notmatch 'SERVER_VERSION = "3\.3\.0"' -or [string]$manifest.version -match 'preview') { throw 'Stable v3.3.0 manifest and MCP version are not aligned.' }
+if ([string]$manifest.version -ne '3.3.1' -or $mcpText -notmatch 'SERVER_VERSION = "3\.3\.1"' -or [string]$manifest.version -match 'preview') { throw 'Stable v3.3.1 manifest and MCP version are not aligned.' }
 $installManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'install-manifest.json') | ConvertFrom-Json
-if ([string]$installManifest.version -ne '3.3.0' -or [string]$installManifest.releaseTag -ne 'v3.3.0' -or -not [bool]$installManifest.rules.preferVerifiedRelease -or -not [bool]$installManifest.rules.preserveSettings -or -not [bool]$installManifest.rules.retainRollback -or $null -ne $installManifest.platforms.'macos-arm64') { throw 'Deterministic Windows v3.3.0 repository-install manifest is invalid.' }
+if ([string]$installManifest.version -ne '3.3.1' -or [string]$installManifest.releaseTag -ne 'v3.3.1' -or -not [bool]$installManifest.rules.preferVerifiedRelease -or -not [bool]$installManifest.rules.preserveSettings -or -not [bool]$installManifest.rules.retainRollback -or $null -ne $installManifest.platforms.'macos-arm64') { throw 'Deterministic Windows v3.3.1 repository-install manifest is invalid.' }
 $dotnetRequired = @(
     'CodexMonitorHud.slnx',
     'src-dotnet/CodexMonitorHud.Core/CodexMonitorHud.Core.csproj',
@@ -244,7 +245,7 @@ $dotnetRequired = @(
     'scripts/compare-runtime-performance.ps1'
 )
 foreach ($relativePath in $dotnetRequired) {
-    if (-not (Test-Path -LiteralPath (Join-Path $root $relativePath))) { throw "v3.3.0 compiled architecture file is missing: $relativePath" }
+    if (-not (Test-Path -LiteralPath (Join-Path $root $relativePath))) { throw "v3.3.1 compiled architecture file is missing: $relativePath" }
 }
 $coreProjectText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src-dotnet\CodexMonitorHud.Core\CodexMonitorHud.Core.csproj')
 $coreSourceText = (Get-ChildItem -LiteralPath (Join-Path $root 'src-dotnet\CodexMonitorHud.Core') -Recurse -Filter *.cs | ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }) -join "`n"
@@ -297,6 +298,9 @@ foreach ($required in @('eventArgs.Handled = true','TimeSpan.FromMilliseconds(15
 foreach ($required in @('hudHeartbeatIsFresh','hudRestartAttempts.length >= 3','5 * 60 * 1000','setInterval(maintainHud, 5000)')) {
     if ($mcpText -notmatch [regex]::Escape($required)) { throw "Bounded MCP HUD restart path '$required' is missing." }
 }
+foreach ($sourceKey in @('desktop_openai','vscode_openai','default_cli','deepseek_cli','wsl')) {
+    if ($mcpText -notmatch ('required:\s*\[[^\]]*"' + [regex]::Escape($sourceKey) + '"') -or $mcpText -notmatch ([regex]::Escape($sourceKey) + ':\s*\{ type: "boolean" \}')) { throw "MCP monitoring source schema is missing '$sourceKey'." }
+}
 foreach ($required in @('2025-11-25','SUPPORTED_PROTOCOL_VERSIONS','SERVER_INSTRUCTIONS','structuredContent','outputSchema','readOnlyHint','taskSupport: "forbidden"','monitor_hud_status','client','provider','profile')) {
     if ($mcpText -notmatch [regex]::Escape($required)) { throw "Modern MCP contract '$required' is missing." }
 }
@@ -315,8 +319,8 @@ foreach ($localOnlyPath in @('docs/MAINTENANCE_WORKFLOW.md','docs/MACOS_PREVIEW_
 }
 if ($installText -notmatch '\$excludedRootNames' -or $installText -notmatch '\$excludedRelativePaths' -or $installText -notmatch "-notlike '\.test-output\*'") { throw 'Installer exclusion boundary is missing.' }
 $releaseText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'scripts\prepare-release.ps1')
-foreach ($required in @("[string]`$Version = '3.3.0'",'$excludedDirectoryNames',"'.agents'","'.codex'","'Microsoft'","'bin'","'obj'",'$excludedRelativePaths',"-notlike '.test-output*'")) {
-    if ($releaseText -notmatch [regex]::Escape($required)) { throw "Release-package exclusion or 3.3.0 default '$required' is missing." }
+foreach ($required in @("[string]`$Version = '3.3.1'",'$excludedDirectoryNames',"'.agents'","'.codex'","'Microsoft'","'bin'","'obj'",'$excludedRelativePaths',"-notlike '.test-output*'")) {
+    if ($releaseText -notmatch [regex]::Escape($required)) { throw "Release-package exclusion or 3.3.1 default '$required' is missing." }
 }
 if ($installText -notmatch '\[switch\]\$UseBundledRuntime' -or $installText -notmatch '-not \$UseBundledRuntime' -or $windowsInstaller -notmatch '-UseBundledRuntime') { throw 'Release installs must use the bundled runtime rather than rebuild from source.' }
 if ($releaseText -notmatch 'SHA256') { throw 'Release package checksum generation is missing.' }
@@ -331,7 +335,7 @@ foreach ($required in @('Clear-HudStopSignals','manual-exit.signal','exit.signal
 & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installTransactionTest -TestOutputRoot $TestOutputRoot
 if ($LASTEXITCODE -ne 0) { throw 'Transactional install rollback self-test failed.' }
 foreach ($required in @('ThemeWorkshopDropZone','ThemeImportButton','AttentionHelp','ToolTipService.InitialShowDelay')) { if ($settingsXaml -notmatch [regex]::Escape($required)) { throw "Polished settings affordance '$required' is missing." } }
-foreach ($required in @('SourcesTab','SourceDesktopCheck','SourceDefaultCliCheck','SourceDeepSeekCliCheck','SessionSourcesPrivacy','MultiTaskTab','DisplayModeCombo','ListStyleCombo','ListDensityCombo','ListDetailCombo','TaskNameModeCombo','MaxSplitCombo','AutoSplitCheck','ListFieldDirectory','ListFieldTime','ListFieldContext','ListFieldStatus','ListFieldModel','ListFieldCacheHitRate','ListFieldCallTotal','ListFieldTaskTotal','ListFieldEstimatedCost','ListFieldUpdated','BubbleFieldModel','BubbleFieldCacheHitRate','PositionCustomItem','SummaryAttentionModeCombo','ListAttentionModeCombo','TaskBubbleAttentionModeCombo','SummaryAttentionFlowItem','SummaryAttentionFocusItem','DotAttentionEnabledCheck','DotPatternCombo','DotBrightnessCombo','DotSpeedCombo','DotBreathingCheck','TransparencyModeCombo','FontFamilyCombo','HudWidthSlider','FontPreviewText')) {
+foreach ($required in @('SourcesTab','SourceDesktopCheck','SourceDefaultCliCheck','SourceDeepSeekCliCheck','SourceWslCheck','WslDistributionCombo','WslHomeText','WslDetectButton','WslConnectionStatus','SessionSourcesPrivacy','MultiTaskTab','DisplayModeCombo','ListStyleCombo','ListDensityCombo','ListDetailCombo','TaskNameModeCombo','MaxSplitCombo','AutoSplitCheck','ListFieldDirectory','ListFieldTime','ListFieldContext','ListFieldStatus','ListFieldModel','ListFieldCacheHitRate','ListFieldCallTotal','ListFieldTaskTotal','ListFieldEstimatedCost','ListFieldUpdated','BubbleFieldModel','BubbleFieldCacheHitRate','PositionCustomItem','SummaryAttentionModeCombo','ListAttentionModeCombo','TaskBubbleAttentionModeCombo','SummaryAttentionFlowItem','SummaryAttentionFocusItem','DotAttentionEnabledCheck','DotPatternCombo','DotBrightnessCombo','DotSpeedCombo','DotBreathingCheck','TransparencyModeCombo','FontFamilyCombo','HudWidthSlider','FontPreviewText')) {
     if ($settingsXaml -notmatch [regex]::Escape($required)) { throw "Multi-task setting '$required' is missing." }
 }
 foreach ($required in @('FieldFiveHourRemaining','fiveHourRemaining','ToggleTaskListVisibility','ResetTaskListVisibility')) {
@@ -364,7 +368,7 @@ if ([regex]::Matches($mainText, '\[IO\.File\]::WriteAllText\(\$reloadSettingsSig
 if ($compiledSourceText -notmatch [regex]::Escape('!state.IdentityMetadataFound || state.IsInternalSession || state.Dismissed')) { throw 'Confirmed user sessions without an initial token snapshot are no longer visible as waiting tasks.' }
 if ($compiledSourceText -notmatch 'IdentityProvisional' -or $compiledSourceText -notmatch 'LastLockObservedAt' -or $compiledSourceText -notmatch 'GetSessionIdFromPath' -or (Get-Content -Raw -Encoding UTF8 -LiteralPath $core) -notmatch 'Test-HudSessionFileReadBlocked') { throw 'Sharing-locked long-running session recovery is missing.' }
 $programText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src-dotnet\CodexMonitorHud.App\Program.cs')
-if ($programText -notmatch 'CODEX_MONITOR_HUD_HOME' -or $mainText -notmatch 'CODEX_MONITOR_HUD_HOME' -or -not (Test-Path -LiteralPath (Join-Path $root 'docs\WSL_CODEX_CLI.md')) -or -not (Test-Path -LiteralPath (Join-Path $root 'docs\WSL_CODEX_CLI.zh-CN.md'))) { throw 'Production WSL session-home bridge or its bilingual documentation is missing.' }
+if ($programText -notmatch 'CODEX_MONITOR_HUD_HOME' -or $mainText -notmatch "Id = 'wsl'" -or $compiledSourceText -notmatch 'SessionProfile.WslId' -or -not (Test-Path -LiteralPath (Join-Path $root 'src\MonitorHud.Wsl.psm1')) -or -not (Test-Path -LiteralPath (Join-Path $root 'docs\WSL_CODEX_CLI.md')) -or -not (Test-Path -LiteralPath (Join-Path $root 'docs\WSL_CODEX_CLI.zh-CN.md'))) { throw 'Independent WSL source, bridge helpers, or bilingual documentation is missing.' }
 $activitySourceText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src-dotnet\CodexMonitorHud.App\WindowsSessionActivitySource.cs')
 foreach ($required in @('SqliteOpenReadOnly',"thread_source = 'user'",'archived = 0','updated_at_ms','ISessionActivitySource','RuntimeActivityAt','NormalizeWindowsExtendedPath')) {
     if ($activitySourceText -notmatch [regex]::Escape($required) -and $compiledSourceText -notmatch [regex]::Escape($required)) { throw "Read-only runtime heartbeat contract '$required' is missing." }
@@ -378,7 +382,7 @@ if ($mainText -notmatch 'lastUpdateAnimationSignature' -or $mainText -notmatch '
 $hudXaml = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src\HudWindow.xaml')
 if ($hudXaml -match 'TaskListScroller[^>]+MinWidth="900"' -or $hudXaml -notmatch 'WrapPanel x:Name="MetricsPanel"' -or $mainText -notmatch '\$container\.MaxWidth = \[Math\]::Max\(140\.0') { throw 'Responsive HUD layout must wrap summary metrics and long metric values without forcing a 900px task-list minimum.' }
 $bubbleXaml = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src\TaskBubbleWindow.xaml')
-if ($hudXaml -notmatch 'HudListToggleButton' -or $bubbleXaml -notmatch 'TaskBubbleScaleRoot' -or $bubbleXaml -match 'TaskBubbleResizeThumb') { throw 'List toggle or icon-free task-bubble scaling is invalid.' }
+if ($hudXaml -notmatch 'HudListToggleButton' -or $bubbleXaml -notmatch 'TaskBubbleScaleRoot" Width="420"' -or $bubbleXaml -match 'TaskBubbleResizeThumb') { throw 'List toggle, uniform task-bubble width, or icon-free task-bubble scaling is invalid.' }
 foreach ($required in @('TaskBubbleSourceBadge','TaskBubbleSourceIcon')) { if ($bubbleXaml -notmatch [regex]::Escape($required)) { throw "Task-source icon control '$required' is missing." } }
 if (-not (Test-Path -LiteralPath (Join-Path $root 'THIRD_PARTY_NOTICES.md')) -or $compiledSourceText -notmatch 'HudIcons' -or $mainText -notmatch 'M15,3 H21 V9') { throw 'Lucide vector icons or their third-party notice are missing.' }
 if ($bubbleXaml -match 'TaskBubbleSourceText' -or $compiledSourceText -match '_sourceText') { throw 'Task-source badges must remain icon-only; source names belong in tooltips and Settings.' }

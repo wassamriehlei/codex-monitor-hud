@@ -18,6 +18,10 @@ internal static class HudIcons
 
     internal static string Source(SessionState state)
     {
+        if (string.Equals(state.ProfileId, SessionProfile.WslId, StringComparison.OrdinalIgnoreCase))
+        {
+            return Terminal + " M17,5 A2,2 0 1 0 17,9 A2,2 0 1 0 17,5";
+        }
         if (string.Equals(state.ClientSurface, "vscode", StringComparison.OrdinalIgnoreCase))
         {
             return CodeXml;

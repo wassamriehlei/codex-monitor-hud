@@ -1,5 +1,5 @@
 param(
-    [string]$Version = '3.3.0',
+    [string]$Version = '3.3.1',
     [string]$OutputRoot = '',
     [string]$InnoCompiler = '',
     [switch]$SkipInstaller

@@ -1893,6 +1893,10 @@ internal sealed class MainHudView : IDisposable
 
     private string GetSourceLabel(SessionState state, IReadOnlyDictionary<string, string> locale)
     {
+        if (string.Equals(state.ProfileId, SessionProfile.WslId, StringComparison.OrdinalIgnoreCase))
+        {
+            return Get(locale, "sourceWsl");
+        }
         if (string.Equals(state.ClientSurface, "vscode", StringComparison.OrdinalIgnoreCase))
         {
             return Get(locale, "sourceVsCode");
@@ -1922,6 +1926,10 @@ internal sealed class MainHudView : IDisposable
 
     private static string GetSourceColor(SessionState state, HudSettings settings)
     {
+        if (string.Equals(state.ProfileId, SessionProfile.WslId, StringComparison.OrdinalIgnoreCase))
+        {
+            return "#FF2D9D78";
+        }
         if (string.Equals(state.ClientSurface, "vscode", StringComparison.OrdinalIgnoreCase))
         {
             return "#FF007ACC";

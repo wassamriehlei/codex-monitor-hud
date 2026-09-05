@@ -93,6 +93,9 @@ public static partial class HudConfigStore
         SetBool(result, GetBool(result, true, "sessionSources", "vscode"), "sessionSources", "vscode");
         SetBool(result, GetBool(result, true, "sessionSources", "defaultCli"), "sessionSources", "defaultCli");
         SetBool(result, GetBool(result, true, "sessionSources", "deepSeekCli"), "sessionSources", "deepSeekCli");
+        SetBool(result, GetBool(result, true, "sessionSources", "wsl"), "sessionSources", "wsl");
+        SetString(result, GetString(result, "", "wsl", "distribution").Trim(), "wsl", "distribution");
+        SetString(result, GetString(result, "", "wsl", "home").Trim(), "wsl", "home");
         SetAllowed(result, "rows", new[] { "rows", "cards", "rail" }, "multiTask", "listStyle");
         SetAllowed(result, "compact", new[] { "compact", "balanced", "relaxed" }, "multiTask", "listDensity");
         SetAllowed(result, "balanced", new[] { "compact", "balanced", "detailed" }, "multiTask", "listDetail");

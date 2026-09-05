@@ -71,7 +71,8 @@ Import-Module (Join-Path $PSScriptRoot '..\src\MonitorHud.Startup.psm1') -Force
 function Sync-InstalledStartup {
     $startupConfig = if (Test-Path -LiteralPath $settingsPath) { Get-Content -Raw -Encoding UTF8 -LiteralPath $settingsPath | ConvertFrom-Json } else { $null }
     $enabled = $null -ne $startupConfig -and [bool]$startupConfig.startWithWindows -and (Test-Path -LiteralPath (Join-Path $targetRoot 'scripts\start-at-login.ps1'))
-    Set-HudStartupRegistration -Enabled $enabled -PluginRoot $targetRoot -HudHome ([string]$env:CODEX_MONITOR_HUD_HOME) -Portable $false
+    $startupWslHome = if ($null -ne $startupConfig -and $null -ne $startupConfig.PSObject.Properties['wsl']) { [string]$startupConfig.wsl.home } else { [string]$env:CODEX_MONITOR_HUD_HOME }
+    Set-HudStartupRegistration -Enabled $enabled -PluginRoot $targetRoot -HudHome $startupWslHome -Portable $false
 }
 
 function Copy-PluginTree {
@@ -265,7 +266,7 @@ if (-not $UseBundledRuntime -and (Test-Path -LiteralPath $buildScript) -and ((Te
     # repaired or rolled back without requiring a global SDK.
     & $buildScript -Configuration Release
 } elseif (-not (Test-Path -LiteralPath $compiledApp)) {
-    throw 'The compiled v3.3.0 runtime is missing and no .NET 10 SDK is available to build it.'
+    throw 'The compiled v3.3.1 runtime is missing and no .NET 10 SDK is available to build it.'
 }
 
 $stageRoot = Join-Path $pluginsRoot ('.codex-monitor-hud-stage-' + [Guid]::NewGuid().ToString('N'))
@@ -281,7 +282,7 @@ try {
     & $stageDotnet $stageApp --plugin-root $stageRoot --health-check $healthPath
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $healthPath)) { throw 'Staged install health check failed.' }
     $health = Get-Content -Raw -Encoding UTF8 -LiteralPath $healthPath | ConvertFrom-Json
-    if ([string]$health.version -ne '3.3.0' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
+    if ([string]$health.version -ne '3.3.1' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
         throw ('Staged install health check returned an invalid result: ' + ($health | ConvertTo-Json -Compress))
     }
     & (Join-Path $stageRoot 'scripts\test.ps1') -TestOutputRoot (Join-Path $validationRoot 'static')

@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.3.1 - 2026-09-05
+
+- Unified detached task bubbles at a compact 420-DIP content width while preserving whole-bubble scaling and dot-only quiet collapse.
+- Add WSL as a first-class Sources entry with an enable switch, distribution discovery, editable Linux home, connection status, and automatic HUD restart after changes.
+- Monitor the native Windows Codex profile and WSL profile simultaneously, with independent filtering, source labels, colors, task registry identity, and MCP status reporting.
+- Migrate the existing `CODEX_MONITOR_HUD_HOME` bridge into Settings while preserving portable mode and current-user startup integration.
+
 ## 3.3.0 - 2026-09-05
 
 - Publish a current-user EXE installer and a portable ZIP, both with a private runtime and the approved bundled completion sound; include SHA-256 checksums.

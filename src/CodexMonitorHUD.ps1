@@ -100,11 +100,9 @@ $pluginRoot = Split-Path -Parent $PSScriptRoot
 $script:windowIconHandles = @{}
 Import-Module (Join-Path $PSScriptRoot 'MonitorHud.Core.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'MonitorHud.Startup.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'MonitorHud.Wsl.psm1') -Force
 $paths = Get-HudPaths $pluginRoot
 $configuredHome = [string]$env:CODEX_MONITOR_HUD_HOME
-if (-not [string]::IsNullOrWhiteSpace($configuredHome)) {
-    $paths.SessionsRoot = Join-Path ([IO.Path]::GetFullPath($configuredHome)) '.codex\sessions'
-}
 if ($SelfTest -and -not [string]::IsNullOrWhiteSpace($SelfTestSessionsRoot)) {
     $paths.SessionsRoot = [IO.Path]::GetFullPath($SelfTestSessionsRoot)
 }
@@ -397,6 +395,16 @@ if (-not $SelfTest -and -not [string]::IsNullOrWhiteSpace($profileHome)) {
         DefaultClientSurface = 'cli'; DefaultProvider = 'deepseek'
     }
 }
+$wslHome = if ([bool]$config.sessionSources.wsl -and -not [string]::IsNullOrWhiteSpace([string]$config.wsl.home)) { [string]$config.wsl.home } elseif ([bool]$config.sessionSources.wsl) { $configuredHome } else { '' }
+if (-not $SelfTest -and -not [string]::IsNullOrWhiteSpace($wslHome)) {
+    $wslProfileRoot = Join-Path ([IO.Path]::GetFullPath($wslHome)) '.codex'
+    $sessionProfiles += [pscustomobject]@{
+        Id = 'wsl'; Label = 'WSL'; SessionsRoot = Join-Path $wslProfileRoot 'sessions'
+        SessionIndexPath = Join-Path $wslProfileRoot 'session_index.jsonl'
+        StateDatabasePath = Join-Path $wslProfileRoot 'state_5.sqlite'
+        DefaultClientSurface = 'cli'; DefaultProvider = ''
+    }
+}
 $sessionTitleMaps = @{}
 $sessionIndexLastWriteUtc = @{}
 foreach ($profile in $sessionProfiles) {
@@ -640,6 +648,11 @@ $sourceDesktopCheck = Find-Control $settings 'SourceDesktopCheck'
 $sourceVsCodeCheck = Find-Control $settings 'SourceVsCodeCheck'
 $sourceDefaultCliCheck = Find-Control $settings 'SourceDefaultCliCheck'
 $sourceDeepSeekCliCheck = Find-Control $settings 'SourceDeepSeekCliCheck'
+$sourceWslCheck = Find-Control $settings 'SourceWslCheck'
+$wslDistributionCombo = Find-Control $settings 'WslDistributionCombo'
+$wslHomeText = Find-Control $settings 'WslHomeText'
+$wslDetectButton = Find-Control $settings 'WslDetectButton'
+$wslConnectionStatus = Find-Control $settings 'WslConnectionStatus'
 $listDetailCombo = Find-Control $settings 'ListDetailCombo'
 $listFieldControls = [ordered]@{
     directory = Find-Control $settings 'ListFieldDirectory'
@@ -671,7 +684,7 @@ foreach ($key in @('Input','Cached','CacheHitRate','Uncached','Output','Reasonin
 $settingsTextControls = @{}
 foreach ($name in @(
     'SurfaceModeLabel','SurfaceModeHint','FloatingBallSizeLabel',
-    'SettingsSubtitle','PresetsTitle','PresetsHint','ThemeWorkshopTitle','ThemeWorkshopHint','LanguageLayoutTitle','DisplayLanguageLabel','BubbleStyleLabel','SessionSourcesTitle','SessionSourcesHint','SessionSourcesPrivacy','SourceDesktopOptionText','SourceVsCodeOptionText','SourceDefaultCliOptionText','SourceDeepSeekCliOptionText',
+    'SettingsSubtitle','PresetsTitle','PresetsHint','ThemeWorkshopTitle','ThemeWorkshopHint','LanguageLayoutTitle','DisplayLanguageLabel','BubbleStyleLabel','SessionSourcesTitle','SessionSourcesHint','SessionSourcesPrivacy','SourceDesktopOptionText','SourceVsCodeOptionText','SourceDefaultCliOptionText','SourceDeepSeekCliOptionText','SourceWslOptionText','WslSettingsTitle','WslSettingsHint','WslDistributionLabel','WslHomeLabel',
     'NumberFormatLabel','PositionLabel','MonitorScopeLabel','ActiveWindowLabel','TaskRetentionLabel','TerminalExitModeLabel','TerminalExitHint','MetricsTitle','MetricsHint','PricingSourceTitle','PricingSourceHint','PricingPathLabel',
     'AppearanceTitle','FontFamilyLabel','HudWidthLabel','FontSizeLabel','RadiusLabel','OpacityLabel','BackgroundColorLabel','ForegroundColorLabel','AccentColorLabel','FontPreviewText',
     'MousePassthroughHint','StatusPalettesTitle','StatusPalettesHint','StatusPaletteCodexMicroSource','MultiTaskTitle','MultiTaskExplanation',
@@ -849,7 +862,7 @@ function Apply-SettingsLanguage {
         SurfaceModeLabel='surfaceMode'; SurfaceModeHint='surfaceModeHint'; FloatingBallSizeLabel='floatingBallSize';
         SettingsSubtitle='settingsSubtitle'; PresetsTitle='presetsTitle'; PresetsHint='presetsHint'; ThemeWorkshopTitle='themeWorkshopTitle'; ThemeWorkshopHint='themeWorkshopHint';
         LanguageLayoutTitle='languageLayoutTitle'; DisplayLanguageLabel='displayLanguage'; BubbleStyleLabel='bubbleStyle';
-        SessionSourcesTitle='sessionSourcesTitle'; SessionSourcesHint='sessionSourcesHint'; SessionSourcesPrivacy='sessionSourcesPrivacy'; SourceDesktopOptionText='sourceDesktopOption'; SourceVsCodeOptionText='sourceVsCodeOption'; SourceDefaultCliOptionText='sourceDefaultCliOption'; SourceDeepSeekCliOptionText='sourceDeepSeekCliOption';
+        SessionSourcesTitle='sessionSourcesTitle'; SessionSourcesHint='sessionSourcesHint'; SessionSourcesPrivacy='sessionSourcesPrivacy'; SourceDesktopOptionText='sourceDesktopOption'; SourceVsCodeOptionText='sourceVsCodeOption'; SourceDefaultCliOptionText='sourceDefaultCliOption'; SourceDeepSeekCliOptionText='sourceDeepSeekCliOption'; SourceWslOptionText='sourceWslOption'; WslSettingsTitle='wslSettingsTitle'; WslSettingsHint='wslSettingsHint'; WslDistributionLabel='wslDistribution'; WslHomeLabel='wslHome';
         NumberFormatLabel='numberFormat'; PositionLabel='position'; MonitorScopeLabel='monitorScope'; ActiveWindowLabel='activeWindow'; TaskRetentionLabel='taskRetention'; TerminalExitModeLabel='terminalExitMode'; TerminalExitHint='terminalExitHint';
         MetricsTitle='metricsTitle'; MetricsHint='metricsHint'; PricingSourceTitle='pricingSourceTitle'; PricingSourceHint='pricingSourceHint'; PricingPathLabel='pricingPathLabel'; AppearanceTitle='appearanceTitle'; FontFamilyLabel='fontFamily'; HudWidthLabel='hudWidth'; FontSizeLabel='fontSize'; FontPreviewText='fontPreview';
         RadiusLabel='cornerRadius'; OpacityLabel='opacity'; BackgroundColorLabel='backgroundColor';
@@ -937,6 +950,7 @@ function Apply-SettingsLanguage {
     $statusDotCheck.Content = [string]$settingsLocale.statusDot
     $animateCheck.Content = [string]$settingsLocale.animateUpdates
     $showProviderLabelCheck.Content = [string]$settingsLocale.showProviderLabel
+    $wslDetectButton.Content = [string]$settingsLocale.wslDetect
     $animateCheck.ToolTip = [string]$settingsLocale.animateUpdatesTooltip
     $autoSplitCheck.Content = [string]$settingsLocale.autoSplitNewTasks
     $attentionCompletedCheck.Content = [string]$settingsLocale.attentionCompleted
@@ -1388,6 +1402,7 @@ function Get-TaskSourceLabel {
     $client = if ($null -ne $State.PSObject.Properties['ClientSurface']) { [string]$State.ClientSurface } else { 'unknown' }
     $provider = if ($null -ne $State.PSObject.Properties['ModelProvider']) { [string]$State.ModelProvider } else { '' }
     $profile = if ($null -ne $State.PSObject.Properties['ProfileId']) { [string]$State.ProfileId } else { 'codex' }
+    if ($profile -eq 'wsl') { return [string]$settingsLocale.sourceWsl }
     if ($client -eq 'desktop') { return [string]$settingsLocale.sourceDesktop }
     if ($client -eq 'vscode') { return [string]$settingsLocale.sourceVsCode }
     if ($client -eq 'cli' -or $profile -eq 'deepseek') {
@@ -1406,6 +1421,7 @@ function Get-TaskSourceColor {
     $client = if ($null -ne $State.PSObject.Properties['ClientSurface']) { [string]$State.ClientSurface } else { 'unknown' }
     $provider = if ($null -ne $State.PSObject.Properties['ModelProvider']) { [string]$State.ModelProvider } else { '' }
     $profile = if ($null -ne $State.PSObject.Properties['ProfileId']) { [string]$State.ProfileId } else { 'codex' }
+    if ($profile -eq 'wsl') { return '#FF2D9D78' }
     if ($client -eq 'desktop') { return [string]$config.accent }
     if ($client -eq 'vscode') { return '#FF007ACC' }
     if ($provider -eq 'deepseek' -or $profile -eq 'deepseek') { return '#FF00A7B5' }
@@ -1418,6 +1434,7 @@ function Get-TaskSourceGeometry {
     $client = if ($null -ne $State.PSObject.Properties['ClientSurface']) { [string]$State.ClientSurface } else { 'unknown' }
     $provider = if ($null -ne $State.PSObject.Properties['ModelProvider']) { [string]$State.ModelProvider } else { '' }
     $profile = if ($null -ne $State.PSObject.Properties['ProfileId']) { [string]$State.ProfileId } else { 'codex' }
+    if ($profile -eq 'wsl') { return 'M12,19 H20 M4,17 L10,11 L4,5 M17,5 A2,2 0 1 0 17,9 A2,2 0 1 0 17,5' }
     if ($client -eq 'desktop') { return 'M4,3 H20 A2,2 0 0 1 22,5 V15 A2,2 0 0 1 20,17 H4 A2,2 0 0 1 2,15 V5 A2,2 0 0 1 4,3 M8,21 H16 M12,17 V21' }
     if ($client -eq 'vscode') { return 'M18,16 L22,12 L18,8 M6,8 L2,12 L6,16 M14.5,4 L9.5,20' }
     if ($provider -eq 'deepseek' -or $profile -eq 'deepseek') { return 'M2,12 Q4.5,14 7,12 T12,12 T17,12 T22,12 M2,19 Q4.5,21 7,19 T12,19 T17,19 T22,19 M2,5 Q4.5,7 7,5 T12,5 T17,5 T22,5' }
@@ -1522,6 +1539,8 @@ function Test-HudUserTaskState {
     $client = if ($null -ne $State.PSObject.Properties['ClientSurface']) { [string]$State.ClientSurface } else { 'unknown' }
     if ($profile -eq 'deepseek') {
         if (-not [bool]$config.sessionSources.deepSeekCli) { return $false }
+    } elseif ($profile -eq 'wsl') {
+        if (-not [bool]$config.sessionSources.wsl) { return $false }
     } elseif (($client -eq 'desktop' -and -not [bool]$config.sessionSources.desktop) -or
               ($client -eq 'vscode' -and -not [bool]$config.sessionSources.vscode) -or
               ($client -eq 'cli' -and -not [bool]$config.sessionSources.defaultCli) -or
@@ -2452,12 +2471,14 @@ function Set-TaskBubbleIndicatorCollapsed {
     $Entry.Content.Visibility = $visibility
     $Entry.Merge.Visibility = $visibility
     if ($Collapsed) {
+        $Entry.ScaleRoot.Width = [double]::NaN
         $Entry.Dot.Margin = New-Object Windows.Thickness(0)
         $Entry.Shell.Padding = New-Object Windows.Thickness(10)
         $Entry.Window.Width = [double]::NaN
         $Entry.Window.Height = [double]::NaN
         $Entry.Window.SizeToContent = [Windows.SizeToContent]::WidthAndHeight
     } else {
+        $Entry.ScaleRoot.Width = 420.0
         $Entry.Dot.Margin = New-Object Windows.Thickness(0,0,9,0)
         $Entry.Shell.Padding = New-Object Windows.Thickness(12,9,12,9)
         $Entry.Window.Width = [double]::NaN
@@ -2662,6 +2683,7 @@ function Show-TaskBubble {
         Metrics = Find-Control $window 'TaskBubbleMetrics'
         Content = Find-Control $window 'TaskBubbleContent'
         Merge = Find-Control $window 'TaskBubbleMergeButton'
+        ScaleRoot = Find-Control $window 'TaskBubbleScaleRoot'
         Scale = (Find-Control $window 'TaskBubbleScaleRoot').LayoutTransform
         Handle = [IntPtr]::Zero
         BaseStyle = $null
@@ -2692,6 +2714,7 @@ function Show-TaskBubble {
     }).GetNewClosure())
     $window.Add_Closed(({ if($splitWindowMap.ContainsKey($taskPath)){ $record=$splitWindowMap[$taskPath];if(-not$record.InternalClosing-and$sessionStateMap.ContainsKey($taskPath)){$sessionStateMap[$taskPath].Detached=$false};$splitWindowMap.Remove($taskPath)} }).GetNewClosure())
     $State.Detached = $true
+    $entry.ScaleRoot.Width = 420.0
     $entry.Scale.ScaleX = $entry.Scale.ScaleY = [Math]::Max(0.6, [Math]::Min(2.0, [double]$State.BubbleScale))
     Update-TaskBubble $State
     $window.Show()
@@ -3662,6 +3685,28 @@ function Set-StatusPalette {
     Update-DisplaySnapshot
 }
 
+function Update-WslConnectionStatus {
+    if (-not $loadSettingsUi) { return }
+    $homePath = [string]$wslHomeText.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($homePath)) {
+        $wslConnectionStatus.Text = [string]$settingsLocale.wslHomeMissing
+        $wslConnectionStatus.Foreground = New-HudBrush ([string]$config.muted)
+    } elseif (Test-Path -LiteralPath (Join-Path $homePath '.codex\sessions') -PathType Container) {
+        $wslConnectionStatus.Text = [string]$settingsLocale.wslReady
+        $wslConnectionStatus.Foreground = New-HudBrush '#FF248A3D'
+    } else {
+        $wslConnectionStatus.Text = [string]$settingsLocale.wslSessionsMissing
+        $wslConnectionStatus.Foreground = New-HudBrush '#FFFF9F0A'
+    }
+}
+
+function Update-WslControlsEnabled {
+    $enabled = [bool]$sourceWslCheck.IsChecked
+    $wslDistributionCombo.IsEnabled = $enabled
+    $wslHomeText.IsEnabled = $enabled
+    $wslDetectButton.IsEnabled = $enabled
+}
+
 function Sync-ControlsFromConfig {
     if (-not $loadSettingsUi) { return }
     $script:syncingControls = $true
@@ -3732,6 +3777,14 @@ function Sync-ControlsFromConfig {
         $sourceVsCodeCheck.IsChecked = [bool]$config.sessionSources.vscode
         $sourceDefaultCliCheck.IsChecked = [bool]$config.sessionSources.defaultCli
         $sourceDeepSeekCliCheck.IsChecked = [bool]$config.sessionSources.deepSeekCli
+        $sourceWslCheck.IsChecked = [bool]$config.sessionSources.wsl
+        Update-WslControlsEnabled
+        $effectiveWslHome = if (-not [string]::IsNullOrWhiteSpace([string]$config.wsl.home)) { [string]$config.wsl.home } else { $configuredHome }
+        $wslHomeText.Text = $effectiveWslHome
+        $effectiveDistribution = [string]$config.wsl.distribution
+        if ([string]::IsNullOrWhiteSpace($effectiveDistribution)) { $effectiveDistribution = Get-HudWslDistributionFromHome $effectiveWslHome }
+        $wslDistributionCombo.Text = $effectiveDistribution
+        Update-WslConnectionStatus
         $attentionCompletedCheck.IsChecked = [bool]$config.attention.onCompleted
         $attentionErrorCheck.IsChecked = [bool]$config.attention.onAbortedOrError
         $attentionSettledCheck.IsChecked = [bool]$config.attention.onSettled
@@ -3812,18 +3865,11 @@ if (-not [string]::IsNullOrWhiteSpace($RenderSettingsPreview)) {
 function Apply-ControlsToConfig {
     param([switch]$StatusColorsChanged)
     if ($syncingControls) { return }
+    $previousStartup = [bool]$config.startWithWindows
+    $previousWslEnabled = [bool]$config.sessionSources.wsl
+    $previousWslDistribution = [string]$config.wsl.distribution
+    $previousWslHome = [string]$config.wsl.home
     $requestedStartup = [bool]$startWithWindowsCheck.IsChecked
-    if ($requestedStartup -ne [bool]$config.startWithWindows) {
-        try {
-            Set-HudStartupRegistration -Enabled $requestedStartup -PluginRoot $pluginRoot -HudHome ([string]$env:CODEX_MONITOR_HUD_HOME)
-            $config.startWithWindows = $requestedStartup
-        } catch {
-            $startWithWindowsCheck.IsChecked = [bool]$config.startWithWindows
-            $saveStatus.Text = [string]$settingsLocale.startupFailed
-            $saveStatus.ToolTip = $_.Exception.Message
-            return
-        }
-    }
     $language = Get-ComboTag $languageCombo
     $layout = Get-ComboTag $layoutCombo
     $number = Get-ComboTag $numberCombo
@@ -3946,6 +3992,30 @@ function Apply-ControlsToConfig {
     $config.sessionSources.vscode = [bool]$sourceVsCodeCheck.IsChecked
     $config.sessionSources.defaultCli = [bool]$sourceDefaultCliCheck.IsChecked
     $config.sessionSources.deepSeekCli = [bool]$sourceDeepSeekCliCheck.IsChecked
+    $config.sessionSources.wsl = [bool]$sourceWslCheck.IsChecked
+    $config.wsl.distribution = [string]$wslDistributionCombo.Text.Trim()
+    $config.wsl.home = [string]$wslHomeText.Text.Trim()
+    $config.startWithWindows = $requestedStartup
+    $wslChanged = $previousWslEnabled -ne [bool]$config.sessionSources.wsl -or
+        -not [string]::Equals($previousWslDistribution,[string]$config.wsl.distribution,[StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($previousWslHome,[string]$config.wsl.home,[StringComparison]::OrdinalIgnoreCase)
+    if ($requestedStartup -ne $previousStartup -or ($requestedStartup -and $wslChanged)) {
+        try {
+            Set-HudStartupRegistration -Enabled $requestedStartup -PluginRoot $pluginRoot -HudHome ([string]$config.wsl.home)
+        } catch {
+            $config.startWithWindows = $previousStartup
+            $config.sessionSources.wsl = $previousWslEnabled
+            $config.wsl.distribution = $previousWslDistribution
+            $config.wsl.home = $previousWslHome
+            $startWithWindowsCheck.IsChecked = $previousStartup
+            $sourceWslCheck.IsChecked = $previousWslEnabled
+            $wslDistributionCombo.Text = $previousWslDistribution
+            $wslHomeText.Text = $previousWslHome
+            $saveStatus.Text = [string]$settingsLocale.startupFailed
+            $saveStatus.ToolTip = $_.Exception.Message
+            return
+        }
+    }
     $config.attention.onCompleted = [bool]$attentionCompletedCheck.IsChecked
     $config.attention.onAbortedOrError = [bool]$attentionErrorCheck.IsChecked
     $config.attention.onSettled = [bool]$attentionSettledCheck.IsChecked
@@ -3990,6 +4060,7 @@ function Apply-ControlsToConfig {
     Update-ColorSwatches
     Update-FontPreview
     Update-CompletionSoundFileUi
+    Update-WslConnectionStatus
     $config.preset = 'custom'
     if (($previousContextAlertsEnabled -and -not [bool]$config.behavior.contextAlerts.enabled) -or ($previousContextVisible -and -not [bool]$config.fields.context)) {
         Reset-HudContextAlertRuntime
@@ -4013,7 +4084,10 @@ function Apply-ControlsToConfig {
     Save-HudConfig $paths $config
     if ($SettingsHost) { [IO.File]::WriteAllText($reloadSettingsSignal, [DateTime]::UtcNow.ToString('O')) }
     Update-DisplaySnapshot
-    $saveStatus.Text = if ($contextThresholdsValid) { ('{0}  {1}' -f [string]$settingsLocale.savedAt, (Get-Date).ToString('HH:mm:ss')) } else { [string]$settingsLocale.contextThresholdsInvalid }
+    $saveStatus.Text = if ($wslChanged) { [string]$settingsLocale.wslRestarting } elseif ($contextThresholdsValid) { ('{0}  {1}' -f [string]$settingsLocale.savedAt, (Get-Date).ToString('HH:mm:ss')) } else { [string]$settingsLocale.contextThresholdsInvalid }
+    if ($wslChanged -and $SettingsHost) {
+        Start-Process -FilePath powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"' + (Join-Path $pluginRoot 'scripts\restart.ps1') + '"'),'-InstanceId',('"' + $InstanceId + '"')) | Out-Null
+    }
 }
 
 function Show-HudSettings {
@@ -4577,10 +4651,10 @@ function Refresh-ActiveSessions {
     $runtimeCutoff = $refreshNow.AddMinutes(-[Math]::Max(3,[int]$config.activeWindowMinutes))
     $candidateMap = @{}
     foreach ($profile in $sessionProfiles) {
-        $enabled = if ([string]$profile.Id -eq 'deepseek') {
-            [bool]$config.sessionSources.deepSeekCli
-        } else {
-            [bool]$config.sessionSources.desktop -or [bool]$config.sessionSources.vscode -or [bool]$config.sessionSources.defaultCli
+        $enabled = switch ([string]$profile.Id) {
+            'deepseek' { [bool]$config.sessionSources.deepSeekCli }
+            'wsl' { [bool]$config.sessionSources.wsl }
+            default { [bool]$config.sessionSources.desktop -or [bool]$config.sessionSources.vscode -or [bool]$config.sessionSources.defaultCli }
         }
         if (-not $enabled) { continue }
         if (Refresh-HudSessionIndex $profile) { $indexChanged = $true }
@@ -4759,13 +4833,49 @@ function Apply-SliderPreview {
     $saveStatus.Text = ('{0}  {1}' -f [string]$settingsLocale.savedAt, (Get-Date).ToString('HH:mm:ss'))
 }
 
+function Update-WslDistributionChoices {
+    $selected = [string]$wslDistributionCombo.Text.Trim()
+    $distributions = @(Get-HudWslDistributions)
+    $wslDistributionCombo.Items.Clear()
+    foreach ($distribution in $distributions) { [void]$wslDistributionCombo.Items.Add($distribution) }
+    if (-not [string]::IsNullOrWhiteSpace($selected)) { $wslDistributionCombo.Text = $selected }
+    return $distributions
+}
+
+$wslDistributionCombo.Add_DropDownOpened({ [void](Update-WslDistributionChoices) })
+$wslDetectButton.Add_Click({
+    $wslConnectionStatus.Text = [string]$settingsLocale.wslDetecting
+    $settings.Dispatcher.Invoke([Action]{},[Windows.Threading.DispatcherPriority]::Background)
+    $distributions = @(Update-WslDistributionChoices)
+    if ($distributions.Count -eq 0) {
+        $wslConnectionStatus.Text = [string]$settingsLocale.wslNotFound
+        return
+    }
+    $distribution = [string]$wslDistributionCombo.Text.Trim()
+    if ($distribution -notin $distributions) {
+        $distribution = [string]($distributions | Where-Object { $_ -match '^Ubuntu' } | Select-Object -First 1)
+        if ([string]::IsNullOrWhiteSpace($distribution)) { $distribution = [string]$distributions[0] }
+        $wslDistributionCombo.Text = $distribution
+    }
+    $detectedHome = Resolve-HudWslHome $distribution
+    if ([string]::IsNullOrWhiteSpace($detectedHome)) {
+        $wslConnectionStatus.Text = [string]$settingsLocale.wslNotFound
+        return
+    }
+    $wslHomeText.Text = $detectedHome
+    $sourceWslCheck.IsChecked = $true
+    Apply-ControlsToConfig
+})
+$wslHomeText.Add_LostKeyboardFocus({ Apply-ControlsToConfig })
+$sourceWslCheck.Add_Click({ Update-WslControlsEnabled })
+
 $liveControls = @(
     $languageCombo,$surfaceModeCombo,$layoutCombo,$numberCombo,$positionCombo,$monitorScopeCombo,$activeWindowCombo,$taskRetentionCombo,$terminalExitModeCombo,
     $displayModeCombo,$listStyleCombo,$listDensityCombo,$listDetailCombo,$taskNameModeCombo,$maxSplitCombo,$numberCooldownCombo,
     $summaryAttentionModeCombo,$listAttentionModeCombo,$taskBubbleAttentionModeCombo,$dotPatternCombo,$dotBrightnessCombo,$dotSpeedCombo,$attentionDurationCombo,$completionSoundCombo,$transparencyModeCombo,$fontFamilyCombo,
     $agentNotificationPermissionCombo,$agentNotificationModeCombo,$agentNotificationIntensityCombo,$agentNotificationDurationCombo,
     $idleIndicatorDelayCombo,$idleIndicatorLayoutCombo,$idleIndicatorTaskStyleCombo,
-    $alwaysOnTopCheck,$startWithWindowsCheck,$mousePassthroughCheck,$statusDotCheck,$animateCheck,$autoSplitCheck,$sourceDesktopCheck,$sourceVsCodeCheck,$sourceDefaultCliCheck,$sourceDeepSeekCliCheck,$showProviderLabelCheck,
+    $alwaysOnTopCheck,$startWithWindowsCheck,$mousePassthroughCheck,$statusDotCheck,$animateCheck,$autoSplitCheck,$sourceDesktopCheck,$sourceVsCodeCheck,$sourceDefaultCliCheck,$sourceDeepSeekCliCheck,$sourceWslCheck,$showProviderLabelCheck,
     $attentionCompletedCheck,$attentionErrorCheck,$attentionSettledCheck,$dotAttentionEnabledCheck,$dotBreathingCheck,$agentNotificationEnabledCheck,$quotaGuardEnabledCheck,$officialAllowanceEnabledCheck,
     $openTaskOnDoubleClickCheck,$edgeSnapEnabledCheck,$edgeSnapDistanceCombo,$idleIndicatorEnabledCheck,$idleIndicatorBubblesCheck
 ) + @($fieldControls.GetEnumerator() | Where-Object { [string]$_.Key -ne 'context' } | ForEach-Object { $_.Value }) + @($listFieldControls.Values) + @($bubbleFieldControls.Values)

@@ -8,6 +8,7 @@ public sealed record HudRuntimeOptions
     public bool VsCodeSessionsEnabled { get; init; } = true;
     public bool DefaultCliSessionsEnabled { get; init; } = true;
     public bool DeepSeekCliSessionsEnabled { get; init; } = true;
+    public bool WslSessionsEnabled { get; init; } = true;
     public int NumberCooldownSeconds { get; init; } = 120;
     public int CompletionGraceSeconds { get; init; } = 8;
     public int AttentionDurationSeconds { get; init; } = 6;

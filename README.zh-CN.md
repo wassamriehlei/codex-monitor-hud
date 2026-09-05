@@ -8,8 +8,8 @@ Codex Monitor HUD 是一个完全本地运行的 Windows 实时悬浮监控器�
 
 从 [Releases](https://github.com/wassamriehlei/codex-monitor-hud/releases/latest) 下载：
 
-- **EXE 安装包**：`CodexMonitorHUD-Setup-3.3.0-windows-x64.exe`，安装到当前用户目录，升级保留设置和回滚副本。
-- **便携 ZIP**：`CodexMonitorHUD-Portable-3.3.0-windows-x64.zip`，解压到可写目录，双击 `Start-Portable.cmd` 启动，`Settings-Portable.cmd` 打开设置。配置保存在包内 `portable-data/CodexMonitorHUD`，与安装版隔离；启动不会注册 Codex 插件或创建桌面快捷方式。
+- **EXE 安装包**：`CodexMonitorHUD-Setup-3.3.1-windows-x64.exe`，安装到当前用户目录，升级保留设置和回滚副本。
+- **便携 ZIP**：`CodexMonitorHUD-Portable-3.3.1-windows-x64.zip`，解压到可写目录，双击 `Start-Portable.cmd` 启动，`Settings-Portable.cmd` 打开设置。配置保存在包内 `portable-data/CodexMonitorHUD`，与安装版隔离；启动不会注册 Codex 插件或创建桌面快捷方式。
 
 两种包均内置 Windows 运行时和已确认可公开分发的完成音频。无需额外安装 .NET SDK。下载后可用 `SHA256SUMS.txt` 校验；EXE 尚未代码签名，Windows 可能显示未知发布者提示。
 
@@ -17,7 +17,7 @@ Codex Monitor HUD 是一个完全本地运行的 Windows 实时悬浮监控器�
 
 “设置 → 关于”显示版本、安装/便携模式、项目与上游信息、许可说明、仓库及更新链接。
 
-便携版桥接 WSL：`Start-Portable.cmd -HudHome "\\wsl.localhost\Ubuntu\home\你的用户名"`。手动启动时传入该路径；从这个进程开启开机启动会保存桥接路径。WSL 是会话所在位置，“监控来源”仍按 CLI、VS Code 等客户端分类。
+WSL 已是独立监控来源。在“设置 → 监控来源”启用 WSL，选择发行版并自动检测主目录；Windows CLI 与 WSL 可以同时监控并分别关闭。便携版也可用 `Start-Portable.cmd -HudHome "\\wsl.localhost\Ubuntu\home\你的用户名"` 传入旧式桥接路径，设置页会自动显示并迁移它。
 
 ## 一句话让 Codex 安装
 
@@ -115,6 +115,6 @@ Codex CLI 也可以运行在 WSL 中，同时继续使用原生 Windows HUD。�
 
 ## 当前状态
 
-`3.3.0` 增加 EXE 和便携包发布、可选开机启动、关于页及紧凑的可定制悬浮球界面。可选成本显示仅使用离线的标准 API 标价快照，不是 Codex 积分或订阅账单计算。这是独立、非官方项目，与 OpenAI、Microsoft 或 DeepSeek 均没有隶属或背书关系。
+`3.3.1` 增加可自动检测发行版的独立 WSL 来源，支持同时监控 Windows 与 WSL，并统一独立任务气泡的宽度。EXE、便携包、可选开机启动、关于页和内置完成音频继续保留。可选成本显示仅使用离线的标准 API 标价快照，不是 Codex 积分或订阅账单计算。这是独立、非官方项目，与 OpenAI、Microsoft 或 DeepSeek 均没有隶属或背书关系。
 
 MIT License.

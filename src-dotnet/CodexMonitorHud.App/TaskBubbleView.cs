@@ -27,6 +27,7 @@ internal sealed class TaskBubbleView : IDisposable
     private readonly TextBlock _contextText;
     private readonly TextBlock _metrics;
     private readonly StackPanel _content;
+    private readonly Grid _scaleRoot;
     private readonly ScaleTransform _scale;
     private nint _handle;
     private int _baseStyle;
@@ -57,7 +58,9 @@ internal sealed class TaskBubbleView : IDisposable
         _contextText = XamlLoader.Require<TextBlock>(Window, "TaskBubbleContextText");
         _metrics = XamlLoader.Require<TextBlock>(Window, "TaskBubbleMetrics");
         _content = XamlLoader.Require<StackPanel>(Window, "TaskBubbleContent");
-        _scale = (ScaleTransform)XamlLoader.Require<Grid>(Window, "TaskBubbleScaleRoot").LayoutTransform;
+        _scaleRoot = XamlLoader.Require<Grid>(Window, "TaskBubbleScaleRoot");
+        _scaleRoot.Width = ExpandedWidth;
+        _scale = (ScaleTransform)_scaleRoot.LayoutTransform;
         _scale.ScaleX = _scale.ScaleY = Math.Clamp(state.BubbleScale, 0.6, 2);
         _merge.Click += (_, _) => MergeRequested?.Invoke(StatePath);
         _shell.MouseLeftButtonDown += OnShellMouseLeftButtonDown;
@@ -278,6 +281,7 @@ internal sealed class TaskBubbleView : IDisposable
         _merge.Visibility = visibility;
         if (collapsed)
         {
+            _scaleRoot.Width = double.NaN;
             _dot.Margin = new Thickness(0);
             _shell.Padding = new Thickness(10);
             Window.Width = double.NaN;
@@ -286,6 +290,7 @@ internal sealed class TaskBubbleView : IDisposable
         }
         else
         {
+            _scaleRoot.Width = ExpandedWidth;
             _dot.Margin = new Thickness(0, 0, 9, 0);
             _shell.Padding = new Thickness(12, 9, 12, 9);
             Window.Width = double.NaN;
@@ -338,6 +343,8 @@ internal sealed class TaskBubbleView : IDisposable
             }
         }
     }
+
+    private const double ExpandedWidth = 420;
 
     private void OnScaleWheel(object sender, MouseWheelEventArgs args)
     {

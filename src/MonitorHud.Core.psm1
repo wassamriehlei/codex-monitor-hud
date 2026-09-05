@@ -249,6 +249,9 @@ function Get-HudConfig {
         } catch { $result = $default }
     }
     if (@('summary','list','split') -notcontains [string]$result.multiTask.displayMode) { $result.multiTask.displayMode = 'summary' }
+    $result.sessionSources.wsl = [bool]$result.sessionSources.wsl
+    $result.wsl.distribution = ([string]$result.wsl.distribution).Trim()
+    $result.wsl.home = ([string]$result.wsl.home).Trim()
     if (@('rows','cards','rail') -notcontains [string]$result.multiTask.listStyle) { $result.multiTask.listStyle = 'rows' }
     if (@('compact','balanced','relaxed') -notcontains [string]$result.multiTask.listDensity) { $result.multiTask.listDensity = 'compact' }
     if (@('compact','balanced','detailed') -notcontains [string]$result.multiTask.listDetail) { $result.multiTask.listDetail = 'balanced' }

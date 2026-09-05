@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
-const SERVER_VERSION = "3.3.0";
+const SERVER_VERSION = "3.3.1";
 const SUPPORTED_PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 const SERVER_INSTRUCTIONS = "Codex Monitor HUD is a local, closed-world HUD control server. Before a proactive notice, call monitor_hud_notification_capabilities and match task_number plus client/provider to the current task. When the user enables a capacity guard, call monitor_hud_quota_guard at natural checkpoints and before expensive work; a low result means write a recoverable handoff, not that the HUD can interrupt a running turn. Never include secrets, credentials, prompts, replies, or full logs. Notices require user opt-in and are limited to 160 plain-text characters. Control tools affect only the local HUD.";
 
@@ -128,6 +128,7 @@ function hudStatus() {
       vscode_openai: settings?.sessionSources?.vscode !== false,
       default_cli: settings?.sessionSources?.defaultCli !== false,
       deepseek_cli: settings?.sessionSources?.deepSeekCli !== false,
+      wsl: settings?.sessionSources?.wsl !== false,
     },
     registry_version: registry.version,
     registry_generated_at: registry.generated_at,
@@ -318,8 +319,14 @@ const toolDefinitions = [
         heartbeat_age_seconds: { anyOf: [{ type: "number", minimum: 0 }, { type: "null" }] },
         monitoring_sources: {
           type: "object", additionalProperties: false,
-          required: ["desktop_openai", "default_cli", "deepseek_cli"],
-          properties: { desktop_openai: { type: "boolean" }, default_cli: { type: "boolean" }, deepseek_cli: { type: "boolean" } },
+          required: ["desktop_openai", "vscode_openai", "default_cli", "deepseek_cli", "wsl"],
+          properties: {
+            desktop_openai: { type: "boolean" },
+            vscode_openai: { type: "boolean" },
+            default_cli: { type: "boolean" },
+            deepseek_cli: { type: "boolean" },
+            wsl: { type: "boolean" },
+          },
         },
         registry_version: { type: "integer", minimum: 0 },
         registry_generated_at: { type: "string" },

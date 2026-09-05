@@ -397,10 +397,13 @@ void TestSessionSources()
     {
         var defaultRoot = Path.Combine(root, ".codex");
         var deepSeekRoot = Path.Combine(root, ".codex-deepseek");
+        var wslRoot = Path.Combine(root, "wsl", ".codex");
         var defaultSessions = Path.Combine(defaultRoot, "sessions", "2026", "08", "10");
         var deepSeekSessions = Path.Combine(deepSeekRoot, "sessions", "2026", "08", "10");
+        var wslSessions = Path.Combine(wslRoot, "sessions", "2026", "08", "10");
         Directory.CreateDirectory(defaultSessions);
         Directory.CreateDirectory(deepSeekSessions);
+        Directory.CreateDirectory(wslSessions);
         var now = DateTimeOffset.Parse("2026-08-10T08:00:00Z");
 
         static string Session(string id, string workspace, string originator, string source, string provider, string model) => string.Join('\n', new[]
@@ -414,33 +417,39 @@ void TestSessionSources()
         var vsCodePath = Path.Combine(defaultSessions, "vscode.jsonl");
         var cliPath = Path.Combine(defaultSessions, "cli.jsonl");
         var deepSeekPath = Path.Combine(deepSeekSessions, "deepseek.jsonl");
+        var wslPath = Path.Combine(wslSessions, "wsl.jsonl");
         File.WriteAllText(desktopPath, Session("desktop-1", "desktop-project", "Codex Desktop", "vscode", "openai", "gpt-future"), new UTF8Encoding(false));
         File.WriteAllText(vsCodePath, Session("vscode-1", "vscode-project", "codex_vscode", "vscode", "openai", "gpt-future"), new UTF8Encoding(false));
         File.WriteAllText(cliPath, Session("cli-1", "cli-project", "codex-tui", "cli", "openai", "gpt-next"), new UTF8Encoding(false));
         File.WriteAllText(deepSeekPath, Session("deepseek-1", "deepseek-project", "codex-tui", "cli", "deepseek", "deepseek-next"), new UTF8Encoding(false));
-        foreach (var path in new[] { desktopPath, vsCodePath, cliPath, deepSeekPath }) File.SetLastWriteTimeUtc(path, now.UtcDateTime);
+        File.WriteAllText(wslPath, Session("wsl-1", "wsl-project", "codex-tui", "cli", "openai", "gpt-wsl"), new UTF8Encoding(false));
+        foreach (var path in new[] { desktopPath, vsCodePath, cliPath, deepSeekPath, wslPath }) File.SetLastWriteTimeUtc(path, now.UtcDateTime);
 
         var profiles = new[]
         {
             new SessionProfile("codex", "Codex", Path.Combine(defaultRoot, "sessions"), Path.Combine(defaultRoot, "session_index.jsonl"), "unknown", string.Empty),
-            new SessionProfile("deepseek", "DeepSeek", Path.Combine(deepSeekRoot, "sessions"), Path.Combine(deepSeekRoot, "session_index.jsonl"), "cli", "deepseek")
+            new SessionProfile("deepseek", "DeepSeek", Path.Combine(deepSeekRoot, "sessions"), Path.Combine(deepSeekRoot, "session_index.jsonl"), "cli", "deepseek"),
+            new SessionProfile("wsl", "WSL", Path.Combine(wslRoot, "sessions"), Path.Combine(wslRoot, "session_index.jsonl"), "cli", string.Empty)
         };
-        var options = new HudRuntimeOptions { ActiveWindowMinutes = 60, DesktopSessionsEnabled = true, VsCodeSessionsEnabled = true, DefaultCliSessionsEnabled = true, DeepSeekCliSessionsEnabled = true };
+        var options = new HudRuntimeOptions { ActiveWindowMinutes = 60, DesktopSessionsEnabled = true, VsCodeSessionsEnabled = true, DefaultCliSessionsEnabled = true, DeepSeekCliSessionsEnabled = true, WslSessionsEnabled = true };
         var engine = new SessionMonitorEngine(profiles, options);
         IsTrue(engine.RefreshActiveSessions(now), "multi-profile discovery");
         var states = engine.GetVisibleStates(now);
-        Equal(4, states.Count, "desktop, VS Code, OpenAI CLI and DeepSeek CLI are all visible");
-        Equal(4, states.Select(static state => state.Number).Distinct().Count(), "task numbering is global across profiles");
+        Equal(5, states.Count, "desktop, VS Code, Windows CLI, DeepSeek CLI and WSL are all visible");
+        Equal(5, states.Select(static state => state.Number).Distinct().Count(), "task numbering is global across profiles");
         Equal("desktop", states.Single(state => state.SessionId == "desktop-1").ClientSurface, "desktop state source");
         Equal("vscode", states.Single(state => state.SessionId == "vscode-1").ClientSurface, "VS Code state source");
         Equal("openai", states.Single(state => state.SessionId == "cli-1").ModelProvider, "default CLI provider");
         Equal("deepseek", states.Single(state => state.SessionId == "deepseek-1").ModelProvider, "DeepSeek profile provider");
+        Equal("wsl", states.Single(state => state.SessionId == "wsl-1").ProfileId, "WSL profile identity");
 
         engine.UpdateOptions(options with { DefaultCliSessionsEnabled = false });
-        Equal(3, engine.GetVisibleStates(now).Count, "default CLI filter does not hide desktop, VS Code, or DeepSeek");
+        Equal(4, engine.GetVisibleStates(now).Count, "Windows CLI filter does not hide desktop, VS Code, DeepSeek, or WSL");
         engine.UpdateOptions(options with { DeepSeekCliSessionsEnabled = false });
-        Equal(3, engine.GetVisibleStates(now).Count, "DeepSeek filter does not hide default-profile tasks");
-        engine.UpdateOptions(options with { DesktopSessionsEnabled = false, VsCodeSessionsEnabled = false, DefaultCliSessionsEnabled = true, DeepSeekCliSessionsEnabled = false });
+        Equal(4, engine.GetVisibleStates(now).Count, "DeepSeek filter does not hide default-profile or WSL tasks");
+        engine.UpdateOptions(options with { WslSessionsEnabled = false });
+        Equal(4, engine.GetVisibleStates(now).Count, "WSL filter does not hide Windows or DeepSeek tasks");
+        engine.UpdateOptions(options with { DesktopSessionsEnabled = false, VsCodeSessionsEnabled = false, DefaultCliSessionsEnabled = true, DeepSeekCliSessionsEnabled = false, WslSessionsEnabled = false });
         var cliOnly = engine.GetVisibleStates(now);
         Equal(1, cliOnly.Count, "source filters isolate default CLI");
         Equal("cli-1", cliOnly.Single().SessionId, "correct default CLI task remains");

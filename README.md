@@ -22,8 +22,8 @@ The Windows Release bundles a private .NET/WPF runtime so it can run without req
 
 Download the stable release from [Releases](https://github.com/wassamriehlei/codex-monitor-hud/releases/latest):
 
-- **EXE installer:** `CodexMonitorHUD-Setup-3.3.0-windows-x64.exe`. Current-user installation; no administrator or .NET SDK required. Upgrades preserve settings and keep a rollback copy.
-- **Portable ZIP:** `CodexMonitorHUD-Portable-3.3.0-windows-x64.zip`. Extract to a writable folder, then double-click `Start-Portable.cmd`; use `Settings-Portable.cmd` to configure it. Configuration and state stay under `portable-data/CodexMonitorHUD` beside the launchers. No installation, marketplace registration, or desktop shortcuts are created.
+- **EXE installer:** `CodexMonitorHUD-Setup-3.3.1-windows-x64.exe`. Current-user installation; no administrator or .NET SDK required. Upgrades preserve settings and keep a rollback copy.
+- **Portable ZIP:** `CodexMonitorHUD-Portable-3.3.1-windows-x64.zip`. Extract to a writable folder, then double-click `Start-Portable.cmd`; use `Settings-Portable.cmd` to configure it. Configuration and state stay under `portable-data/CodexMonitorHUD` beside the launchers. No installation, marketplace registration, or desktop shortcuts are created.
 - `CodexMonitorHUD-windows-x64.zip` is the compatibility asset used by the repository installer. It carries the same payload as the portable archive.
 
 Both downloads include the private Windows runtime and the completion sound. Verify downloads against `SHA256SUMS.txt`. The EXE is not code-signed, so Windows may show an unknown-publisher warning.
@@ -32,7 +32,7 @@ Both downloads include the private Windows runtime and the completion sound. Ver
 
 Settings → About shows the current version, installed/portable mode, attribution, license information, repository and releases links.
 
-For a portable WSL bridge, launch `Start-Portable.cmd -HudHome "\\wsl.localhost\Ubuntu\home\YOUR_USER"`. WSL is a session location, not a separate client filter: select CLI or VS Code in Sources. Supply the bridge on manual launches; enabling Windows startup from that process captures the path.
+WSL is an independent source under Settings → Sources. Select a distribution and detect its home; Windows CLI and WSL can be monitored and toggled independently. Portable mode also accepts the legacy `Start-Portable.cmd -HudHome "\\wsl.localhost\Ubuntu\home\YOUR_USER"` bridge and migrates it into the Settings UI.
 
 ## What you see
 
@@ -138,6 +138,6 @@ macOS support has been intentionally dropped from this project. macOS users are 
 
 ## Project status
 
-`3.3.0` adds portable and EXE distribution, opt-in Windows startup, an About page, and the compact customizable floating-ball interface. Its optional cost display uses an offline standard API list-price snapshot only; it is not a Codex credit or subscription-bill calculation. This is an unofficial, independent project and is not affiliated with or endorsed by OpenAI, Microsoft, or DeepSeek.
+`3.3.1` adds a first-class WSL source with distribution detection and simultaneous Windows/WSL monitoring, plus uniform-width detached task bubbles. EXE and portable distribution, opt-in Windows startup, the About page, and bundled completion audio remain included. Its optional cost display uses an offline standard API list-price snapshot only; it is not a Codex credit or subscription-bill calculation. This is an unofficial, independent project and is not affiliated with or endorsed by OpenAI, Microsoft, or DeepSeek.
 
 MIT License.

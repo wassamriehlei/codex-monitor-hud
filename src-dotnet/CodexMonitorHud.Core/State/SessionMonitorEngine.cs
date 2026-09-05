@@ -1040,15 +1040,22 @@ public sealed class SessionMonitorEngine
     }
 
     private bool IsProfileDiscoveryEnabled(SessionProfile profile) =>
-        profile.Id == SessionProfile.DeepSeekId
-            ? Options.DeepSeekCliSessionsEnabled
-            : Options.DesktopSessionsEnabled || Options.VsCodeSessionsEnabled || Options.DefaultCliSessionsEnabled;
+        profile.Id switch
+        {
+            SessionProfile.DeepSeekId => Options.DeepSeekCliSessionsEnabled,
+            SessionProfile.WslId => Options.WslSessionsEnabled,
+            _ => Options.DesktopSessionsEnabled || Options.VsCodeSessionsEnabled || Options.DefaultCliSessionsEnabled
+        };
 
     private bool IsSourceEnabled(SessionState state)
     {
         if (state.ProfileId == SessionProfile.DeepSeekId)
         {
             return Options.DeepSeekCliSessionsEnabled;
+        }
+        if (state.ProfileId == SessionProfile.WslId)
+        {
+            return Options.WslSessionsEnabled;
         }
 
         return state.ClientSurface switch

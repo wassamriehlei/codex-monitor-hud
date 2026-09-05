@@ -31,7 +31,10 @@ public sealed record SessionSourceSettings(
     bool Desktop,
     bool VsCode,
     bool DefaultCli,
-    bool DeepSeekCli);
+    bool DeepSeekCli,
+    bool Wsl);
+
+public sealed record WslSettings(string Distribution, string Home);
 
 public sealed record IdleIndicatorSettings(
     bool Enabled,
@@ -117,6 +120,7 @@ public sealed record HudSettings
     public required string MonitorScope { get; init; }
     public required int ActiveWindowMinutes { get; init; }
     public required SessionSourceSettings SessionSources { get; init; }
+    public required WslSettings Wsl { get; init; }
     public required MultiTaskSettings MultiTask { get; init; }
     public required BehaviorSettings Behavior { get; init; }
     public required AttentionSettings Attention { get; init; }
@@ -157,6 +161,7 @@ public sealed record HudSettings
     {
         var multi = Object(document, "multiTask");
         var sources = Object(document, "sessionSources");
+        var wsl = Object(document, "wsl");
         var behavior = Object(document, "behavior");
         var edgeSnap = Object(behavior, "edgeSnap");
         var idle = Object(behavior, "idleIndicator");
@@ -183,7 +188,9 @@ public sealed record HudSettings
                 Boolean(sources, "desktop", true),
                 Boolean(sources, "vscode", true),
                 Boolean(sources, "defaultCli", true),
-                Boolean(sources, "deepSeekCli", true)),
+                Boolean(sources, "deepSeekCli", true),
+                Boolean(sources, "wsl", true)),
+            Wsl = new WslSettings(Text(wsl, "distribution"), Text(wsl, "home")),
             MultiTask = new MultiTaskSettings(
                 Text(multi, "displayMode", "summary"),
                 Text(multi, "listStyle", "rows"),
@@ -293,6 +300,7 @@ public sealed record HudSettings
         VsCodeSessionsEnabled = SessionSources.VsCode,
         DefaultCliSessionsEnabled = SessionSources.DefaultCli,
         DeepSeekCliSessionsEnabled = SessionSources.DeepSeekCli,
+        WslSessionsEnabled = SessionSources.Wsl,
         NumberCooldownSeconds = MultiTask.NumberCooldownSeconds,
         CompletionGraceSeconds = Attention.CompletionGraceSeconds,
         AttentionDurationSeconds = Attention.DurationSeconds,

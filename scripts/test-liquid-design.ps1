@@ -345,6 +345,7 @@ try {
     $header = $mergeButton.Parent
     if (@($header.Children | Where-Object { $_ -is [Windows.Controls.Button] }).Count -ne 1) { throw 'Detached bubble must have exactly one action button.' }
     $scaleRoot = $bubble.FindName('TaskBubbleScaleRoot')
+    if ([Math]::Abs([double]$scaleRoot.Width - 420.0) -gt 0.1) { throw 'Detached bubbles do not share the canonical expanded width.' }
     $bubble.FindName('TaskBubbleName').Text = 'Synthetic task'
     $bubble.FindName('TaskBubbleMetrics').Text = 'Model / context / total'
     if ($null -ne $bubble.FindName('TaskBubbleResizeThumb') -or $bubble.SizeToContent -ne 'WidthAndHeight') { throw 'The old window resize affordance remains.' }

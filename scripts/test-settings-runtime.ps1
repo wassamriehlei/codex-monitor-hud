@@ -1,10 +1,11 @@
-param([switch]$Portable)
+param([switch]$Portable, [switch]$DetectWsl)
 # Synthetic settings only; never opens production settings or session roots.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $testRoot = Join-Path $root ('.test-output\settings-latency-' + [Guid]::NewGuid().ToString('N'))
 $localRoot = Join-Path $testRoot 'localapp'
 $stateRoot = Join-Path $localRoot 'CodexMonitorHUD'
+$instanceId = 'settings-test-' + [Guid]::NewGuid().ToString('N')
 New-Item -ItemType Directory -Force -Path $stateRoot | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'config.default.json') -Destination (Join-Path $stateRoot 'settings.json')
 Add-Type @'
@@ -21,7 +22,7 @@ $start = New-Object Diagnostics.ProcessStartInfo
 $start.FileName = 'powershell.exe'
 $start.UseShellExecute = $false
 $start.CreateNoWindow = $true
-$start.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $root 'src\CodexMonitorHUD.ps1') + '" -SettingsHost -DebugLog -InstanceId settings-test-' + [Guid]::NewGuid().ToString('N')
+$start.Arguments = '-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $root 'src\CodexMonitorHUD.ps1') + '" -SettingsHost -DebugLog -InstanceId ' + $instanceId
 $start.EnvironmentVariables['LOCALAPPDATA'] = $localRoot
 $start.EnvironmentVariables.Remove('CODEX_MONITOR_HUD_DATA_HOME')
 if ($Portable) {
@@ -53,8 +54,30 @@ try {
     $about.GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select()
     Start-Sleep -Milliseconds 100
     $version = $window.FindFirst([Windows.Automation.TreeScope]::Descendants,(New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::AutomationIdProperty,'AboutVersion')))
-    $expectedVersion = [string](Get-Content -Raw -LiteralPath (Join-Path $root '.codex-plugin\plugin.json') | ConvertFrom-Json).version
+    $expectedVersion = [string](Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root '.codex-plugin\plugin.json') | ConvertFrom-Json).version
     if ($null -eq $version -or -not $version.Current.Name.Contains($expectedVersion)) { throw 'About version is not synchronized.' }
+    $sources = $window.FindFirst([Windows.Automation.TreeScope]::Descendants,(New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::AutomationIdProperty,'SourcesTab')))
+    $sources.GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select()
+    Start-Sleep -Milliseconds 100
+    $wslToggle = $window.FindFirst([Windows.Automation.TreeScope]::Descendants,(New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::AutomationIdProperty,'SourceWslCheck')))
+    $wslHome = $window.FindFirst([Windows.Automation.TreeScope]::Descendants,(New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::AutomationIdProperty,'WslHomeText')))
+    $wslDistribution = $window.FindFirst([Windows.Automation.TreeScope]::Descendants,(New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::AutomationIdProperty,'WslDistributionCombo')))
+    $wslDetect = $window.FindFirst([Windows.Automation.TreeScope]::Descendants,(New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::AutomationIdProperty,'WslDetectButton')))
+    if ($null -eq $wslToggle -or $null -eq $wslHome -or $null -eq $wslDistribution -or $null -eq $wslDetect) { throw 'WSL source configuration controls are incomplete.' }
+    if ($wslToggle.GetCurrentPattern([Windows.Automation.TogglePattern]::Pattern).Current.ToggleState -ne [Windows.Automation.ToggleState]::On) { throw 'WSL source did not inherit its enabled default.' }
+    $wslHomeValue = $wslHome.GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).Current.Value
+    if ($wslHomeValue -ne (Join-Path $testRoot 'profile')) { throw 'Existing WSL bridge was not migrated into the Settings UI.' }
+    if ($DetectWsl) {
+        $wslDetect.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
+        $detectTimer = [Diagnostics.Stopwatch]::StartNew()
+        $detectedConfig = $null
+        while ($detectTimer.Elapsed.TotalSeconds -lt 10) {
+            $detectedConfig = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $stateRoot 'settings.json') | ConvertFrom-Json
+            if ([string]$detectedConfig.wsl.home -match '^\\\\wsl\.localhost\\' -and -not [string]::IsNullOrWhiteSpace([string]$detectedConfig.wsl.distribution)) { break }
+            Start-Sleep -Milliseconds 100
+        }
+        if ($null -eq $detectedConfig -or [string]$detectedConfig.wsl.home -notmatch '^\\\\wsl\.localhost\\' -or -not [bool]$detectedConfig.sessionSources.wsl) { throw 'WSL detection did not persist an enabled independent source.' }
+    }
     $general = $window.FindFirst([Windows.Automation.TreeScope]::Descendants,(New-Object Windows.Automation.PropertyCondition([Windows.Automation.AutomationElement]::AutomationIdProperty,'GeneralTab')))
     $general.GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select()
     $warm = @()
@@ -63,7 +86,7 @@ try {
         $timer.Restart()
         while ([SettingsTestNative]::IsWindowVisible($handle) -and $timer.Elapsed.TotalSeconds -lt 5) { Start-Sleep -Milliseconds 25 }
         if ($process.HasExited -or [SettingsTestNative]::IsWindowVisible($handle)) { throw 'Settings close did not retain a hidden host.' }
-        $changedConfig = Get-Content -Raw -LiteralPath (Join-Path $stateRoot 'settings.json') | ConvertFrom-Json
+        $changedConfig = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $stateRoot 'settings.json') | ConvertFrom-Json
         $changedConfig.floatingBallSize = 64 + $iteration
         [IO.File]::WriteAllText((Join-Path $stateRoot 'settings.json'),($changedConfig | ConvertTo-Json -Depth 12))
         $timer.Restart()
@@ -85,6 +108,28 @@ try {
     $metrics = [pscustomobject]@{cold_visible_ms=$coldMs;warm_visible_ms=$warm;reused_hwnd=$handle.ToInt64();graceful_exit=$true}
     $metrics | ConvertTo-Json | Tee-Object -FilePath (Join-Path $testRoot 'latency.json')
 } finally {
+    [IO.File]::WriteAllText((Join-Path $stateRoot 'exit.signal'),'test shutdown')
     if (-not $process.HasExited) { $process.Kill(); $process.WaitForExit() }
     $process.Dispose()
+    # WSL detection deliberately exercises the asynchronous restart path. The
+    # restart helper can outlive the settings host briefly, so stop only this
+    # synthetic instance and wait until it can no longer lock repository DLLs.
+    $cleanupTimer = [Diagnostics.Stopwatch]::StartNew()
+    $quietSince = [DateTime]::MinValue
+    while ($cleanupTimer.Elapsed.TotalSeconds -lt 12) {
+        [IO.File]::WriteAllText((Join-Path $stateRoot 'exit.signal'),'test shutdown')
+        $matches = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+            $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.Contains($instanceId)
+        })
+        foreach ($match in $matches) {
+            Stop-Process -Id $match.ProcessId -Force -ErrorAction SilentlyContinue
+        }
+        if ($matches.Count -eq 0) {
+            if ($quietSince -eq [DateTime]::MinValue) { $quietSince = [DateTime]::UtcNow }
+            if (([DateTime]::UtcNow - $quietSince).TotalMilliseconds -ge 750) { break }
+        } else {
+            $quietSince = [DateTime]::MinValue
+        }
+        Start-Sleep -Milliseconds 100
+    }
 }
