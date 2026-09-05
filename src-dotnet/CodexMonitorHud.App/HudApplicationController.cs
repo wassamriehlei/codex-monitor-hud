@@ -51,6 +51,9 @@ internal sealed partial class HudApplicationController : IDisposable
     private DateTimeOffset _managedGraceUntil = DateTimeOffset.MinValue;
     private DateTimeOffset _responsiveUntil = DateTimeOffset.MinValue;
     private DateTimeOffset _lastHostCheck = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastMaterialUpdateAt = DateTimeOffset.Now;
+    private DateTimeOffset _lastWorkingSetTrimAt = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastFullGcAt = DateTimeOffset.MinValue;
     private bool _lastHostActive = true;
     private long _lastRenderedRevision = -1;
     private string _lastOverallStatus = string.Empty;
@@ -64,6 +67,7 @@ internal sealed partial class HudApplicationController : IDisposable
     private bool _paused;
     private bool _initialScanComplete;
     private bool _disposed;
+    private bool _memoryTrimPending = true;
     private int _wakePending;
 
     public HudApplicationController(
@@ -369,6 +373,8 @@ internal sealed partial class HudApplicationController : IDisposable
         if (changed || _lastRenderedRevision != _engine.MaterialRevision || overallStatus != _lastOverallStatus)
         {
             _responsiveUntil = now.AddSeconds(2);
+            _lastMaterialUpdateAt = now;
+            _memoryTrimPending = true;
             ApplyPricing();
             Render(force: true);
         }
@@ -377,6 +383,49 @@ internal sealed partial class HudApplicationController : IDisposable
             : overallStatus is "active" or "listening"
                 ? TimeSpan.FromMilliseconds(800)
                 : TimeSpan.FromMilliseconds(1500);
+        TryTrimWorkingSet(now);
+    }
+
+    private void TryTrimWorkingSet(DateTimeOffset now)
+    {
+        if (!_memoryTrimPending)
+        {
+            return;
+        }
+        var quietEnough = now - _lastMaterialUpdateAt >= TimeSpan.FromSeconds(5);
+        var activeTrimDue = now - _lastWorkingSetTrimAt >= TimeSpan.FromSeconds(5);
+        if (!quietEnough && !activeTrimDue)
+        {
+            return;
+        }
+
+        try
+        {
+            using var process = Process.GetCurrentProcess();
+            process.Refresh();
+            if (process.WorkingSet64 < 220L * 1024 * 1024)
+            {
+                _memoryTrimPending = false;
+                return;
+            }
+            if (now - _lastFullGcAt >= TimeSpan.FromMinutes(2))
+            {
+                GC.Collect(2, GCCollectionMode.Optimized, blocking: true, compacting: false);
+                GC.WaitForPendingFinalizers();
+                GC.Collect(2, GCCollectionMode.Optimized, blocking: true, compacting: false);
+                _lastFullGcAt = now;
+            }
+            _ = NativeMethods.SetProcessWorkingSetSize(NativeMethods.GetCurrentProcess(), (nint)(-1), (nint)(-1));
+            _lastWorkingSetTrimAt = now;
+            _memoryTrimPending = false;
+            process.Refresh();
+            _log.Write($"Idle memory trim completed; workingSetMB={process.WorkingSet64 / 1024d / 1024d:0.0}");
+        }
+        catch (Exception exception)
+        {
+            _memoryTrimPending = false;
+            _log.Write("Idle memory trim skipped: " + exception.Message);
+        }
     }
 
     private void Render(bool force)

@@ -34,4 +34,11 @@ internal static partial class NativeMethods
 
     [LibraryImport("user32.dll")]
     internal static partial int SetWindowCompositionAttribute(nint window, ref WindowBackdrop.WindowCompositionAttributeData data);
+
+    [LibraryImport("kernel32.dll")]
+    internal static partial nint GetCurrentProcess();
+
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool SetProcessWorkingSetSize(nint process, nint minimum, nint maximum);
 }
