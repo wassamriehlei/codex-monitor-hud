@@ -7,6 +7,7 @@ internal sealed record AppArguments(
     bool SelfTest,
     bool DebugLog,
     string InstanceId,
+    string? HudHome,
     string? PluginRoot,
     string? HealthCheckPath)
 {
@@ -14,10 +15,12 @@ internal sealed record AppArguments(
     {
         var managed = false;
         var parentPid = 0;
-        var openSettings = false;
+        var executableName = Path.GetFileNameWithoutExtension(Environment.ProcessPath ?? string.Empty);
+        var openSettings = executableName.EndsWith("-Settings", StringComparison.OrdinalIgnoreCase);
         var selfTest = false;
         var debugLog = false;
         var instanceId = string.Empty;
+        string? hudHome = null;
         string? pluginRoot = null;
         string? healthCheckPath = null;
         for (var index = 0; index < args.Length; index++)
@@ -51,12 +54,15 @@ internal sealed record AppArguments(
                 case "--plugin-root" when index + 1 < args.Length:
                     pluginRoot = args[++index];
                     break;
+                case "--hud-home" when index + 1 < args.Length:
+                    hudHome = args[++index];
+                    break;
                 case "--health-check" when index + 1 < args.Length:
                     healthCheckPath = args[++index];
                     break;
             }
         }
 
-        return new AppArguments(managed, parentPid, openSettings, selfTest, debugLog, instanceId, pluginRoot, healthCheckPath);
+        return new AppArguments(managed, parentPid, openSettings, selfTest, debugLog, instanceId, hudHome, pluginRoot, healthCheckPath);
     }
 }

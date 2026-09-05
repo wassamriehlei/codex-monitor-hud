@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.4.0 - 2026-09-05
+
+- Replace the public CMD launchers with root-level `CodexMonitorHUD.exe` and `CodexMonitorHUD-Settings.exe` entry points.
+- Add marker-based portable isolation and a stable per-folder portable instance identity directly in the compiled host.
+- Split repository and portable staging, exclude development-only payloads, use smallest-size ZIP compression, and remove unused runtime diagnostics binaries.
+- Refresh the application identity with a CC0 anime mascot icon and a bilingual screenshot-led README.
+
 ## 3.3.1 - 2026-09-05
 
 - Unified detached task bubbles at a compact 420-DIP content width while preserving whole-bubble scaling and dot-only quiet collapse.

@@ -27,26 +27,37 @@ function Set-HudStartupRegistration {
                 throw 'A different shortcut already uses the HUD startup filename.'
             }
             # Preserve the captured WSL bridge when repairing from plain Windows.
-            if ([string]::IsNullOrWhiteSpace($HudHome) -and $shortcut.Arguments -match '-HudHome "([^"]+)"') { $HudHome = $Matches[1] }
+            if ([string]::IsNullOrWhiteSpace($HudHome) -and $shortcut.Arguments -match '(?:--hud-home|-HudHome) "([^"]+)"') { $HudHome = $Matches[1] }
         }
         if (-not $Enabled) {
-            $expectedLauncher = Join-Path ([IO.Path]::GetFullPath($PluginRoot)) 'scripts\start-at-login.ps1'
-            if ($shortcut.Arguments.IndexOf($expectedLauncher,[StringComparison]::OrdinalIgnoreCase) -lt 0) { return }
+            $expectedLauncher = Join-Path ([IO.Path]::GetFullPath($PluginRoot)) 'CodexMonitorHUD.exe'
+            $legacyLauncher = Join-Path ([IO.Path]::GetFullPath($PluginRoot)) 'scripts\start-at-login.ps1'
+            $ownsExe = [string]::Equals([IO.Path]::GetFullPath($shortcut.TargetPath),$expectedLauncher,[StringComparison]::OrdinalIgnoreCase)
+            $ownsLegacy = $shortcut.Arguments.IndexOf($legacyLauncher,[StringComparison]::OrdinalIgnoreCase) -ge 0
+            if (-not $ownsExe -and -not $ownsLegacy) { return }
             Remove-Item -LiteralPath $shortcutPath -Force
             return
         }
-        $launcher = Join-Path ([IO.Path]::GetFullPath($PluginRoot)) 'scripts\start-at-login.ps1'
-        if (-not [IO.File]::Exists($launcher)) { throw 'The HUD login launcher is missing.' }
-        if ($launcher.Contains('"') -or $HudHome.Contains('"') -or $HudHome.Contains("`r") -or $HudHome.Contains("`n")) { throw 'Startup paths contain unsupported characters.' }
+        $launcher = Join-Path ([IO.Path]::GetFullPath($PluginRoot)) 'CodexMonitorHUD.exe'
+        $legacyLauncher = Join-Path ([IO.Path]::GetFullPath($PluginRoot)) 'scripts\start-at-login.ps1'
+        if (-not [IO.File]::Exists($launcher) -and -not [IO.File]::Exists($legacyLauncher)) { throw 'The HUD launcher is missing.' }
+        if ($launcher.Contains('"') -or $legacyLauncher.Contains('"') -or $HudHome.Contains('"') -or $HudHome.Contains("`r") -or $HudHome.Contains("`n")) { throw 'Startup paths contain unsupported characters.' }
         New-Item -ItemType Directory -Force -Path $StartupDirectory | Out-Null
         if ($null -eq $shortcut) { $shortcut = $shell.CreateShortcut($shortcutPath) }
-        $shortcut.TargetPath = Join-Path ([Environment]::GetFolderPath('System')) 'WindowsPowerShell\v1.0\powershell.exe'
-        $shortcut.Arguments = '-NoProfile -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $launcher + '"'
-        if (-not [string]::IsNullOrWhiteSpace($HudHome)) { $shortcut.Arguments += ' -HudHome "' + $HudHome + '"' }
-        if ($Portable) { $shortcut.Arguments += ' -Portable' }
+        if ([IO.File]::Exists($launcher)) {
+            $shortcut.TargetPath = $launcher
+            $shortcut.Arguments = '--plugin-root "' + [IO.Path]::GetFullPath($PluginRoot) + '"'
+            if (-not [string]::IsNullOrWhiteSpace($HudHome)) { $shortcut.Arguments += ' --hud-home "' + $HudHome + '"' }
+        } else {
+            # Compatibility only for rollback copies created before v3.4.0.
+            $shortcut.TargetPath = Join-Path ([Environment]::GetFolderPath('System')) 'WindowsPowerShell\v1.0\powershell.exe'
+            $shortcut.Arguments = '-NoProfile -Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "' + $legacyLauncher + '"'
+            if (-not [string]::IsNullOrWhiteSpace($HudHome)) { $shortcut.Arguments += ' -HudHome "' + $HudHome + '"' }
+            if ($Portable) { $shortcut.Arguments += ' -Portable' }
+        }
         $shortcut.WorkingDirectory = [IO.Path]::GetFullPath($PluginRoot)
         $shortcut.Description = $marker
-        $shortcut.IconLocation = (Join-Path $PluginRoot 'assets\codex-monitor-hud.ico') + ',0'
+        $shortcut.IconLocation = $(if ([IO.File]::Exists($launcher)) { $launcher + ',0' } else { (Join-Path $PluginRoot 'assets\codex-monitor-hud.ico') + ',0' })
         $shortcut.WindowStyle = 7
         $shortcut.Save()
     } finally {

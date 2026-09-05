@@ -20,7 +20,7 @@ try {
     Set-HudStartupRegistration -Enabled $true -PluginRoot $root -Portable $false -StartupDirectory $startup
     $shortcut = $shell.CreateShortcut($link)
     Assert-Portable ($shortcut.Arguments.Contains($bridge)) 'Repair lost the WSL bridge.'
-    Assert-Portable (-not $shortcut.Arguments.Contains(' -Portable')) 'Installed shortcut became portable.'
+    Assert-Portable ($shortcut.TargetPath -eq (Join-Path $root 'CodexMonitorHUD.exe')) 'Startup shortcut does not target the main EXE.'
     [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcut); $shortcut = $null
     Set-HudStartupRegistration -Enabled $false -PluginRoot $copyRoot -StartupDirectory $startup
     Assert-Portable (Test-Path -LiteralPath $link) 'Disabling another copy removed this shortcut.'
@@ -42,6 +42,7 @@ try {
     }
     Copy-Item -LiteralPath (Join-Path $root 'src\MonitorHud.Core.psm1') -Destination (Join-Path $copyRoot 'src')
     Copy-Item -LiteralPath (Join-Path $root 'config.default.json') -Destination $copyRoot
+    Copy-Item -LiteralPath (Join-Path $root 'CodexMonitorHUD.exe') -Destination $copyRoot
     Copy-Item -LiteralPath (Join-Path $root 'locales') -Destination $copyRoot -Recurse
     # A synthetic start records routing only; no real HUD or Codex session access.
     [IO.File]::WriteAllText((Join-Path $copyRoot 'scripts\start.ps1'), @'
@@ -67,7 +68,7 @@ param([switch]$Settings)
     Assert-Portable (-not (Test-Path -LiteralPath (Join-Path $paths.StateRoot 'exit.signal'))) 'Opt-in login left its stop signal.'
     Set-HudStartupRegistration -Enabled $true -PluginRoot $copyRoot -HudHome $bridge -Portable $true -StartupDirectory $startup
     $shortcut = $shell.CreateShortcut($link)
-    Assert-Portable ($shortcut.Arguments.Contains(' -Portable') -and $shortcut.Arguments.Contains($copyRoot)) 'Portable shortcut parameters missing.'
+    Assert-Portable ($shortcut.TargetPath -eq (Join-Path $copyRoot 'CodexMonitorHUD.exe') -and $shortcut.Arguments.Contains($copyRoot) -and $shortcut.Arguments.Contains($bridge)) 'Portable EXE shortcut parameters missing.'
     Write-Output 'Startup and portable routing: OK (synthetic shortcuts, ownership, WSL, disabled login, local state, stable instance)'
 } finally {
     $env:CODEX_MONITOR_HUD_DATA_HOME = $oldData

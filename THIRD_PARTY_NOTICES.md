@@ -1,5 +1,15 @@
 # Third-party notices
 
+## Anime mascot portrait
+
+The application icon is derived from **Anime Girl and Boy Portraits** by
+stevenburrow, published on OpenGameArt under CC0 1.0 Universal.
+
+- Source: https://opengameart.org/content/anime-girl-and-boy-portraits
+- License: https://creativecommons.org/publicdomain/zero/1.0/
+- Changes: cropped the cyan-haired portrait, added the rounded gradient tile,
+  and generated Windows icon sizes from 16 px through 256 px.
+
 ## Lucide Icons
 
 The HUD uses adapted vector paths from [Lucide](https://lucide.dev/) for its monitor, code, terminal, waves, external-link, minimize, close, chevron, and resize icons.

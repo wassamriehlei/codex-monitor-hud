@@ -11,7 +11,7 @@ $dotnet = if (Test-Path -LiteralPath $privateDotnet) {
     $privateDotnet
 } else {
     $command = Get-Command dotnet -ErrorAction SilentlyContinue
-    if ($null -eq $command) { throw 'The .NET 10 SDK is required to build v3.3.1. The repository-private SDK was not found and dotnet is not on PATH.' }
+    if ($null -eq $command) { throw 'The .NET 10 SDK is required to build v3.4.0. The repository-private SDK was not found and dotnet is not on PATH.' }
     $command.Source
 }
 $dotnetRoot = Split-Path -Parent $dotnet
@@ -33,11 +33,29 @@ if (-not $SkipTests) {
 
 $stage = Join-Path $root 'runtime\win-x64'
 if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
-$appStage = Join-Path $stage 'app'
 $runtimeStage = Join-Path $stage 'dotnet'
-New-Item -ItemType Directory -Force -Path $appStage,$runtimeStage | Out-Null
-& $dotnet publish (Join-Path $root 'src-dotnet\CodexMonitorHud.App\CodexMonitorHud.App.csproj') -c $Configuration --no-build --no-restore --self-contained false -o $appStage
-if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed with exit code $LASTEXITCODE" }
+New-Item -ItemType Directory -Force -Path $runtimeStage | Out-Null
+$publishStage = Join-Path $env:TEMP ('codex-monitor-hud-publish-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $publishStage | Out-Null
+$appProject = Join-Path $root 'src-dotnet\CodexMonitorHud.App\CodexMonitorHud.App.csproj'
+try {
+    & $dotnet restore $appProject -r win-x64
+    if ($LASTEXITCODE -ne 0) { throw "dotnet restore for win-x64 failed with exit code $LASTEXITCODE" }
+    & $dotnet publish $appProject -c $Configuration --no-restore -r win-x64 --self-contained false -o $publishStage `
+        -p:UseAppHost=true `
+        -p:PublishSingleFile=true `
+        -p:DebugType=None `
+        -p:DebugSymbols=false `
+        -p:AppHostDotNetSearch=AppRelative `
+        -p:AppHostRelativeDotNet=runtime/win-x64/dotnet
+    if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed with exit code $LASTEXITCODE" }
+    $publishedExe = Join-Path $publishStage 'CodexMonitorHud.exe'
+    if (-not (Test-Path -LiteralPath $publishedExe)) { throw 'Single-file AppHost was not produced.' }
+    Copy-Item -LiteralPath $publishedExe -Destination (Join-Path $root 'CodexMonitorHUD.exe') -Force
+    Copy-Item -LiteralPath $publishedExe -Destination (Join-Path $root 'CodexMonitorHUD-Settings.exe') -Force
+} finally {
+    if (Test-Path -LiteralPath $publishStage) { Remove-Item -LiteralPath $publishStage -Recurse -Force }
+}
 
 $coreRuntime = Get-ChildItem -LiteralPath (Join-Path $dotnetRoot 'shared\Microsoft.NETCore.App') -Directory | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
 $desktopRuntime = Get-ChildItem -LiteralPath (Join-Path $dotnetRoot 'shared\Microsoft.WindowsDesktop.App') -Directory | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
@@ -49,9 +67,15 @@ Copy-Item -LiteralPath $hostFxr.FullName -Destination (Join-Path $runtimeStage '
 Copy-Item -LiteralPath $coreRuntime.FullName -Destination (Join-Path $runtimeStage 'shared\Microsoft.NETCore.App') -Recurse -Force
 Copy-Item -LiteralPath $desktopRuntime.FullName -Destination (Join-Path $runtimeStage 'shared\Microsoft.WindowsDesktop.App') -Recurse -Force
 
+# These diagnostics binaries are not used by the HUD. Keeping host/runtime DLLs
+# intact preserves supported WPF behavior while reducing every release package.
+Get-ChildItem -LiteralPath $runtimeStage -File -Recurse | Where-Object {
+    $_.Name -eq 'createdump.exe' -or $_.Name -eq 'mscordbi.dll' -or $_.Name -like 'mscordaccore*.dll'
+} | Remove-Item -Force
+
 $metadata = [ordered]@{
     product = 'Codex Monitor HUD'
-    version = '3.3.1'
+    version = '3.4.0'
     configuration = $Configuration
     framework = 'net10.0-windows'
     runtime = $coreRuntime.Name
@@ -59,10 +83,10 @@ $metadata = [ordered]@{
 }
 [IO.File]::WriteAllText((Join-Path $stage 'runtime.json'), ($metadata | ConvertTo-Json), (New-Object Text.UTF8Encoding($false)))
 $healthPath = Join-Path $stage 'health-check.json'
-& (Join-Path $runtimeStage 'dotnet.exe') (Join-Path $appStage 'CodexMonitorHud.dll') --plugin-root $root --health-check $healthPath
-if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $healthPath)) { throw 'Staged compiled runtime health check failed.' }
+$healthProcess = Start-Process -FilePath (Join-Path $root 'CodexMonitorHUD.exe') -ArgumentList @('--plugin-root',('"' + $root + '"'),'--health-check',('"' + $healthPath + '"')) -PassThru -Wait
+if ($healthProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $healthPath)) { throw 'Staged compiled runtime health check failed.' }
 $health = Get-Content -Raw -Encoding UTF8 -LiteralPath $healthPath | ConvertFrom-Json
-if ([string]$health.version -ne '3.3.1' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
+if ([string]$health.version -ne '3.4.0' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
     throw ('Staged compiled runtime health check returned an invalid result: ' + ($health | ConvertTo-Json -Compress))
 }
 if ($RunRuntimeTests) {

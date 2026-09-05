@@ -187,13 +187,12 @@ try {
     $env:CODEX_MONITOR_HUD_DATA_HOME = $localAppData
     if ($HostMode -eq 'legacy') { $env:CODEX_MONITOR_HUD_DEBUG_PATH = $runtimeLog }
     if ($HostMode -eq 'compiled') {
-        $compiledDotnet = Join-Path $root 'runtime\win-x64\dotnet\dotnet.exe'
-        $compiledApp = Join-Path $root 'runtime\win-x64\app\CodexMonitorHud.dll'
-        if (-not (Test-Path -LiteralPath $compiledDotnet) -or -not (Test-Path -LiteralPath $compiledApp)) {
+        $compiledApp = Join-Path $root 'CodexMonitorHUD.exe'
+        if (-not (Test-Path -LiteralPath $compiledApp)) {
             throw 'Compiled runtime is not staged. Run scripts\build-dotnet.ps1 first.'
         }
-        $process = Start-IsolatedHost $compiledDotnet @(
-            $compiledApp, '--plugin-root', $root, '--instance-id', ('isolated-runtime-v220-' + $Mode), '--debug-log'
+        $process = Start-IsolatedHost $compiledApp @(
+            '--plugin-root', $root, '--instance-id', ('isolated-runtime-v340-' + $Mode), '--debug-log'
         )
     } else {
         $process = Start-IsolatedHost 'powershell.exe' @(
@@ -377,7 +376,7 @@ try {
 
     $logText = Get-Content -Raw -Encoding UTF8 -LiteralPath $runtimeLog
     if ($HostMode -eq 'compiled') {
-        if ($logText -notmatch 'Compiled HUD v3\.3\.1 starting\.') { throw 'Compiled HUD startup marker is missing.' }
+        if ($logText -notmatch 'Compiled HUD v3\.4\.0 starting\.') { throw 'Compiled HUD startup marker is missing.' }
         if ($logText -match 'Unhandled dispatcher exception:|Unhandled domain exception:|Fatal startup error:') { throw 'Compiled runtime log contains an unhandled HUD error.' }
     } else {
         if ($logText -notmatch 'HUD Loaded event completed\.') { throw 'HUD Loaded completion marker is missing.' }

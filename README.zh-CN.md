@@ -1,120 +1,93 @@
 # Codex Monitor HUD
 
-> [English](README.md) · 仅支持 Windows x64
+<p align="center">
+  <img src="assets/codex-monitor-hud-256.png" width="128" alt="Codex Monitor HUD 日系动漫少女图标">
+</p>
 
-Codex Monitor HUD 是一个完全本地运行的 Windows 实时悬浮监控器：展示当前活跃的 Codex Desktop、VS Code 中的 Codex、普通 Codex CLI（通常是 OpenAI/GPT），以及可选的独立 DeepSeek CLI Profile。它不是聊天记录库、账单工具，也不是云端服务。
+<p align="center">
+  面向 Codex Desktop、VS Code、Windows CLI 与 WSL 的本地轻量悬浮监控器。<br>
+  简体中文 · <a href="README.md">English</a>
+</p>
 
-## 正式版下载
+Codex Monitor HUD 实时展示任务状态、Token 用量、上下文压力、额度窗口和任务来源，不上传会话数据。界面支持悬浮球、展开悬浮窗、任务列表和独立任务气泡。
 
-从 [Releases](https://github.com/wassamriehlei/codex-monitor-hud/releases/latest) 下载：
+![同时监控 Windows 与 WSL 任务的展开悬浮窗](assets/screenshots/hud-wsl.png)
 
-- **EXE 安装包**：`CodexMonitorHUD-Setup-3.3.1-windows-x64.exe`，安装到当前用户目录，升级保留设置和回滚副本。
-- **便携 ZIP**：`CodexMonitorHUD-Portable-3.3.1-windows-x64.zip`，解压到可写目录，双击 `Start-Portable.cmd` 启动，`Settings-Portable.cmd` 打开设置。配置保存在包内 `portable-data/CodexMonitorHUD`，与安装版隔离；启动不会注册 Codex 插件或创建桌面快捷方式。
+## 下载与运行
 
-两种包均内置 Windows 运行时和已确认可公开分发的完成音频。无需额外安装 .NET SDK。下载后可用 `SHA256SUMS.txt` 校验；EXE 尚未代码签名，Windows 可能显示未知发布者提示。
+从 [GitHub Releases](https://github.com/wassamriehlei/codex-monitor-hud/releases/latest) 下载最新正式版。
 
-“设置 → 常规 → 开机启动”默认关闭，仅为当前 Windows 用户创建启动快捷方式。便携目录移动后需重新开启，删除目录前请关闭。启动快捷方式只保留一份，在另一副本开启后会切换到该副本。
+| 安装包 | 运行方法 | 数据位置 |
+| --- | --- | --- |
+| `CodexMonitorHUD-Setup-3.4.0-windows-x64.exe` | 运行安装器，然后从桌面或开始菜单启动 | `%LOCALAPPDATA%\CodexMonitorHUD` |
+| `CodexMonitorHUD-Portable-3.4.0-windows-x64.zip` | 完整解压后双击 `CodexMonitorHUD.exe` | EXE 同目录下的 `portable-data\CodexMonitorHUD` |
 
-“设置 → 关于”显示版本、安装/便携模式、项目与上游信息、许可说明、仓库及更新链接。
+便携版设置入口是 `CodexMonitorHUD-Settings.exe`。3.4 版已删除公开的 CMD 启动器，主程序和设置均由 EXE 直接启动。请把 ZIP 完整解压到可写目录，不要直接在压缩包预览窗口中运行。
 
-WSL 已是独立监控来源。在“设置 → 监控来源”启用 WSL，选择发行版并自动检测主目录；Windows CLI 与 WSL 可以同时监控并分别关闭。便携版也可用 `Start-Portable.cmd -HudHome "\\wsl.localhost\Ubuntu\home\你的用户名"` 传入旧式桥接路径，设置页会自动显示并迁移它。
+两种发布包都内置私有 .NET/WPF 运行时和默认完成提示音，不要求系统另装 .NET SDK。可使用 `SHA256SUMS.txt` 校验下载；当前 EXE 尚未代码签名，因此 Windows 可能显示“未知发布者”。
 
-## 一句话让 Codex 安装
+## 主要功能
 
-把本仓库链接交给 Codex，再说一句：**“帮我安装。”**
+- 同时监控 Codex Desktop、VS Code 中的 Codex、Windows 原生 Codex CLI、WSL Codex CLI，以及可选的独立 DeepSeek CLI Profile。
+- 展示活跃、监听、空闲、暂停、完成、中止和读取错误状态。
+- 显示缓存/未缓存输入、输出、推理、本次合计、任务累计、上下文占用、模型、服务提供方标识、周额度和 5 小时额度。
+- 主列表中的目录、时间、上下文、状态、模型、缓存命中率和合计等字段均可单独开关。
+- 支持汇总、列表、分裂气泡和悬浮球模式。
+- 悬浮球可单击立即展开或短暂悬停后展开；拖动时不会误展开，并会根据屏幕空间向左或向右展开。
+- 不同任务状态使用跟随状态色的脉冲、呼吸、弹出、轻晃和收束动画。
+- 可调整 HUD 宽度、悬浮球大小、独立气泡整体缩放、透明度、圆角、自动贴边及字体；默认优先鸿蒙字体 HarmonyOS Sans SC。
+- 完成后可播放内置提示音，也可手动选择 WAV、MP3、WMA、M4A 或 AAC 文件并试听。
+- 支持当前用户开机启动，以及完全本地的 MCP 控制接口。
 
-仓库内的 [INSTALL_WITH_CODEX.md](INSTALL_WITH_CODEX.md) 与 [install-manifest.json](install-manifest.json) 已写好确定性流程。合格的安装代理会识别 Windows x64、优先选择已校验的 Release、保留你的设置、完成健康检查并保留回滚副本；安装时不需要读取对话正文。
+## 软件截图
 
-手动安装：
+| 悬浮球 | 外观、字体与宽度 |
+| --- | --- |
+| ![只显示活跃任务数量的悬浮球](assets/screenshots/floating-ball.png) | ![字体、HUD 宽度、圆角和透明度设置](assets/screenshots/settings-overview.png) |
+
+| 监控来源 | 任务列表自定义 |
+| --- | --- |
+| ![可以独立开关的 Codex 监控来源](assets/screenshots/settings-sources.png) | ![任务列表字段与布局设置](assets/screenshots/settings-list.png) |
+
+| 完成提醒 | 多任务悬浮窗 |
+| --- | --- |
+| ![完成提示音与行为设置](assets/screenshots/settings-sound.png) | ![展开后的多任务监控悬浮窗](assets/screenshots/hud-wsl.png) |
+
+## 配置 WSL Codex CLI
+
+打开 **设置 → 监控来源**，启用 WSL，选择发行版并点击自动检测主目录。Windows 与 WSL Profile 可以同时监控，也可以分别关闭。原生 Windows HUD 通过 `\\wsl.localhost\...` 读取所选 WSL 会话目录，不需要在 Linux 中再启动一套图形程序。
+
+详细步骤和故障排查见 [WSL Codex CLI 配置指南](docs/WSL_CODEX_CLI.zh-CN.md)。
+
+## 从仓库安装与构建
+
+把本仓库链接交给 Codex，然后说一句 **“帮我安装。”** 确定性安装流程见 [INSTALL_WITH_CODEX.md](INSTALL_WITH_CODEX.md) 与 [install-manifest.json](install-manifest.json)。
+
+开发者手动安装：
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1 -DefaultLanguage zh-CN
 ```
 
-Windows Release 会随包携带一套私有 .NET/WPF 运行时，因此无需用户预先安装匹配的系统级 .NET；下载体积的大部分来自这套运行时，而不是 HUD 本体。
+构建 Windows AppHost 与私有运行时：
 
-## 显示什么
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-dotnet.ps1
+```
 
-- 活跃、监听、空闲、暂停、读取错误、已完成和已中止状态。
-- 缓存/未缓存输入、输出、推理输出、本次合计、任务累计、上下文占用、模型和活跃任务数。
-- 账号级周额度与 5 小时额度窗口：默认来自 Codex 本地 `rate_limits` 记录，也可选官方本地额度来源。
-- 稳定任务编号、工作区标签，以及来自 `session_index.jsonl` 的本地官方对话标题。
-- 每个任务编号前都有来源徽标，让桌面端、VS Code、OpenAI CLI 与 DeepSeek CLI 不会混在一起。
-- 缓存命中率和上下文占用属于单个任务，因此只放在列表行与独立小气泡中，不会被无意义地加总进汇总栏。每一行使用该任务由 Provider 实际报告的上下文窗口，GPT 与 DeepSeek 的窗口不会混用。
-- 可选的公开 API 标价等价成本估算；它会明确标为估算，不是订阅账单或 credits 余额。
-- 主气泡宽度可在 360–1600 px 间调整；顶部指标会按可用宽度自动单行或多行，窄列表自动改为两行，右侧操作按钮不会再被挤出。
-- 主气泡列表可分别开关目录、开始时间、上下文占用、任务状态（含监听）、模型名称、缓存命中率、本次合计、任务累计、成本估算和数据更新时间。
-- 字体可从 Windows 已安装字体中选择，默认优先使用 HarmonyOS Sans SC（鸿蒙字体），并保留中文系统字体回退。
-- 可选的任务完成提示音；经过防误报等待后播放一次，除系统通知、醒目提示和经典蜂鸣外，也可浏览选择本地 WAV、MP3、WMA、M4A 或 AAC 文件，并在设置中试听。
-- 支持 Windows 原生背景模糊和 Acrylic 亚克力玻璃；染色强度跟随透明度滑块，系统合成不可用时保留半透明回退外观。
-- 支持按当前显示器工作区自动吸附到边缘或四角，可关闭并可调吸附距离。
-- 来源与操作图标采用 ISC 许可的 [Lucide 免费图标库](https://lucide.dev/) 并以内嵌矢量路径离线显示；归属见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+构建后，仓库根目录会生成 `CodexMonitorHUD.exe` 与 `CodexMonitorHUD-Settings.exe`。发布脚本分别建立安装版和便携版最小暂存目录，采用最小体积 ZIP 压缩，并排除 PDB、CMD、源码工程、测试夹具与开发工具。WPF 官方不支持的 IL 裁剪没有启用，从而保持运行稳定性。
 
-![中文任务列表示例，包含周额度和 5 小时额度](assets/hud-multitask.png)
+## 隐私说明
 
-周额度与 5 小时额度不会被猜测，也不会按任务相加。默认显示最新的本地观测值；你可在 **设置 > 额度收尾保护** 开启已登录的官方 Codex 本地接口，它只从普通 Profile 读取这两个百分比，不读取对话、提示词、Provider 配置或凭据。所选来源暂时不可用时，两项都会显示 `--`，不会把另一个账号的旧数字混进来。
+所有处理都留在本机。HUD 只读取显示所需的有限会话元数据与计数：用量、模型/Provider 标签、客户端来源、生命周期事件、工作区末级名、会话 ID 和本地标题。它不保存提示词、回复、工具输出、原始转录、凭据或 Provider 配置，也不会修改 Codex 会话文件；HUD 本身没有遥测。
 
-## 桌面端、VS Code 与 CLI 来源
+详见 [PRIVACY.md](PRIVACY.md)、[SECURITY.md](SECURITY.md) 与 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-三类任务沿用同一套简洁视觉语言，但各自有明确标记：
+## 平台与项目说明
 
-| 来源 | 徽标 | 监听的本地 Profile |
-| --- | --- | --- |
-| Codex Desktop | 显示器 | 普通 `CODEX_HOME`（默认 `~/.codex`） |
-| VS Code 中的 Codex | 代码括号 | 普通 `CODEX_HOME`（默认 `~/.codex`） |
-| Codex CLI · OpenAI | 终端提示符 | 普通 `CODEX_HOME` |
-| Codex CLI · DeepSeek | 水平波纹 | `~/.codex-deepseek` |
-
-徽标位于状态点之后、稳定任务编号之前，在主列表和独立小气泡中都会出现。汇总栏可显示各来源数量；**设置 > 监控来源** 可以分别开关四类来源。VS Code 通过它自己的 `codex_vscode` 会话来源识别，不会再被显示为桌面端任务。识别逻辑读取受限的会话元数据，不依赖写死的模型名称列表，因此以后出现新模型时仍能正常监控；只有价格未知时成本显示为 `--`。
-
-桌面端任务可以使用 Codex 本地任务链接。VS Code 和 CLI 任务不会伪装成桌面任务，请从 VS Code 或对应的 CLI Profile 恢复。
-
-原生 Codex CLI 不需要额外配置即可被监控。第二个 `~/.codex-deepseek` 根目录只是面向进阶用户的可选实测隔离约定；当前还不能任意添加其他自定义根目录。建立隔离配置前请先阅读 [Codex CLI 配置与可选 Provider 隔离](docs/CLI_PROFILE_ISOLATION.zh-CN.md)，其中说明了如何避免把凭据写进文件，以及如何随时回到完全不受影响的普通 Profile。
-
-Codex CLI 也可以运行在 WSL 中，同时继续使用原生 Windows HUD。桥接配置通过 `node.exe`、`\\wsl.localhost\...` 主目录覆盖和显式 `WSLENV` 传递，让 Windows 进程真正读到 WSL 会话。详见 [用 Windows HUD 监控 WSL 中的 Codex CLI](docs/WSL_CODEX_CLI.zh-CN.md)。
-
-**可能兼容，但没测：** HUD 监控的是本地 Codex session 记录，而不是某个前端专属 API，所以 Cursor、Windsurf、VS Code Insiders、`codex exec`、官方 SDK，甚至一些自定义 `codex app-server` 客户端都可能已经“碰巧能用”，只是来源徽标可能叫错。维护者懒得把每一种客户端都追着适配；愿意碰运气的话，可以看 [未验证的 Codex 客户端兼容性](docs/UNVERIFIED_CODEX_CLIENTS.zh-CN.md)，里面写了判断依据、目前最可疑的候选、已知误分类风险，以及怎么安全反馈测试结果。
-
-## 三种显示模式
-
-| 模式 | 用途 |
-| --- | --- |
-| 汇总 | 一只轻量的聚合总气泡。 |
-| 列表 | 在主 HUD 中显示稳定编号的任务行；支持行、卡片、轨道三种样式，以及逐字段显示开关和窄宽度自动换行。 |
-| 分裂 | 将任务拆成独立、可调整大小的小气泡，最多 12 个。 |
-
-总气泡上的任务数量按钮只负责展开/收起内嵌列表。已经拆出的独立小气泡不会因收起列表而被合并或关闭；只有在 HUD/托盘菜单中明确选择“合并全部任务气泡”才会合并。
-
-![中文监控来源设置：桌面端、VS Code、原生 CLI 与隔离 DeepSeek CLI 可分别开启](assets/settings-sources.png)
-
-## 日常操作
-
-- 点击任务数量，展开或收起主 HUD 内的列表。
-- 拆出单个任务，或从 HUD / 通知区域菜单选择“全部分裂”。
-- 拖动主 HUD 保存自定义位置；开启自动贴边后会停靠到最近的屏幕边缘或角落。双击主 HUD 打开设置。
-- 关闭独立小气泡只会把该气泡合回主 HUD，监控不会中断。主列表中的“移除任务”才会暂时移除当前 HUD 视图中的任务；对应对话开始下一轮时会自动回来。
-- 透明度支持 **0% 到 100%**。0% 会让 HUD 故意完全不可见，请用通知区域菜单或设置快捷方式恢复。
-- 开启鼠标穿透后，可从通知区域菜单关闭，或直接让 Codex 关闭。
-
-## 隐私与边界
-
-所有处理都留在本机。HUD 只从已启用的本地 Profile 读取显示当前状态所需的受限信息：用量计数、模型/Provider 标签、客户端来源、生命周期事件、工作区末级名、会话 ID 和本地官方标题；不会读取 Provider 配置或认证文件，不会保存提示词、回复、工具输出、原始转录或凭据，也不会修改 Codex 会话文件。可选的官方额度来源仅调用已登录的本地 Codex 客户端读取两个额度百分比；HUD 本身没有遥测，也不会处理凭据。
-
-所有已启用 Profile 合计最多扫描 64 个近期会话文件；重新打开的旧会话按最新写入时间识别。内部/子代理会话和超过保留时间的终态任务不会进入可见列表。
-
-可选的本地 MCP 控制面支持当前 MCP `2025-11-25` 协商及兼容的旧版协议、结构化结果、按来源定位任务、受限动态通知和明确的工具错误。它可以操控 HUD，但不能通过 HUD 读取对话正文。详见 [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md)。
-
-详见 [PRIVACY.md](PRIVACY.md) 与 [SECURITY.md](SECURITY.md)。
-
-## 平台支持
-
-- **Windows 10/11 x64：** 已支持并提供安装包，包括文档化的 Windows HUD → WSL CLI 桥接。
-- **macOS / Linux / 其他架构：** 不提供二进制、安装器、工作流或支持承诺。
-
-本项目已明确放弃 macOS 适配。欢迎 macOS 用户自行基于公开源码进行移植，但本仓库只发布和验证 Windows 版本。
-
-## 当前状态
-
-`3.3.1` 增加可自动检测发行版的独立 WSL 来源，支持同时监控 Windows 与 WSL，并统一独立任务气泡的宽度。EXE、便携包、可选开机启动、关于页和内置完成音频继续保留。可选成本显示仅使用离线的标准 API 标价快照，不是 Codex 积分或订阅账单计算。这是独立、非官方项目，与 OpenAI、Microsoft 或 DeepSeek 均没有隶属或背书关系。
+- 正式支持并验证 Windows 10/11 x64。
+- 本项目为独立、非官方项目，与 OpenAI、Microsoft、DeepSeek 或 Apple 均无隶属或背书关系。
+- 当前界面是使用 WPF 实现的轻量 iOS 26 风格，不再使用已移除的 Windows Blur/Acrylic 玻璃模式。
+- 日系动漫少女图标基于 CC0 素材修改，完整出处已记录在第三方声明中。
 
 MIT License.

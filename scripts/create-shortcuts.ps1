@@ -3,8 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-$startScript = Join-Path $TargetRoot 'scripts\start.ps1'
+$settingsExe = Join-Path $TargetRoot 'CodexMonitorHUD-Settings.exe'
 $sourceIconPath = Join-Path $TargetRoot 'assets\codex-monitor-hud.ico'
 $manifestPath = Join-Path $TargetRoot '.codex-plugin\plugin.json'
 $buildVersion = if (Test-Path -LiteralPath $manifestPath) { [string](Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath | ConvertFrom-Json).version } else { 'current' }
@@ -23,8 +22,8 @@ foreach ($path in @(
     (Join-Path $desktop 'Codex Monitor HUD Settings.lnk')
 )) {
     $shortcut = $shell.CreateShortcut($path)
-    $shortcut.TargetPath = $powershell
-    $shortcut.Arguments = ('-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{0}" -Settings' -f $startScript)
+    $shortcut.TargetPath = $settingsExe
+    $shortcut.Arguments = ('--plugin-root "{0}"' -f $TargetRoot)
     $shortcut.WorkingDirectory = $TargetRoot
     $shortcut.Description = 'Open Codex Monitor HUD settings'
     if (Test-Path -LiteralPath $iconPath) { $shortcut.IconLocation = $iconPath + ',0' }

@@ -27,7 +27,7 @@ OutputDir={#ReleaseRoot}
 OutputBaseFilename=CodexMonitorHUD-Setup-{#PackageVersion}-windows-x64
 SetupIconFile={#StageRoot}\assets\codex-monitor-hud.ico
 UninstallDisplayIcon={app}\codex-monitor-hud.ico
-Compression=lzma2/fast
+Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 LicenseFile={#StageRoot}\LICENSE
@@ -41,7 +41,7 @@ Source: "{#StageRoot}\scripts\uninstall.ps1"; DestDir: "{app}\scripts"
 Source: "{#StageRoot}\src\MonitorHud.Startup.psm1"; DestDir: "{app}\src"
 
 [Run]
-Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{%USERPROFILE}\plugins\codex-monitor-hud\scripts\start.ps1"" -Settings"; Description: "Open Codex Monitor HUD"; Flags: postinstall nowait skipifsilent
+Filename: "{%USERPROFILE}\plugins\codex-monitor-hud\CodexMonitorHUD-Settings.exe"; Parameters: "--plugin-root ""{%USERPROFILE}\plugins\codex-monitor-hud"""; Description: "Open Codex Monitor HUD"; Flags: postinstall nowait skipifsilent
 
 [Code]
 var

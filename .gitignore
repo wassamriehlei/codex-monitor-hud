@@ -21,6 +21,8 @@ node_modules/
 bin/
 obj/
 runtime/
+CodexMonitorHUD.exe
+CodexMonitorHUD-Settings.exe
 portable-data/
 Microsoft/
 

@@ -1,143 +1,93 @@
 # Codex Monitor HUD
 
-> [简体中文](README.zh-CN.md) · Windows x64 only
+<p align="center">
+  <img src="assets/codex-monitor-hud-256.png" width="128" alt="Codex Monitor HUD anime mascot icon">
+</p>
 
-Codex Monitor HUD is a local, real-time Windows overlay for the Codex work that is active now: Codex Desktop, Codex in VS Code, the normal Codex CLI profile (usually OpenAI/GPT), and an optional isolated DeepSeek CLI profile. It is deliberately a monitor, not a chat archive, billing dashboard, or cloud service.
+<p align="center">
+  A local, lightweight Windows HUD for Codex Desktop, VS Code, Windows CLI, and WSL.<br>
+  <a href="README.zh-CN.md">简体中文</a> · English
+</p>
 
-## Install with one short prompt
+Codex Monitor HUD shows live task state, token usage, context pressure, allowances, and source identity without uploading session data. It supports a compact floating ball, an expandable window, task lists, and detached task bubbles.
 
-Give Codex this repository URL and say: **“Install this for me.”**
+![Expanded HUD monitoring Windows and WSL tasks](assets/screenshots/hud-wsl.png)
 
-The repository includes [INSTALL_WITH_CODEX.md](INSTALL_WITH_CODEX.md) and [install-manifest.json](install-manifest.json). A capable agent can detect Windows x64, select a verified Release when one is available, preserve settings, health-check the installation, and retain a rollback copy. It must not inspect conversation text to install the HUD.
+## Download and run
 
-Manual installation:
+Download the latest stable assets from [GitHub Releases](https://github.com/wassamriehlei/codex-monitor-hud/releases/latest).
+
+| Package | How to run | Data location |
+| --- | --- | --- |
+| `CodexMonitorHUD-Setup-3.4.0-windows-x64.exe` | Run the installer; launch from the desktop or Start menu | `%LOCALAPPDATA%\CodexMonitorHUD` |
+| `CodexMonitorHUD-Portable-3.4.0-windows-x64.zip` | Extract all files, then double-click `CodexMonitorHUD.exe` | `portable-data\CodexMonitorHUD` beside the EXE |
+
+Open portable Settings with `CodexMonitorHUD-Settings.exe`. Version 3.4 removes the public CMD launchers: both normal startup and Settings are direct EXE entry points. Keep the extracted directory writable and do not run the EXE from inside the ZIP.
+
+Both packages include the private .NET/WPF runtime and the default completion sound. No system-wide .NET SDK is required. Verify downloads with `SHA256SUMS.txt`; the current binaries are not code-signed, so Windows may show an unknown-publisher prompt.
+
+## Highlights
+
+- Monitors Codex Desktop, Codex in VS Code, native Windows Codex CLI, WSL Codex CLI, and an optional isolated DeepSeek CLI profile.
+- Shows active, listening, idle, paused, completed, aborted, and read-error states.
+- Displays cached and uncached input, output, reasoning, call/task totals, context usage, model, provider badge, weekly allowance, and 5-hour allowance.
+- Lets every main-list field be shown or hidden independently.
+- Supports summary, list, split-bubble, and floating-ball modes.
+- Expands the floating ball on click or after a short hover; dragging does not trigger expansion. It expands toward the available side of the screen.
+- Provides state-aware color, pulse, breath, pop, shake, and settle animation cues.
+- Supports adjustable HUD width, floating-ball size, whole-bubble scaling, opacity, corners, edge snapping, and any installed Windows font. HarmonyOS Sans SC is preferred by default.
+- Plays a built-in completion sound or a user-selected WAV, MP3, WMA, M4A, or AAC file.
+- Offers opt-in current-user startup and a local MCP control surface.
+
+## Screenshots
+
+| Floating ball | Appearance and sizing |
+| --- | --- |
+| ![Floating ball with active task count](assets/screenshots/floating-ball.png) | ![Appearance, font, width and opacity settings](assets/screenshots/settings-overview.png) |
+
+| Monitoring sources | Task-list customization |
+| --- | --- |
+| ![Independent Codex source switches](assets/screenshots/settings-sources.png) | ![Task-list fields and layout controls](assets/screenshots/settings-list.png) |
+
+| Completion alerts | Expanded multi-task HUD |
+| --- | --- |
+| ![Completion sound and behavior settings](assets/screenshots/settings-sound.png) | ![Expanded HUD with multiple local tasks](assets/screenshots/hud-wsl.png) |
+
+## WSL Codex CLI
+
+Open **Settings → Sources**, enable WSL, select a distribution, and use automatic home detection. Windows and WSL profiles can run at the same time and be toggled independently. The native Windows HUD reads the selected WSL session directory through `\\wsl.localhost\...`; it does not need a second Linux GUI process.
+
+See [the WSL setup guide](docs/WSL_CODEX_CLI.md) for profile discovery and troubleshooting.
+
+## Install from the repository
+
+Give Codex this repository URL and say **“Install this for me.”** The deterministic flow is documented in [INSTALL_WITH_CODEX.md](INSTALL_WITH_CODEX.md) and [install-manifest.json](install-manifest.json).
+
+Manual developer install:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1
 ```
 
-The Windows Release bundles a private .NET/WPF runtime so it can run without requiring a matching system-wide .NET installation; most of the download size comes from that runtime rather than the HUD itself.
+Build the Windows AppHost and private runtime:
 
-## Windows downloads
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-dotnet.ps1
+```
 
-Download the stable release from [Releases](https://github.com/wassamriehlei/codex-monitor-hud/releases/latest):
+The build creates `CodexMonitorHUD.exe` and `CodexMonitorHUD-Settings.exe` at the repository root. Release packaging uses separate curated repository and portable stages, smallest-size ZIP compression, no PDB/CMD files, and no development projects or test fixtures in end-user archives. WPF trimming is intentionally avoided because it is not supported by the desktop framework.
 
-- **EXE installer:** `CodexMonitorHUD-Setup-3.3.1-windows-x64.exe`. Current-user installation; no administrator or .NET SDK required. Upgrades preserve settings and keep a rollback copy.
-- **Portable ZIP:** `CodexMonitorHUD-Portable-3.3.1-windows-x64.zip`. Extract to a writable folder, then double-click `Start-Portable.cmd`; use `Settings-Portable.cmd` to configure it. Configuration and state stay under `portable-data/CodexMonitorHUD` beside the launchers. No installation, marketplace registration, or desktop shortcuts are created.
-- `CodexMonitorHUD-windows-x64.zip` is the compatibility asset used by the repository installer. It carries the same payload as the portable archive.
+## Privacy
 
-Both downloads include the private Windows runtime and the completion sound. Verify downloads against `SHA256SUMS.txt`. The EXE is not code-signed, so Windows may show an unknown-publisher warning.
+All processing stays local. The HUD reads only bounded session metadata and counters needed for the display: usage, model/provider label, client source, lifecycle events, workspace leaf, session ID, and local title. It does not store prompts, replies, tool output, transcripts, credentials, or provider configuration, and it does not modify Codex session files. There is no HUD telemetry.
 
-**Start with Windows** is opt-in under Settings → General. It creates a shortcut for the current user only. Keep a portable folder at the same path while startup is enabled; turn startup off before deleting it, or re-enable after moving it. Only one HUD login shortcut is registered at a time; enabling another copy transfers that shortcut to it.
+See [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md), and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-Settings → About shows the current version, installed/portable mode, attribution, license information, repository and releases links.
+## Platform and project status
 
-WSL is an independent source under Settings → Sources. Select a distribution and detect its home; Windows CLI and WSL can be monitored and toggled independently. Portable mode also accepts the legacy `Start-Portable.cmd -HudHome "\\wsl.localhost\Ubuntu\home\YOUR_USER"` bridge and migrates it into the Settings UI.
-
-## What you see
-
-- Active, listening, idle, paused, read-error, completed, and aborted task state.
-- Cached / uncached input, output, reasoning output, per-call and per-task totals, context usage, model, and task count.
-- Latest account-wide weekly and 5-hour allowance windows, from local `rate_limits` records or the optional official local Codex allowance reader.
-- Stable task numbers, workspace labels, and the official local conversation title from `session_index.jsonl`.
-- A compact badge combining each task's source icon and stable number, so Desktop, VS Code, OpenAI CLI, and DeepSeek CLI work cannot be mistaken for one another.
-- Cache hit rate and context usage are per-task signals, so they stay on list rows and detached bubbles instead of being meaninglessly added into the summary. Each row uses that task's provider-reported context window; GPT and DeepSeek values are never mixed.
-- Optional API-list-price equivalent cost estimate, clearly marked as an estimate rather than a subscription bill or credit balance.
-- Adjustable 360–1600 px main-HUD width. Summary metrics wrap automatically, and narrow task rows move metrics to a second line so their action buttons remain visible.
-- Independent main-list switches for directory, start time, context usage, task status (including listening), model name, cache hit rate, call total, task total, estimated cost, and data update time.
-- Select any installed Windows font. HarmonyOS Sans SC is the default preference, with Chinese system-font fallbacks.
-- Optional completion sound after the false-positive grace period, with built-in system sounds or a user-selected WAV, MP3, WMA, M4A, or AAC file plus an in-Settings preview.
-- Lightweight gradients and adjustable transparency, without native Windows Blur/Acrylic composition.
-- Automatic edge/corner snapping against the current monitor work area, with an on/off switch and adjustable snap distance.
-- Crisp source and action artwork adapted from the ISC-licensed [Lucide icon library](https://lucide.dev/); attribution is included in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-## iOS 26-inspired Liquid design
-
-This fork's project defaults now reflect the current personal setup: Chinese, a 60 DIP floating ball, a 547 DIP expanded window, list layout, hidden provider labels and list model/cache-hit fields. Reset uses this configuration; upgrades preserve existing settings. The supplied completion sound is bundled at `assets/audio/default-completion.mp3` and enabled by default. Both hosts resolve relative audio paths against the installation directory, so the original desktop file is no longer required. See [audio provenance](assets/audio/README.md) before redistributing the supplied recording.
-
-Detached task bubbles retain only the merge action; it removes the separate window while keeping the task monitored in the main HUD. The redundant close button is removed without leaving a layout placeholder.
-
-The ball's count and soft radial background use the current overall status color, including custom colors. Finite number effects distinguish active (pulse), listening (breath), completed (pop), error (short shake), aborted (settle), and idle (fade); paused stays still. The background breathes slowly during active/listening tasks, briefly brightens on completion/error, and stays still when idle/paused. Background motion is capped at 24 fps, adds no glass/compositor effects, and stops alongside count motion when expanded, hidden, or animations are disabled. Ordinary count refreshes do not restart either animation.
-
-The floating ball diameter is adjustable from 32 to 120 DIP in **Settings > General**. It unfolds toward the available screen side in 160 ms and shrinks back to its ball anchor in 120 ms (ordinary show transitions take 100 ms). These bounded transitions follow **Animate updates**; ordinary monitoring ticks do not replay them. **Settings > Sources > Show provider labels** hides provider names such as `custom` while retaining `CLI` and the client's source icon. `custom` is the provider identifier recorded by the session, not the model or an error. In task lists, the call total appears after the time on the lower line, with both fields still independently optional.
-
-In **Settings > General > Floating surface**, choose a window or a floating ball. The ball shows only the number of active/listening tasks (zero when none); completed, idle, and error tasks are excluded. Click to expand immediately, or hover continuously for **0.2 seconds** to expand and leave for 450 ms to collapse. Pressing, leaving, or dragging cancels the expansion timer; after dragging, move away and hover again to expand. Left-side balls open rightward and right-side balls open leftward, keeping the ball anchor when collapsing. Mouse click-through keeps the window expanded so controls remain recoverable. This option is independent of summary/list/split layout.
-
-Settings stays cached for up to 10 minutes after closing, so reopening reuses the same window and reloads current configuration. It then exits to release memory. System font enumeration happens only on first opening the font picker. A first launch still loads PowerShell/WPF; there is no extra settings process before you first open Settings.
-
-Dragging pauses nonessential polling and automatic placement until release. Plain clicks no longer save or snap the window. Settings generates its color wheel only when opening the picker, and repeated Settings requests focus the existing window.
-
-The new default uses a pearl gradient, fine reflective rim, compact neutral task cards, capsule actions, and HarmonyOS Sans SC (with installed-system-font fallbacks). Settings and the color picker share rounded controls, green switches, subtle blue accents, and responsive segmented navigation. Existing saved appearance and field preferences are preserved.
-
-Choose **Settings > General > iOS 26 · Liquid**, or drop [the shareable theme](themes/00-ios26-liquid.json) onto **Settings > General > Theme workshop**. Width, font, transparency, and per-task fields remain configurable. Selecting the theme changes appearance only, not sound files, notification permissions, monitoring sources, or task data.
-
-This is a lightweight WPF interpretation of the iOS 26 visual language, not Apple's native Liquid Glass refraction. Native Windows Blur/Acrylic and their Settings controls have been removed. Old settings and imported themes containing those modes are normalized to `none`; customizable WPF corners and transparency remain available without the former rectangular native backdrop.
-
-![English task-list screenshot with weekly and 5-hour allowance (previous design)](assets/hud-multitask-en.png)
-
-The weekly and 5-hour values are never guessed or summed across tasks. By default they use the newest local observation. In **Settings > Allowance handoff guard**, you can opt in to the already signed-in official local Codex interface, which reads only those two percentages from the normal profile; it does not read conversations, prompts, provider configuration, or credentials. If the selected source is unavailable, both values show `--` rather than mixing values from another account.
-
-## Desktop, VS Code, and CLI sources
-
-The HUD uses one compact visual language across every surface, while giving each runtime a distinct mark:
-
-| Source | Badge | Local profile watched |
-| --- | --- | --- |
-| Codex Desktop | Monitor | the normal `CODEX_HOME` (`~/.codex` by default) |
-| Codex in VS Code | Code brackets | the normal `CODEX_HOME` (`~/.codex` by default) |
-| Codex CLI · OpenAI | Terminal prompt | the normal `CODEX_HOME` |
-| Codex CLI · DeepSeek | Horizontal waves | `~/.codex-deepseek` |
-
-The badge appears after the status dot and before the stable task number in both list rows and detached bubbles. The summary can show a source-count breakdown, and **Settings > Sources** can independently include or exclude all four categories. VS Code is identified from its own `codex_vscode` session originator, so it is not presented as a Desktop task. The classifier uses bounded session metadata, not a hard-coded model-name allowlist, so future models continue to be monitored even when no price is known for them.
-
-Desktop rows may use Codex's local task deep link. VS Code and CLI rows deliberately do not pretend to be Desktop tasks: resume them from VS Code or the matching CLI profile instead.
-
-Native Codex CLI monitoring works without any special setup. The second `~/.codex-deepseek` root is an optional, tested isolation convention for advanced users; arbitrary custom roots are not yet configurable. See [Codex CLI profiles and optional provider isolation](docs/CLI_PROFILE_ISOLATION.md) before creating one. The guide keeps credentials out of files and explains how to return to the untouched normal profile.
-
-Codex CLI may also run inside WSL while the visible HUD remains a native Windows app. The bridge uses `node.exe`, a `\\wsl.localhost\...` home override, and an explicit `WSLENV` entry so the Windows process receives that override. See [Monitor a WSL Codex CLI from the Windows HUD](docs/WSL_CODEX_CLI.md).
-
-**Possibly compatible, not tested:** because the HUD watches local Codex session records rather than a front-end-specific API, some other local Codex surfaces may already work accidentally — for example Cursor, Windsurf, VS Code Insiders, `codex exec`, official SDKs, or custom `codex app-server` clients — but they may appear under the wrong source badge. The maintainer is not going to chase every client one by one; if you enjoy trying your luck, see [Unverified Codex client compatibility](docs/UNVERIFIED_CODEX_CLIENTS.md) for the reasoning, current candidates, caveats, and a safe way to report results.
-
-## Display modes
-
-| Mode | Use |
-| --- | --- |
-| Summary | A compact aggregate bubble. |
-| List | Stable numbered task rows inside the main HUD; rows, cards, and rail styles are available. |
-| Split | Independent task bubbles (up to 12); Ctrl + mouse wheel scales text, icons and borders together from 60% to 200%, without a corner resize icon. |
-
-The aggregate count button is only a list expand/collapse control. If task bubbles have been detached, collapsing the list leaves those independent bubbles open. Use **Merge all task bubbles** from the HUD or tray menu when you actually want to merge them.
-
-![English Sources settings for Desktop, VS Code, native CLI, and isolated DeepSeek CLI](assets/settings-sources-en.png)
-
-## Everyday controls
-
-- Click the task count to expand or retract the embedded list.
-- Detach one task, or choose **Split all** from the HUD or notification-area menu.
-- Drag the main HUD to a custom position; when edge snapping is enabled it settles against the nearest screen edge or corner. Double-click it to open Settings.
-- Closing a detached bubble merges only that bubble back into the main HUD; monitoring continues. The list-row dismiss action removes a task from the current HUD view, and it returns when that conversation starts another turn.
-- Set opacity anywhere from **0% to 100%**. At 0% the overlay is intentionally invisible; use the notification-area menu or settings shortcut to recover it.
-- If mouse click-through is enabled, use the notification-area menu or ask Codex to disable it.
-
-## Privacy and limits
-
-All processing stays local. The HUD reads only the bounded data needed to project current state from the enabled local profile roots: usage counters, model/provider label, client surface, lifecycle events, workspace leaf, session ID, and official local title. It does not read provider configuration or authentication files; it does not store prompts, replies, tool output, raw transcripts, or credentials; and it does not modify Codex session files. The optional official allowance reader invokes the already signed-in local Codex client for those two percentages only; the HUD itself has no telemetry and does not handle credentials.
-
-Task discovery is globally capped at 64 recent session files across the enabled profiles. Reopened conversations are selected by recent write time, and internal/subagent sessions plus expired terminal tasks are excluded from the user-visible projection.
-
-The optional local MCP control surface supports current MCP `2025-11-25` negotiation plus compatible older revisions, structured results, source-aware task targeting, bounded visual notices, and explicit tool errors. It can operate the HUD; it cannot read transcript text through the HUD. See [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md).
-
-See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) for the data boundary.
-
-## Platform support
-
-- **Windows 10/11 x64:** supported and packaged, including the documented Windows-HUD-to-WSL-CLI bridge.
-- **macOS / Linux / other architectures:** no binary, installer, workflow, or support promise is provided.
-
-macOS support has been intentionally dropped from this project. macOS users are welcome to adapt the public source on their own machines, but this repository ships and validates Windows only.
-
-## Project status
-
-`3.3.1` adds a first-class WSL source with distribution detection and simultaneous Windows/WSL monitoring, plus uniform-width detached task bubbles. EXE and portable distribution, opt-in Windows startup, the About page, and bundled completion audio remain included. Its optional cost display uses an offline standard API list-price snapshot only; it is not a Codex credit or subscription-bill calculation. This is an unofficial, independent project and is not affiliated with or endorsed by OpenAI, Microsoft, or DeepSeek.
+- Windows 10/11 x64 is packaged and tested.
+- The project is independent and unofficial; it is not affiliated with or endorsed by OpenAI, Microsoft, DeepSeek, or Apple.
+- The interface is a lightweight WPF interpretation of the iOS 26 visual language. It does not use the retired Windows Blur/Acrylic glass mode.
+- The mascot portrait is a modified CC0 asset; full provenance is recorded in the third-party notice.
 
 MIT License.

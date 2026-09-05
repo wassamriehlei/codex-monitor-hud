@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Windows;
 using System.Xml.Linq;
@@ -28,7 +30,12 @@ internal static class Program
         {
         }
         var arguments = AppArguments.Parse(args);
+        if (!string.IsNullOrWhiteSpace(arguments.HudHome))
+        {
+            Environment.SetEnvironmentVariable("CODEX_MONITOR_HUD_HOME", arguments.HudHome);
+        }
         var pluginRoot = ResolvePluginRoot(arguments.PluginRoot);
+        arguments = ConfigurePortableMode(arguments, pluginRoot);
         var configuredHome = Environment.GetEnvironmentVariable("CODEX_MONITOR_HUD_HOME");
         var testHome = Environment.GetEnvironmentVariable("CODEX_MONITOR_HUD_TEST_HOME");
         var testLocalAppData = Environment.GetEnvironmentVariable("CODEX_MONITOR_HUD_TEST_LOCALAPPDATA");
@@ -169,7 +176,7 @@ internal static class Program
             var result = JsonSerializer.Serialize(new
             {
                 product = "Codex Monitor HUD",
-                version = "3.3.1",
+                version = "3.4.0",
                 framework = Environment.Version.ToString(),
                 config = "ok",
                 xaml = "ok",
@@ -204,5 +211,43 @@ internal static class Program
             current = current.Parent;
         }
         throw new DirectoryNotFoundException("Codex Monitor HUD plugin root could not be resolved.");
+    }
+
+    private static AppArguments ConfigurePortableMode(AppArguments arguments, string pluginRoot)
+    {
+        if (!File.Exists(Path.Combine(pluginRoot, "portable.marker")))
+        {
+            return arguments;
+        }
+
+        var dataHome = Path.Combine(pluginRoot, "portable-data");
+        Environment.SetEnvironmentVariable("CODEX_MONITOR_HUD_DATA_HOME", dataHome);
+        Directory.CreateDirectory(dataHome);
+        var portableState = Path.Combine(dataHome, "CodexMonitorHUD");
+        Directory.CreateDirectory(portableState);
+        var portableConfig = Path.Combine(portableState, "settings.json");
+        if (!File.Exists(portableConfig))
+        {
+            try
+            {
+                File.Copy(Path.Combine(pluginRoot, "config.default.json"), portableConfig, overwrite: false);
+            }
+            catch (IOException) when (File.Exists(portableConfig))
+            {
+                // Two aliases may be launched together on first use; whichever
+                // creates the same default settings file first wins.
+            }
+        }
+        if (!string.IsNullOrWhiteSpace(arguments.InstanceId))
+        {
+            return arguments;
+        }
+
+        var normalizedRoot = Path.GetFullPath(pluginRoot)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            .ToLowerInvariant();
+        var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedRoot)))
+            .ToLowerInvariant()[..12];
+        return arguments with { InstanceId = "portable-" + digest };
     }
 }

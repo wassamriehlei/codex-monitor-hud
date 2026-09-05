@@ -5,13 +5,10 @@ param(
     [switch]$Legacy
 )
 $root = Split-Path -Parent $PSScriptRoot
-$runtimeRoot = Join-Path $root 'runtime\win-x64'
-$dotnet = Join-Path $runtimeRoot 'dotnet\dotnet.exe'
-$app = Join-Path $runtimeRoot 'app\CodexMonitorHud.dll'
+$app = Join-Path $root 'CodexMonitorHUD.exe'
 $compiledStarted = $false
-if (-not $Legacy -and (Test-Path -LiteralPath $dotnet) -and (Test-Path -LiteralPath $app)) {
+if (-not $Legacy -and (Test-Path -LiteralPath $app)) {
     $compiledArguments = @(
-        ('"{0}"' -f $app),
         '--plugin-root',
         ('"{0}"' -f $root)
     )
@@ -20,7 +17,7 @@ if (-not $Legacy -and (Test-Path -LiteralPath $dotnet) -and (Test-Path -LiteralP
     if ($DebugLog) { $compiledArguments += '--debug-log' }
     if ($env:CODEX_MONITOR_HUD_INSTANCE_ID) { $compiledArguments += @('--instance-id',('"{0}"' -f $env:CODEX_MONITOR_HUD_INSTANCE_ID)) }
     try {
-        $process = Start-Process -FilePath $dotnet -WindowStyle Hidden -ArgumentList $compiledArguments -PassThru
+        $process = Start-Process -FilePath $app -WindowStyle Hidden -ArgumentList $compiledArguments -PassThru
         if ($process.WaitForExit(1200)) {
             $compiledStarted = $process.ExitCode -eq 0
         } else {
