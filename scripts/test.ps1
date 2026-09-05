@@ -230,7 +230,7 @@ $installText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'sc
 $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root '.codex-plugin\plugin.json') | ConvertFrom-Json
 if ([string]$manifest.version -ne '3.4.1' -or $mcpText -notmatch 'SERVER_VERSION = "3\.4\.1"' -or [string]$manifest.version -match 'preview') { throw 'Stable v3.4.1 manifest and MCP version are not aligned.' }
 $installManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'install-manifest.json') | ConvertFrom-Json
-if ([string]$installManifest.version -ne '3.4.1' -or [string]$installManifest.releaseTag -ne 'v3.4.1' -or -not [bool]$installManifest.rules.verifyChecksum -or -not [bool]$installManifest.rules.extractAllFiles -or -not [bool]$installManifest.rules.preservePortableData -or [bool]$installManifest.rules.systemDotnetRequired -or $null -ne $installManifest.platforms.'macos-arm64') { throw 'Deterministic Windows v3.4.1 Portable manifest is invalid.' }
+if ([string]$installManifest.version -ne '3.4.1' -or [string]$installManifest.releaseTag -ne 'v3.4.1' -or -not [bool]$installManifest.rules.verifyChecksum -or -not [bool]$installManifest.rules.extractAllFiles -or -not [bool]$installManifest.rules.preservePortableData -or -not [bool]$installManifest.rules.systemDotnetRequired -or $null -ne $installManifest.platforms.'macos-arm64') { throw 'Deterministic Windows v3.4.1 Portable manifest is invalid.' }
 $dotnetRequired = @(
     'CodexMonitorHud.slnx',
     'src-dotnet/CodexMonitorHud.Core/CodexMonitorHud.Core.csproj',
@@ -325,6 +325,11 @@ if ($releaseText -notmatch 'SHA256') { throw 'Release package checksum generatio
 if ([string]$installManifest.platforms.'windows-x64'.asset -ne 'CodexMonitorHUD-Portable-3.4.1-windows-x64.zip' -or $releaseText -notmatch 'CodexMonitorHUD-Portable-\$Version-windows-x64\.zip') { throw 'Portable release asset name and manifest are not aligned.' }
 if ($releaseText -match 'stage-repository|CodexMonitorHUD-windows-x64\.zip|CodexMonitorHUD-Setup-|InnoCompiler|SkipInstaller') { throw 'Obsolete installer or repository compatibility packaging remains enabled.' }
 if ($releaseText -match 'CodexMonitorHUD-Settings\.exe') { throw 'Portable release must contain only the main EXE.' }
+if ($releaseText -match "'runtime'") { throw 'Portable release must use the user-installed .NET Desktop Runtime.' }
+$buildText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'scripts\build-dotnet.ps1')
+foreach ($required in @('--self-contained false','PublishSingleFile=true','Framework-dependent executable built','Remove-Item -LiteralPath $obsoleteRuntime')) {
+    if ($buildText -notmatch [regex]::Escape($required)) { throw "Framework-dependent build path '$required' is missing." }
+}
 if ($installText -notmatch 'DefaultLanguage' -or $installText -notmatch 'Test-Path -LiteralPath \$settingsPath') { throw 'First-install prompt-language selection or upgrade-preservation guard is missing.' }
 foreach ($required in @('RollbackVersion','Switch-InstalledTree','.codex-monitor-hud-stage-','.codex-monitor-hud-rollback-','compare-runtime-performance.ps1')) {
     if ($installText -notmatch [regex]::Escape($required)) { throw "Transactional install or rollback path '$required' is missing." }

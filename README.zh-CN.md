@@ -21,9 +21,11 @@ Codex Monitor HUD 实时展示任务状态、Token 用量、上下文压力、�
 | --- | --- | --- |
 | `CodexMonitorHUD-Portable-3.4.1-windows-x64.zip` | 完整解压后双击 `CodexMonitorHUD.exe` | EXE 同目录下的 `portable-data\CodexMonitorHUD` |
 
-设置从 HUD 或系统托盘菜单进入。Portable 发布包只保留 `CodexMonitorHUD.exe`，不再提供独立 Settings EXE、安装器或公开 CMD 启动器。请把 ZIP 完整解压到可写目录，不要直接在压缩包预览窗口中运行 EXE。
+首次运行前，请安装微软官方 [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) 的 **Windows x64** 版本。请选择 **Desktop Runtime（桌面运行时）**，不需要 SDK，也不要选成 ASP.NET Core Runtime。
 
-发布包内置私有 .NET/WPF 运行时和默认完成提示音，不要求系统另装 .NET SDK。可使用 `SHA256SUMS.txt` 校验下载；当前 EXE 尚未代码签名，因此 Windows 可能显示“未知发布者”。
+设置从 HUD 或系统托盘菜单进入。Portable 发布包只保留 `CodexMonitorHUD.exe`，不再提供独立 Settings EXE、安装器、公开 CMD 启动器或私有 runtime 文件夹。请把 ZIP 完整解压到可写目录，不要直接在压缩包预览窗口中运行 EXE。
+
+发布包内置默认完成提示音。安装 Desktop Runtime 前置依赖后不需要 .NET SDK。可使用 `SHA256SUMS.txt` 校验下载；当前 EXE 尚未代码签名，因此 Windows 可能显示“未知发布者”。
 
 升级时先退出 HUD，保留原有 `portable-data` 目录，用新版本完整解压后的文件替换其余内容，再把 `portable-data` 放回两个 EXE 旁边即可。
 
@@ -76,7 +78,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1 -D
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-dotnet.ps1
 ```
 
-构建后，仓库根目录只生成 `CodexMonitorHUD.exe`。`scripts/prepare-release.ps1` 只生成带版本号的 Portable ZIP，采用最小体积压缩，并在结束时自动删除临时暂存目录。PDB、CMD、源码工程、测试夹具、工具链和用户数据均不会进入发布包。WPF 官方不支持的 IL 裁剪没有启用，从而保持运行稳定性。
+构建后，仓库根目录只生成依赖系统桌面运行时的 `CodexMonitorHUD.exe`。`scripts/prepare-release.ps1` 只生成带版本号的 Portable ZIP，采用最小体积压缩，并在结束时自动删除临时暂存目录。PDB、CMD、私有 runtime 副本、源码工程、测试夹具、工具链和用户数据均不会进入发布包。
 
 ## 隐私说明
 

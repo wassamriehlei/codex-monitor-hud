@@ -20,7 +20,7 @@
     "preservePortableData": true,
     "userWritableDirectory": true,
     "administratorRequired": false,
-    "systemDotnetRequired": false,
+    "systemDotnetRequired": true,
     "readSessionContent": false,
     "uploadLocalData": false
   },

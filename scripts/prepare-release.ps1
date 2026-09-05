@@ -62,7 +62,7 @@ try {
         '.codex-plugin','.mcp.json','CodexMonitorHUD.exe',
         'config.default.json','pricing.default.json','install-manifest.json',
         'LICENSE','README.md','README.zh-CN.md','CHANGELOG.md','PRIVACY.md','SECURITY.md','THIRD_PARTY_NOTICES.md',
-        'runtime','src','locales','themes','assets\audio','assets\screenshots',
+        'src','locales','themes','assets\audio','assets\screenshots',
         'assets\codex-monitor-hud.ico','assets\codex-monitor-hud-256.png','assets\icon.svg',
         'scripts\restart.ps1','scripts\start.ps1'
     )

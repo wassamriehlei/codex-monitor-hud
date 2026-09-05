@@ -5,10 +5,10 @@ This is the canonical agent procedure. A repository URL plus “帮我安装” 
 ## Deterministic Portable procedure
 
 1. Confirm the repository is `https://github.com/wassamriehlei/codex-monitor-hud` and read `install-manifest.json`.
-2. Select `windows-x64`. Stop for other platforms or architectures.
+2. Select `windows-x64`. Confirm that Microsoft .NET 10 Desktop Runtime x64 is installed. If it is missing, direct the user to `https://dotnet.microsoft.com/download/dotnet/10.0` and wait for them to install **Desktop Runtime**.
 3. Download the manifest's exact-tag Portable ZIP and `SHA256SUMS.txt` from GitHub Releases.
 4. Verify that the checksum file contains exactly the expected asset name, then verify the ZIP's SHA-256 before extraction.
-5. Extract every file to a new user-writable directory. No administrator access or system .NET installation is needed.
+5. Extract every file to a new user-writable directory. The HUD itself needs no administrator access; its system-wide Desktop Runtime prerequisite may request elevation through Microsoft's installer.
 6. For an upgrade, close the old HUD, retain the existing `portable-data` directory, replace the remaining application files, and restore `portable-data` unchanged.
 7. Start `CodexMonitorHUD.exe`. Open settings from the HUD or notification-area menu; automation can run `CodexMonitorHUD.exe --open-settings`.
 8. Confirm that `portable-data\CodexMonitorHUD\hud.heartbeat` is fresh. Report the version, asset checksum, extraction directory, data directory, and heartbeat result.

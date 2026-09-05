@@ -7,6 +7,7 @@
 - Remove obsolete installer/protocol scripts, repeated legacy screenshots, historical artifacts, test output, build intermediates, and unused packaging toolchains.
 - Refresh the application icon with the generated transparent-background anime programmer artwork and rebuild the root EXE entry point.
 - Consolidate startup and Settings into the single `CodexMonitorHUD.exe`; Settings remains available from the HUD/tray or `--open-settings`.
+- Remove the 168 MiB private runtime tree from source and releases; the lightweight Portable package now uses the user-installed Microsoft .NET 10 Desktop Runtime x64.
 
 ## 3.4.0 - 2026-09-05
 

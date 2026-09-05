@@ -28,10 +28,11 @@ try {
     $zip = [IO.Compression.ZipFile]::OpenRead($archive)
     try {
         $names = @($zip.Entries | ForEach-Object { $_.FullName.Replace('\','/') })
-        foreach ($required in @('.codex-plugin/plugin.json','.mcp.json','CodexMonitorHUD.exe','portable.marker','install-manifest.json','src/CodexMonitorHUD.ps1','scripts/restart.ps1','runtime/win-x64/dotnet/dotnet.exe','assets/audio/default-completion.mp3')) {
+        foreach ($required in @('.codex-plugin/plugin.json','.mcp.json','CodexMonitorHUD.exe','portable.marker','install-manifest.json','src/CodexMonitorHUD.ps1','scripts/restart.ps1','assets/audio/default-completion.mp3')) {
             if ($required -notin $names) { throw "Missing package entry: $required" }
         }
         if ('CodexMonitorHUD-Settings.exe' -in $names) { throw 'Obsolete Settings EXE alias remains in the Portable package.' }
+        if (@($names | Where-Object { $_ -match '(^|/)runtime/' }).Count -ne 0) { throw 'Portable package still contains a private runtime.' }
         if (@($names | Where-Object { $_ -match '\.cmd$' }).Count -ne 0) { throw 'Portable package still contains CMD launchers.' }
         foreach ($name in $names) {
             if ($name -match '(^|/)(\.git|private|portable-data|\.test-output[^/]*|node_modules|bin|obj|\.agents)(/|$)|(^|/)settings\.json$|\.(pdb|jsonl|db|sqlite3?|log)$|(^|/)\.env') { throw "Private/build data in package: $name" }
@@ -70,7 +71,7 @@ try {
         if (-not (Test-Path -LiteralPath (Join-Path $state 'settings.json'))) { throw 'Portable configuration was not created beside the launcher.' }
         $after = if (Test-Path -LiteralPath $productionSettings) { Get-ReleaseHash $productionSettings } else { '' }
         if ($before -ne $after) { throw 'Portable launch changed installed settings.' }
-        Write-Output "Release payload: OK ($($names.Count) entries; one verified Portable ZIP, single root EXE, no CMD launchers, bundled runtime/audio, portable isolation, live HUD and Settings)"
+        Write-Output "Release payload: OK ($($names.Count) entries; one verified Portable ZIP, single root EXE, no CMD/private runtime, bundled audio, portable isolation, live HUD and Settings)"
     } finally {
         foreach ($signal in @('manual-exit.signal','exit.signal','settings-host-exit.signal')) { [IO.File]::WriteAllText((Join-Path $state $signal),'test shutdown') }
         try {

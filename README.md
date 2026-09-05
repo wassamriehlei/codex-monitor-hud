@@ -21,9 +21,11 @@ Download the latest stable assets from [GitHub Releases](https://github.com/wass
 | --- | --- | --- |
 | `CodexMonitorHUD-Portable-3.4.1-windows-x64.zip` | Extract all files, then double-click `CodexMonitorHUD.exe` | `portable-data\CodexMonitorHUD` beside the EXE |
 
-Open Settings from the HUD or notification-area menu. The Portable release contains only `CodexMonitorHUD.exe`, with no separate Settings EXE, public CMD launcher, or installer. Keep the extracted directory writable and do not run the EXE from inside the ZIP.
+Before first run, install Microsoft's [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) for **Windows x64**. Choose **Desktop Runtime**, not the SDK or ASP.NET Core Runtime.
 
-The package includes the private .NET/WPF runtime and default completion sound. No system-wide .NET SDK is required. Verify the download with `SHA256SUMS.txt`; the current binaries are not code-signed, so Windows may show an unknown-publisher prompt.
+Open Settings from the HUD or notification-area menu. The Portable release contains only `CodexMonitorHUD.exe`, with no separate Settings EXE, public CMD launcher, installer, or private runtime folder. Keep the extracted directory writable and do not run the EXE from inside the ZIP.
+
+The package includes the default completion sound. A .NET SDK is not required after the Desktop Runtime prerequisite is installed. Verify the download with `SHA256SUMS.txt`; the current binary is not code-signed, so Windows may show an unknown-publisher prompt.
 
 To upgrade, exit the HUD, retain the existing `portable-data` directory, replace the other files with a fully extracted new release, then put `portable-data` back beside the EXEs.
 
@@ -76,7 +78,7 @@ Build the Windows AppHost and private runtime:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-dotnet.ps1
 ```
 
-The build creates the single `CodexMonitorHUD.exe` entry point at the repository root. `scripts/prepare-release.ps1` creates only the versioned Portable ZIP, uses smallest-size compression, and removes its temporary stage automatically. PDB/CMD files, development projects, tests, toolchains, and user data stay out of the archive. WPF trimming is intentionally avoided because it is not supported by the desktop framework.
+The build creates the single framework-dependent `CodexMonitorHUD.exe` entry point at the repository root. `scripts/prepare-release.ps1` creates only the versioned Portable ZIP, uses smallest-size compression, and removes its temporary stage automatically. PDB/CMD files, private runtime copies, development projects, tests, toolchains, and user data stay out of the archive.
 
 ## Privacy
 
