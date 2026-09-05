@@ -2,6 +2,9 @@
 
 ## Unreleased - UI customization and desktop polish
 
+- Track rounded native window regions across layout, DPI, and material changes. Known issue: Windows glass composition can still paint a rectangular background outside the region; this remains unresolved.
+- Combine task numbers with their source icons in one compact badge and tighten task-list and detached-bubble spacing.
+- Move list status, model, totals, and context alongside the title, wrapping within the available width while preserving action buttons and optional field visibility.
 - Add selectable completion sounds, including local WAV, MP3, WMA, M4A, and AAC files with an in-Settings preview.
 - Make the main HUD width adjustable, let summary metrics wrap responsively, and keep narrow task-row actions visible.
 - Let users choose an installed Windows font, prefer HarmonyOS Sans SC by default, and independently toggle directory, time, context, status/listening, model, cache hit rate, call total, task total, estimated cost, and update time in the main task list.

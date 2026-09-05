@@ -52,6 +52,7 @@ internal sealed class TaskBubbleView : IDisposable
         TaskNumber = state.Number;
         Window = XamlLoader.LoadWindow(xamlPath);
         _shell = XamlLoader.Require<Border>(Window, "TaskBubbleShell");
+        WindowBackdrop.TrackShell(Window, _shell, () => _backdropMode);
         _dot = XamlLoader.Require<Ellipse>(Window, "TaskBubbleStatusDot");
         _dismiss = XamlLoader.Require<Button>(Window, "TaskBubbleDismissButton");
         _merge = XamlLoader.Require<Button>(Window, "TaskBubbleMergeButton");

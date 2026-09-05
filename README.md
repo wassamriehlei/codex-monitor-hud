@@ -24,7 +24,7 @@ The Windows Release bundles a private .NET/WPF runtime so it can run without req
 - Cached / uncached input, output, reasoning output, per-call and per-task totals, context usage, model, and task count.
 - Latest account-wide weekly and 5-hour allowance windows, from local `rate_limits` records or the optional official local Codex allowance reader.
 - Stable task numbers, workspace labels, and the official local conversation title from `session_index.jsonl`.
-- A source badge before every task number, so Desktop, VS Code, OpenAI CLI, and DeepSeek CLI work cannot be mistaken for one another.
+- A compact badge combining each task's source icon and stable number, so Desktop, VS Code, OpenAI CLI, and DeepSeek CLI work cannot be mistaken for one another.
 - Cache hit rate and context usage are per-task signals, so they stay on list rows and detached bubbles instead of being meaninglessly added into the summary. Each row uses that task's provider-reported context window; GPT and DeepSeek values are never mixed.
 - Optional API-list-price equivalent cost estimate, clearly marked as an estimate rather than a subscription bill or credit balance.
 - Adjustable 360–1600 px main-HUD width. Summary metrics wrap automatically, and narrow task rows move metrics to a second line so their action buttons remain visible.

@@ -72,6 +72,12 @@ public static class HudNativeMethods {
     public static extern bool SetProcessDpiAwarenessContext(IntPtr dpiContext);
     [DllImport("user32.dll")]
     public static extern int SetWindowCompositionAttribute(IntPtr hWnd, ref HudWindowCompositionAttributeData data);
+    [DllImport("gdi32.dll")]
+    public static extern IntPtr CreateRoundRectRgn(int left, int top, int right, int bottom, int ellipseWidth, int ellipseHeight);
+    [DllImport("user32.dll")]
+    public static extern int SetWindowRgn(IntPtr window, IntPtr region, bool redraw);
+    [DllImport("gdi32.dll")]
+    public static extern bool DeleteObject(IntPtr value);
     [DllImport("kernel32.dll")]
     public static extern IntPtr GetCurrentProcess();
     [DllImport("kernel32.dll", SetLastError=true)]
@@ -353,6 +359,40 @@ function Set-HudWindowBackdrop {
     }
 }
 
+function Sync-HudShellRegion {
+    param($Window, $Shell, $RegionState)
+    $handle = (New-Object Windows.Interop.WindowInteropHelper($Window)).Handle
+    if ($handle -eq [IntPtr]::Zero) { return }
+    if (@('blur','acrylic') -notcontains [string]$config.themeStyle.backdrop) {
+        if ($RegionState.Signature -ne '' -and [HudNativeMethods]::SetWindowRgn($handle,[IntPtr]::Zero,$true) -ne 0) { $RegionState.Signature = '' }
+        return
+    }
+    if (-not $Shell.IsArrangeValid -or $Shell.ActualWidth -le 0 -or $Shell.ActualHeight -le 0) { return }
+    $dpi = [Windows.Media.VisualTreeHelper]::GetDpi($Window)
+    $bounds = $Shell.TransformToAncestor($Window).TransformBounds((New-Object Windows.Rect($Shell.RenderSize)))
+    $radius = [Math]::Min([double]$Shell.CornerRadius.TopLeft,[Math]::Min($bounds.Width,$bounds.Height)/2)
+    $left = [int][Math]::Round($bounds.Left * $dpi.DpiScaleX)
+    $top = [int][Math]::Round($bounds.Top * $dpi.DpiScaleY)
+    $right = [int][Math]::Round($bounds.Right * $dpi.DpiScaleX) + 1
+    $bottom = [int][Math]::Round($bounds.Bottom * $dpi.DpiScaleY) + 1
+    $diameterX = [int][Math]::Round(2 * $radius * $dpi.DpiScaleX)
+    $diameterY = [int][Math]::Round(2 * $radius * $dpi.DpiScaleY)
+    $signature = "$left,$top,$right,$bottom,$diameterX,$diameterY"
+    if ($RegionState.Signature -eq $signature) { return }
+    $region = [HudNativeMethods]::CreateRoundRectRgn($left,$top,$right,$bottom,$diameterX,$diameterY)
+    if ($region -eq [IntPtr]::Zero) { return }
+    if ([HudNativeMethods]::SetWindowRgn($handle,$region,$true) -ne 0) { $RegionState.Signature = $signature }
+    else { [void][HudNativeMethods]::DeleteObject($region) }
+}
+
+function Register-HudShellRegion {
+    param($Window, $Shell)
+    $regionState = @{ Signature = '' }
+    $handler = [EventHandler]({ Sync-HudShellRegion $Window $Shell $regionState }.GetNewClosure())
+    $Window.Add_LayoutUpdated($handler)
+    $Window.Add_Closed(({ $Window.Remove_LayoutUpdated($handler) }).GetNewClosure())
+}
+
 function Get-HudEffectProfile {
     param([string]$Color, [double]$Opacity, [double]$Blur)
     return Get-HudSurfaceEffectProfile `
@@ -481,6 +521,7 @@ $hud = Load-XamlWindow (Join-Path $PSScriptRoot 'HudWindow.xaml')
 Set-HudWindowIcon $hud
 Write-HudDebug 'HUD XAML loaded.'
 $hudShell = Find-Control $hud 'HudShell'
+Register-HudShellRegion $hud $hudShell
 $hudContentPanel = Find-Control $hud 'HudContentPanel'
 $statusDot = Find-Control $hud 'StatusDot'
 $metricsPanel = Find-Control $hud 'MetricsPanel'
@@ -1409,8 +1450,21 @@ function New-HudTaskSourceBadge {
     $badge.Background = New-Object Windows.Media.SolidColorBrush($fill)
     $badge.BorderBrush = New-Object Windows.Media.SolidColorBrush($stroke)
     $badge.BorderThickness = New-Object Windows.Thickness(1)
-    $badge.ToolTip = $label
-    $badge.Child = $viewbox
+    $badge.VerticalAlignment = [Windows.VerticalAlignment]::Center
+    $badge.HorizontalAlignment = [Windows.HorizontalAlignment]::Left
+    $badge.ToolTip = $label + ' · ' + (Get-TaskDisplayName $State -IncludeNumber)
+    $identity = New-Object Windows.Controls.StackPanel
+    $identity.Orientation = [Windows.Controls.Orientation]::Horizontal
+    [void]$identity.Children.Add($viewbox)
+    $number = New-Object Windows.Controls.TextBlock
+    $number.Text = '#{0}' -f [int]$State.Number
+    $number.FontSize = [Math]::Max(10,[double]$config.fontSize - 2)
+    $number.FontWeight = [Windows.FontWeights]::SemiBold
+    $number.Foreground = $icon.Stroke
+    $number.Margin = New-Object Windows.Thickness(3,0,0,0)
+    $number.VerticalAlignment = [Windows.VerticalAlignment]::Center
+    [void]$identity.Children.Add($number)
+    $badge.Child = $identity
     return $badge
 }
 
@@ -2459,7 +2513,6 @@ function Show-TaskBubble {
         Window = $window
         Shell = Find-Control $window 'TaskBubbleShell'
         Dot = Find-Control $window 'TaskBubbleStatusDot'
-        NumberBadge = Find-Control $window 'TaskBubbleNumberBadge'
         Number = Find-Control $window 'TaskBubbleNumber'
         SourceBadge = Find-Control $window 'TaskBubbleSourceBadge'
         SourceIcon = Find-Control $window 'TaskBubbleSourceIcon'
@@ -2479,6 +2532,7 @@ function Show-TaskBubble {
         IsIndicatorCollapsed = $false
     }
     $script:splitWindows[$path] = $entry
+    Register-HudShellRegion $window $entry.Shell
     $entryRecord = $entry
     $taskPath = $path
     $splitWindowMap = $script:splitWindows
@@ -2682,14 +2736,13 @@ function Render-TaskList {
     $taskListScroller.Visibility = if ($visible -and $states.Count -gt 0) { [Windows.Visibility]::Visible } else { [Windows.Visibility]::Collapsed }
     $taskListDivider.Visibility = $taskListScroller.Visibility
     if (-not $visible) { return }
-    $narrowLayout = [double]$hudShell.Width -lt 760
     foreach ($state in $states) {
         $path = [string]$state.Path
         $row = New-Object Windows.Controls.Grid
         $row.Margin = $density.RowMargin
         $row.Background = New-HudRoleBrush '#08000000' '#08000000' 'decoration'
         $gridLengthConverter = New-Object Windows.GridLengthConverter
-        $columnWidths = if ($narrowLayout) { @('Auto','Auto','Auto','*','0','Auto','Auto') } else { @('Auto','Auto','Auto','Auto','*','Auto','Auto') }
+        $columnWidths = @('Auto','Auto','0','*','0','Auto','Auto')
         foreach($width in $columnWidths) {
             $column = New-Object Windows.Controls.ColumnDefinition
             $column.Width = $gridLengthConverter.ConvertFromString($width)
@@ -2700,53 +2753,36 @@ function Render-TaskList {
         [Windows.Controls.Grid]::SetColumn($dot,0);[void]$row.Children.Add($dot)
         $sourceBadge = New-HudTaskSourceBadge $state ([double]$density.BadgeRadius) (New-Object Windows.Thickness(0,1,6,1))
         [Windows.Controls.Grid]::SetColumn($sourceBadge,1);[void]$row.Children.Add($sourceBadge)
-        $badge=New-Object Windows.Controls.Border;$badge.CornerRadius=New-Object Windows.CornerRadius([double]$density.BadgeRadius);$badge.Background=New-HudBrush '#120A84FF';$badge.Padding=$density.BadgePadding;$badge.Margin=$density.BadgeMargin;$badge.ToolTip=Get-TaskDisplayName $state -IncludeNumber
-        $badgeText=New-Object Windows.Controls.TextBlock;$badgeText.Text=('#{0}'-f[int]$state.Number);$badgeText.FontWeight='SemiBold';$badgeText.Foreground=New-HudRoleBrush ([string]$config.accent) '#FF0A84FF' 'primary';$badge.Child=$badgeText
-        [Windows.Controls.Grid]::SetColumn($badge,2);[void]$row.Children.Add($badge)
         $projectName = Get-TaskProjectName $state
         $fullName = Get-TaskDisplayName $state
         $collapsedSubtitle = Get-TaskListSubtitle $state
         $expandedSubtitle = Get-TaskListSubtitle $state -IncludeConversationTitle
-        $identityHost=New-Object Windows.Controls.StackPanel;$identityHost.Orientation=[Windows.Controls.Orientation]::Vertical;$identityHost.VerticalAlignment='Center';$identityHost.Margin=New-Object Windows.Thickness(0,2,12,2);$identityHost.MaxWidth=280;$identityHost.ToolTip=$fullName
+        $identityHost=New-Object Windows.Controls.StackPanel;$identityHost.Orientation=[Windows.Controls.Orientation]::Vertical;$identityHost.VerticalAlignment='Center';$identityHost.Margin=New-Object Windows.Thickness(0,1,8,1);$identityHost.ToolTip=$fullName
         $name=New-Object Windows.Controls.TextBlock;$name.Text=$projectName;$name.FontWeight=[Windows.FontWeights]::SemiBold;$name.TextTrimming=[Windows.TextTrimming]::CharacterEllipsis;$name.Foreground=New-HudRoleBrush ([string]$config.foreground) '#FF111827' 'primary'
         $name.Visibility=if([bool]$config.multiTask.listFields.directory){[Windows.Visibility]::Visible}else{[Windows.Visibility]::Collapsed}
+        $name.MaxWidth=180;$name.Margin=New-Object Windows.Thickness(0,0,7,0);$name.VerticalAlignment='Center'
         $subtitle=New-Object Windows.Controls.TextBlock;$subtitle.Text=if([string]$config.multiTask.nameMode-eq'hidden'){$collapsedSubtitle}else{$expandedSubtitle};$subtitle.Margin=New-Object Windows.Thickness(0,1,0,0);$subtitle.FontSize=[Math]::Max(9,[double]$config.fontSize-3);$subtitle.TextTrimming=[Windows.TextTrimming]::CharacterEllipsis;$subtitle.Foreground=New-HudRoleBrush ([string]$config.muted) '#FF667085' 'secondary';$subtitle.Visibility=if([string]::IsNullOrWhiteSpace([string]$subtitle.Text)){[Windows.Visibility]::Collapsed}else{[Windows.Visibility]::Visible}
-        [void]$identityHost.Children.Add($name);[void]$identityHost.Children.Add($subtitle)
-        $identityHost.Visibility=if($name.Visibility -eq [Windows.Visibility]::Visible -or $subtitle.Visibility -eq [Windows.Visibility]::Visible){[Windows.Visibility]::Visible}else{[Windows.Visibility]::Collapsed}
         [Windows.Controls.Grid]::SetColumn($identityHost,3);[void]$row.Children.Add($identityHost)
-        $metricsHost=New-Object Windows.Controls.Grid;$metricsHost.VerticalAlignment='Center'
-        $contextColumn=New-Object Windows.Controls.ColumnDefinition;$contextColumn.Width=$gridLengthConverter.ConvertFromString('Auto');[void]$metricsHost.ColumnDefinitions.Add($contextColumn)
-        $metricColumn=New-Object Windows.Controls.ColumnDefinition;$metricColumn.Width=$gridLengthConverter.ConvertFromString('*');[void]$metricsHost.ColumnDefinitions.Add($metricColumn)
+        $metricsHost=New-Object Windows.Controls.WrapPanel;$metricsHost.VerticalAlignment='Center'
         $contextMetric=New-Object Windows.Controls.Border;$contextMetric.CornerRadius=New-Object Windows.CornerRadius(7);$contextMetric.Padding=New-Object Windows.Thickness(6,2,6,2);$contextMetric.Margin=New-Object Windows.Thickness(0,0,7,0);$contextMetric.BorderThickness=New-Object Windows.Thickness(1);$contextMetric.BorderBrush=New-HudRoleBrush '#330A84FF' '#330A84FF' 'decoration';$contextMetric.Background=New-HudRoleBrush '#0D0A84FF' '#0D0A84FF' 'decoration'
         $contextText=New-Object Windows.Controls.TextBlock;$contextText.Text=if($null-ne$state.Snapshot){('{0} {1}' -f [string]$settingsLocale.context,$(if([Int64]$state.Snapshot.ContextWindow-gt 0){Format-HudPercent ([double]$state.Snapshot.ContextPercent)}else{'--'}))}else{[string]$settingsLocale.waiting};$contextText.FontWeight='SemiBold';$contextText.Foreground=New-HudRoleBrush ([string]$config.foreground) '#FF111827' 'primary';$contextMetric.Child=$contextText
         $contextMetric.ToolTip=if($null-ne$state.Snapshot-and[Int64]$state.Snapshot.ContextWindow-gt 0){('{0} {1}'-f[string]$settingsLocale.contextWindow,(Format-HudNumber ([Int64]$state.Snapshot.ContextWindow) 'auto'))}else{[string]$settingsLocale.contextUnavailable}
         $contextMetric.Visibility=if([bool]$config.multiTask.listFields.context){[Windows.Visibility]::Visible}else{[Windows.Visibility]::Collapsed}
-        [Windows.Controls.Grid]::SetColumn($contextMetric,0);[void]$metricsHost.Children.Add($contextMetric)
+        $contextMetric.Padding=New-Object Windows.Thickness(5,1,5,1);$contextMetric.Margin=New-Object Windows.Thickness(0);$contextMetric.VerticalAlignment='Center';$contextText.FontSize=[Math]::Max(9,[double]$config.fontSize-2)
         $metrics=New-Object Windows.Controls.TextBlock;$metrics.Text=Get-TaskListMetricsText $state;$metrics.VerticalAlignment='Center';$metrics.Foreground=New-HudRoleBrush ([string]$config.muted) '#FF667085' 'secondary';$metrics.TextTrimming='CharacterEllipsis';$metrics.ToolTip=$metrics.Text;$metrics.Visibility=if([string]::IsNullOrWhiteSpace([string]$metrics.Text)){[Windows.Visibility]::Collapsed}else{[Windows.Visibility]::Visible}
-        [Windows.Controls.Grid]::SetColumn($metrics,1);[void]$metricsHost.Children.Add($metrics)
-        [Windows.Controls.Grid]::SetColumn($metricsHost,4);[void]$row.Children.Add($metricsHost)
+        $metrics.FontSize=[Math]::Max(9,[double]$config.fontSize-2);$metrics.Margin=New-Object Windows.Thickness(0,0,7,0);$metrics.TextWrapping='Wrap'
+        [void]$metricsHost.Children.Add($name);[void]$metricsHost.Children.Add($metrics);[void]$metricsHost.Children.Add($contextMetric)
+        [void]$identityHost.Children.Add($metricsHost);[void]$identityHost.Children.Add($subtitle)
         $action=New-Object Windows.Controls.Button;$action.Content=New-HudTaskActionIcon ([bool]$state.Detached);$action.Style=$hud.FindResource('HudIconButton');$action.Width=[double]$density.ActionSize;$action.Height=[double]$density.ActionSize;$action.Tag=$path;$action.Margin=$density.ActionMargin;$action.ToolTip=if([bool]$state.Detached){[string]$settingsLocale.mergeTask}else{[string]$settingsLocale.detachTask}
         $action.Add_Click(({ Set-SessionDetached $path (-not [bool]$sessionStates[$path].Detached) }).GetNewClosure())
         [Windows.Controls.Grid]::SetColumn($action,5);[void]$row.Children.Add($action)
         $dismiss=New-Object Windows.Controls.Button;$dismiss.Content=New-HudDismissIcon;$dismiss.Style=$hud.FindResource('HudIconButton');$dismiss.Width=[double]$density.ActionSize;$dismiss.Height=[double]$density.ActionSize;$dismiss.Tag=$path;$dismiss.Margin=New-Object Windows.Thickness(1,0,2,0);$dismiss.ToolTip=[string]$settingsLocale.dismissTask
         $dismiss.Add_Click(({ Dismiss-HudTask $path }).GetNewClosure())
         [Windows.Controls.Grid]::SetColumn($dismiss,6);[void]$row.Children.Add($dismiss)
-        $twoLineLayout = ([string]$config.multiTask.listDetail -eq 'detailed') -or $narrowLayout
-        if ($twoLineLayout) {
-            $row.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
-            $row.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition))
-            $spanningControls = if($narrowLayout){@($dot,$action,$dismiss)}else{@($dot,$sourceBadge,$badge,$action,$dismiss)}
-            foreach($control in $spanningControls){[Windows.Controls.Grid]::SetRowSpan($control,2)}
-            [Windows.Controls.Grid]::SetRow($metricsHost,1);[Windows.Controls.Grid]::SetColumn($metricsHost,$(if($narrowLayout){1}else{3}));[Windows.Controls.Grid]::SetColumnSpan($metricsHost,$(if($narrowLayout){4}else{2}))
-            $metricsHost.Margin=if($narrowLayout){New-Object Windows.Thickness([double]$density.MetricsMargin.Left,4,[double]$density.MetricsMargin.Right,[double]$density.MetricsMargin.Bottom)}else{$density.MetricsMargin};$metrics.TextWrapping=[Windows.TextWrapping]::Wrap;$metrics.TextTrimming=[Windows.TextTrimming]::None
-        }
         $listItem = $row
         switch ([string]$config.multiTask.listStyle) {
             'cards' {
                 $row.Background = [Windows.Media.Brushes]::Transparent
-                if(-not$twoLineLayout){
-                    $row.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition));$row.RowDefinitions.Add((New-Object Windows.Controls.RowDefinition));[Windows.Controls.Grid]::SetRowSpan($dot,2);[Windows.Controls.Grid]::SetRow($metricsHost,1);[Windows.Controls.Grid]::SetColumn($metricsHost,1);[Windows.Controls.Grid]::SetColumnSpan($metricsHost,4);$metricsHost.Margin=$density.MetricsMargin;$metrics.TextWrapping=[Windows.TextWrapping]::Wrap
-                }
                 $card = New-Object Windows.Controls.Border
                 $card.CornerRadius = New-Object Windows.CornerRadius([double]$density.CardRadius)
                 $card.Padding = $density.CardPadding

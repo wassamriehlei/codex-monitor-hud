@@ -35,6 +35,16 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll")]
     internal static partial int SetWindowCompositionAttribute(nint window, ref WindowBackdrop.WindowCompositionAttributeData data);
 
+    [LibraryImport("gdi32.dll")]
+    internal static partial nint CreateRoundRectRgn(int left, int top, int right, int bottom, int ellipseWidth, int ellipseHeight);
+
+    [LibraryImport("user32.dll")]
+    internal static partial int SetWindowRgn(nint window, nint region, [MarshalAs(UnmanagedType.Bool)] bool redraw);
+
+    [LibraryImport("gdi32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool DeleteObject(nint value);
+
     [LibraryImport("kernel32.dll")]
     internal static partial nint GetCurrentProcess();
 

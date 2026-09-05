@@ -337,6 +337,17 @@ try {
     }
 
     Add-RuntimeSample 'pre-exit'
+    & (Join-Path $PSScriptRoot 'test-window-region.ps1') -ProcessId $process.Id
+    # Exercise native clipping removal/reapplication and resized shell layout.
+    foreach ($material in @('none','blur','acrylic')) {
+        $config.themeStyle.backdrop = $material
+        $config.hudWidth = if ($material -eq 'blur') { 520 } else { 900 }
+        $config.cornerRadius = if ($material -eq 'blur') { 30 } else { 22 }
+        [IO.File]::WriteAllText((Join-Path $stateRoot 'settings.json'), ($config | ConvertTo-Json -Depth 8), $encoding)
+        [IO.File]::WriteAllText((Join-Path $stateRoot 'reload-settings.signal'), [DateTime]::UtcNow.ToString('O'), $encoding)
+        Start-Sleep -Seconds 2
+        & (Join-Path $PSScriptRoot 'test-window-region.ps1') -ProcessId $process.Id -ExpectUnclipped:($material -eq 'none')
+    }
     [IO.File]::WriteAllText((Join-Path $stateRoot 'exit.signal'), [DateTime]::UtcNow.ToString('O'), $encoding)
     if (-not $process.WaitForExit(10000)) { throw 'Isolated HUD did not exit through its own signal.' }
     if ($process.ExitCode -ne 0) { throw ('Isolated HUD exit code: ' + $process.ExitCode) }

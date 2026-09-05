@@ -73,6 +73,7 @@ internal sealed class MainHudView : IDisposable
         _taskBubbleXaml = taskBubbleXamlPath;
         Window = XamlLoader.LoadWindow(hudXamlPath);
         _shell = XamlLoader.Require<Border>(Window, "HudShell");
+        WindowBackdrop.TrackShell(Window, _shell, () => _backdropMode);
         _contentPanel = XamlLoader.Require<StackPanel>(Window, "HudContentPanel");
         _statusDot = XamlLoader.Require<Ellipse>(Window, "StatusDot");
         _taskListToggle = XamlLoader.Require<Button>(Window, "TaskListToggleButton");
@@ -566,7 +567,6 @@ internal sealed class MainHudView : IDisposable
         }
 
         var density = Density(settings.MultiTask.ListDensity);
-        var narrowLayout = _shell.Width < 760;
         foreach (var state in states.OrderBy(static state => state.Number))
         {
             var status = statusFor(state);
@@ -575,9 +575,7 @@ internal sealed class MainHudView : IDisposable
                 Margin = density.RowMargin,
                 Background = _brushes.Create("#08000000", "#08000000", BrushRole.Decoration, settings, status, state.AttentionUntil > now)
             };
-            var columnWidths = narrowLayout
-                ? new[] { GridLength.Auto, GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), new GridLength(0), GridLength.Auto, GridLength.Auto }
-                : new[] { GridLength.Auto, GridLength.Auto, GridLength.Auto, GridLength.Auto, new GridLength(1, GridUnitType.Star), GridLength.Auto, GridLength.Auto };
+            var columnWidths = new[] { GridLength.Auto, GridLength.Auto, new GridLength(0), new GridLength(1, GridUnitType.Star), new GridLength(0), GridLength.Auto, GridLength.Auto };
             foreach (var width in columnWidths)
             {
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = width });
@@ -605,37 +603,32 @@ internal sealed class MainHudView : IDisposable
                 StrokeLineJoin = PenLineJoin.Round
             };
             var sourceViewbox = new Viewbox { Width = 14, Height = 14, Child = sourceIcon };
+            var sourceIdentity = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            sourceIdentity.Children.Add(sourceViewbox);
+            sourceIdentity.Children.Add(new TextBlock
+            {
+                Text = $"#{state.Number}",
+                FontSize = Math.Max(10, settings.FontSize - 2),
+                FontWeight = FontWeights.SemiBold,
+                Foreground = sourceIcon.Stroke,
+                Margin = new Thickness(3, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            });
             var sourceBadge = new Border
             {
                 CornerRadius = new CornerRadius(density.BadgeRadius),
                 Padding = new Thickness(4, 3, 4, 3),
                 Margin = new Thickness(0, 1, 6, 1),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
                 Background = ColorBrush(ParseColor(sourceColor, "#FF64748B"), 24),
                 BorderBrush = ColorBrush(ParseColor(sourceColor, "#FF64748B"), 72),
                 BorderThickness = new Thickness(1),
-                ToolTip = sourceLabel,
-                Child = sourceViewbox
+                ToolTip = sourceLabel + " · " + GetDisplayName(state, settings, locale, includeNumber: true),
+                Child = sourceIdentity
             };
             Grid.SetColumn(sourceBadge, 1);
             row.Children.Add(sourceBadge);
-
-            var badgeText = new TextBlock
-            {
-                Text = $"#{state.Number}",
-                FontWeight = FontWeights.SemiBold,
-                Foreground = _brushes.Create(settings.Accent, "#FF0A84FF", BrushRole.Primary, settings, status, false)
-            };
-            var badge = new Border
-            {
-                CornerRadius = new CornerRadius(density.BadgeRadius),
-                Background = BrushFactory.Convert("#120A84FF", "#120A84FF"),
-                Padding = density.BadgePadding,
-                Margin = density.BadgeMargin,
-                ToolTip = GetDisplayName(state, settings, locale, includeNumber: true),
-                Child = badgeText
-            };
-            Grid.SetColumn(badge, 2);
-            row.Children.Add(badge);
 
             var projectName = ProjectName(state, locale);
             var collapsedSubtitle = state.StartedAt.ToLocalTime().ToString("HH:mm");
@@ -652,6 +645,9 @@ internal sealed class MainHudView : IDisposable
             var name = new TextBlock
             {
                 Text = projectName,
+                MaxWidth = 180,
+                Margin = new Thickness(0, 0, 7, 0),
+                VerticalAlignment = VerticalAlignment.Center,
                 Visibility = settings.MultiTask.ListFields.Directory ? Visibility.Visible : Visibility.Collapsed,
                 FontWeight = FontWeights.SemiBold,
                 TextTrimming = TextTrimming.CharacterEllipsis,
@@ -670,15 +666,9 @@ internal sealed class MainHudView : IDisposable
             {
                 Orientation = Orientation.Vertical,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 2, 12, 2),
-                MaxWidth = 280,
+                Margin = new Thickness(0, 1, 8, 1),
                 ToolTip = GetDisplayName(state, settings, locale)
             };
-            identity.Children.Add(name);
-            identity.Children.Add(subtitle);
-            identity.Visibility = name.Visibility == Visibility.Visible || subtitle.Visibility == Visibility.Visible
-                ? Visibility.Visible
-                : Visibility.Collapsed;
             Grid.SetColumn(identity, 3);
             row.Children.Add(identity);
             var listMetrics = WithAgentNotice(
@@ -693,6 +683,9 @@ internal sealed class MainHudView : IDisposable
                 Text = listMetrics,
                 Visibility = listMetrics.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
                 VerticalAlignment = VerticalAlignment.Center,
+                FontSize = Math.Max(9, settings.FontSize - 2),
+                Margin = new Thickness(0, 0, 7, 0),
+                TextWrapping = TextWrapping.Wrap,
                 // An agent-authored notice is an instruction for the human, not
                 // background telemetry.  Give the whole notice line the same
                 // high-contrast treatment as metric values while it is visible.
@@ -707,9 +700,11 @@ internal sealed class MainHudView : IDisposable
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
             metricsText.ToolTip = metricsText.Text;
-            var metricsHost = new Grid { VerticalAlignment = VerticalAlignment.Center };
-            metricsHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            metricsHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            // One responsive title line: name, status/model/totals, then context.
+            // Keep action columns outside the wrap panel so they never clip.
+            var metricsHost = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
+            metricsHost.Children.Add(name);
+            metricsHost.Children.Add(metricsText);
             Border? contextMetric = null;
             TextBlock? contextTextControl = null;
             if (settings.MultiTask.ListFields.Context)
@@ -722,6 +717,7 @@ internal sealed class MainHudView : IDisposable
                 var contextText = new TextBlock
                 {
                     Text = state.Snapshot is null ? contextValue : $"{Get(locale, "context")} {contextValue}",
+                    FontSize = Math.Max(9, settings.FontSize - 2),
                     FontWeight = FontWeights.SemiBold,
                     Foreground = _brushes.Create(settings.Foreground, "#FF111827", BrushRole.Primary, settings, status, false)
                 };
@@ -729,21 +725,18 @@ internal sealed class MainHudView : IDisposable
                 contextMetric = new Border
                 {
                     CornerRadius = new CornerRadius(7),
-                    Padding = new Thickness(6, 2, 6, 2),
-                    Margin = new Thickness(0, 0, 7, 0),
+                    Padding = new Thickness(5, 1, 5, 1),
+                    VerticalAlignment = VerticalAlignment.Center,
                     BorderThickness = new Thickness(1),
                     BorderBrush = _brushes.Create("#330A84FF", "#330A84FF", BrushRole.Decoration, settings, status, false),
                     Background = _brushes.Create("#0D0A84FF", "#0D0A84FF", BrushRole.Decoration, settings, status, false),
                     ToolTip = BuildContextTooltip(state, locale),
                     Child = contextText
                 };
-                Grid.SetColumn(contextMetric, 0);
                 metricsHost.Children.Add(contextMetric);
             }
-            Grid.SetColumn(metricsText, 1);
-            metricsHost.Children.Add(metricsText);
-            Grid.SetColumn(metricsHost, 4);
-            row.Children.Add(metricsHost);
+            identity.Children.Add(metricsHost);
+            identity.Children.Add(subtitle);
 
             var detached = _detached.Contains(state.Path);
             var action = NewIconButton(
@@ -765,43 +758,10 @@ internal sealed class MainHudView : IDisposable
             Grid.SetColumn(dismiss, 6);
             row.Children.Add(dismiss);
 
-            var twoLineLayout = settings.MultiTask.ListDetail == "detailed" || narrowLayout;
-            if (twoLineLayout)
-            {
-                row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                var spanningControls = narrowLayout
-                    ? new FrameworkElement[] { dot, action, dismiss }
-                    : new FrameworkElement[] { dot, sourceBadge, badge, action, dismiss };
-                foreach (var control in spanningControls)
-                {
-                    Grid.SetRowSpan(control, 2);
-                }
-                Grid.SetRow(metricsHost, 1);
-                Grid.SetColumn(metricsHost, narrowLayout ? 1 : 3);
-                Grid.SetColumnSpan(metricsHost, narrowLayout ? 4 : 2);
-                metricsHost.Margin = narrowLayout
-                    ? new Thickness(density.MetricsMargin.Left, 4, density.MetricsMargin.Right, density.MetricsMargin.Bottom)
-                    : density.MetricsMargin;
-                metricsText.TextWrapping = TextWrapping.Wrap;
-                metricsText.TextTrimming = TextTrimming.None;
-            }
-
             FrameworkElement listItem = row;
             if (settings.MultiTask.ListStyle == "cards")
             {
                 row.Background = Brushes.Transparent;
-                if (!twoLineLayout)
-                {
-                    row.RowDefinitions.Add(new RowDefinition());
-                    row.RowDefinitions.Add(new RowDefinition());
-                    Grid.SetRowSpan(dot, 2);
-                    Grid.SetRow(metricsHost, 1);
-                    Grid.SetColumn(metricsHost, 1);
-                    Grid.SetColumnSpan(metricsHost, 4);
-                    metricsHost.Margin = density.MetricsMargin;
-                    metricsText.TextWrapping = TextWrapping.Wrap;
-                }
                 listItem = new Border
                 {
                     CornerRadius = new CornerRadius(density.CardRadius),
