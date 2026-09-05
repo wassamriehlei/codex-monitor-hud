@@ -93,6 +93,10 @@ $pluginRoot = Split-Path -Parent $PSScriptRoot
 $script:windowIconHandles = @{}
 Import-Module (Join-Path $PSScriptRoot 'MonitorHud.Core.psm1') -Force
 $paths = Get-HudPaths $pluginRoot
+$configuredHome = [string]$env:CODEX_MONITOR_HUD_HOME
+if (-not [string]::IsNullOrWhiteSpace($configuredHome)) {
+    $paths.SessionsRoot = Join-Path ([IO.Path]::GetFullPath($configuredHome)) '.codex\sessions'
+}
 if ($SelfTest -and -not [string]::IsNullOrWhiteSpace($SelfTestSessionsRoot)) {
     $paths.SessionsRoot = [IO.Path]::GetFullPath($SelfTestSessionsRoot)
 }

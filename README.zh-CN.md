@@ -56,6 +56,8 @@ Windows Release 会随包携带一套私有 .NET/WPF 运行时，因此无需用
 
 原生 Codex CLI 不需要额外配置即可被监控。第二个 `~/.codex-deepseek` 根目录只是面向进阶用户的可选实测隔离约定；当前还不能任意添加其他自定义根目录。建立隔离配置前请先阅读 [Codex CLI 配置与可选 Provider 隔离](docs/CLI_PROFILE_ISOLATION.zh-CN.md)，其中说明了如何避免把凭据写进文件，以及如何随时回到完全不受影响的普通 Profile。
 
+Codex CLI 也可以运行在 WSL 中，同时继续使用原生 Windows HUD。桥接配置通过 `node.exe`、`\\wsl.localhost\...` 主目录覆盖和显式 `WSLENV` 传递，让 Windows 进程真正读到 WSL 会话。详见 [用 Windows HUD 监控 WSL 中的 Codex CLI](docs/WSL_CODEX_CLI.zh-CN.md)。
+
 **可能兼容，但没测：** HUD 监控的是本地 Codex session 记录，而不是某个前端专属 API，所以 Cursor、Windsurf、VS Code Insiders、`codex exec`、官方 SDK，甚至一些自定义 `codex app-server` 客户端都可能已经“碰巧能用”，只是来源徽标可能叫错。维护者懒得把每一种客户端都追着适配；愿意碰运气的话，可以看 [未验证的 Codex 客户端兼容性](docs/UNVERIFIED_CODEX_CLIENTS.zh-CN.md)，里面写了判断依据、目前最可疑的候选、已知误分类风险，以及怎么安全反馈测试结果。
 
 ## 三种显示模式
@@ -91,7 +93,7 @@ Windows Release 会随包携带一套私有 .NET/WPF 运行时，因此无需用
 
 ## 平台支持
 
-- **Windows 10/11 x64：** 已支持并提供安装包。
+- **Windows 10/11 x64：** 已支持并提供安装包，包括文档化的 Windows HUD → WSL CLI 桥接。
 - **macOS / Linux / 其他架构：** 不提供二进制、安装器、工作流或支持承诺。
 
 本项目已明确放弃 macOS 适配。欢迎 macOS 用户自行基于公开源码进行移植，但本仓库只发布和验证 Windows 版本。

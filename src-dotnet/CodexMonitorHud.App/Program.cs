@@ -29,12 +29,14 @@ internal static class Program
         }
         var arguments = AppArguments.Parse(args);
         var pluginRoot = ResolvePluginRoot(arguments.PluginRoot);
+        var configuredHome = Environment.GetEnvironmentVariable("CODEX_MONITOR_HUD_HOME");
         var testHome = Environment.GetEnvironmentVariable("CODEX_MONITOR_HUD_TEST_HOME");
         var testLocalAppData = Environment.GetEnvironmentVariable("CODEX_MONITOR_HUD_TEST_LOCALAPPDATA");
+        var sessionHome = string.IsNullOrWhiteSpace(testHome) ? configuredHome : testHome;
         var paths = HudPaths.Create(
             pluginRoot,
             localAppData: string.IsNullOrWhiteSpace(testLocalAppData) ? null : testLocalAppData,
-            home: string.IsNullOrWhiteSpace(testHome) ? null : testHome);
+            home: string.IsNullOrWhiteSpace(sessionHome) ? null : sessionHome);
         var log = new HudLog(paths.StateRoot, arguments.DebugLog);
 
         if (!string.IsNullOrWhiteSpace(arguments.HealthCheckPath))

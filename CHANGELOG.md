@@ -8,6 +8,7 @@
 - Add optional Windows Blur and Acrylic glass backdrops plus configurable automatic edge/corner snapping.
 - Refresh source and action artwork with offline Lucide-derived vector icons and include the ISC attribution in the distributed package.
 - Apply the same bounded idle working-set trim to the compiled host and the compatibility host so installation performance comparisons use equivalent residency behavior.
+- Add a production `CODEX_MONITOR_HUD_HOME` override and documented `WSLENV` bridge so the native Windows HUD can monitor Codex CLI sessions stored inside WSL.
 
 ## 3.2.1 - Windows Release installer repair
 

@@ -56,6 +56,8 @@ Desktop rows may use Codex's local task deep link. VS Code and CLI rows delibera
 
 Native Codex CLI monitoring works without any special setup. The second `~/.codex-deepseek` root is an optional, tested isolation convention for advanced users; arbitrary custom roots are not yet configurable. See [Codex CLI profiles and optional provider isolation](docs/CLI_PROFILE_ISOLATION.md) before creating one. The guide keeps credentials out of files and explains how to return to the untouched normal profile.
 
+Codex CLI may also run inside WSL while the visible HUD remains a native Windows app. The bridge uses `node.exe`, a `\\wsl.localhost\...` home override, and an explicit `WSLENV` entry so the Windows process receives that override. See [Monitor a WSL Codex CLI from the Windows HUD](docs/WSL_CODEX_CLI.md).
+
 **Possibly compatible, not tested:** because the HUD watches local Codex session records rather than a front-end-specific API, some other local Codex surfaces may already work accidentally — for example Cursor, Windsurf, VS Code Insiders, `codex exec`, official SDKs, or custom `codex app-server` clients — but they may appear under the wrong source badge. The maintainer is not going to chase every client one by one; if you enjoy trying your luck, see [Unverified Codex client compatibility](docs/UNVERIFIED_CODEX_CLIENTS.md) for the reasoning, current candidates, caveats, and a safe way to report results.
 
 ## Display modes
@@ -91,7 +93,7 @@ See [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) for the data boundar
 
 ## Platform support
 
-- **Windows 10/11 x64:** supported and packaged.
+- **Windows 10/11 x64:** supported and packaged, including the documented Windows-HUD-to-WSL-CLI bridge.
 - **macOS / Linux / other architectures:** no binary, installer, workflow, or support promise is provided.
 
 macOS support has been intentionally dropped from this project. macOS users are welcome to adapt the public source on their own machines, but this repository ships and validates Windows only.
