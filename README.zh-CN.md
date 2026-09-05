@@ -17,7 +17,7 @@ Codex Monitor HUD 实时展示任务状态、Token 用量、上下文压力、�
 
 | 发布包 | 运行方法 | 数据位置 |
 | --- | --- | --- |
-| `CodexMonitorHUD-Portable-3.4.2-windows-x64.zip` | 完整解压后双击 `CodexMonitorHUD.exe` | EXE 同目录下的 `portable-data\CodexMonitorHUD` |
+| `CodexMonitorHUD-Portable-3.4.3-windows-x64.zip` | 完整解压后双击 `CodexMonitorHUD.exe` | EXE 同目录下的 `portable-data\CodexMonitorHUD` |
 
 首次运行前，请安装微软官方 [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) 的 **Windows x64** 版本。请选择 **Desktop Runtime（桌面运行时）**，不需要 SDK，也不要选成 ASP.NET Core Runtime。
 
@@ -42,9 +42,17 @@ Codex Monitor HUD 实时展示任务状态、Token 用量、上下文压力、�
 
 ## 软件截图
 
-<p align="center">
-  <img src="assets/screenshots/floating-ball.png" width="220" alt="当前悬浮球模式，显示三个活跃 Codex 任务">
-</p>
+| 悬浮球 | 展开任务列表 |
+| --- | --- |
+| ![当前悬浮球模式，显示三个活跃 Codex 任务](assets/screenshots/floating-ball.png) | ![当前展开 HUD，显示四个模拟 Codex 任务](assets/screenshots/hud-expanded.png) |
+
+| Windows、CLI 与 WSL 来源 | 多任务字段与布局 |
+| --- | --- |
+| ![当前监控来源页面，包含 WSL 支持](assets/screenshots/settings-sources.png) | ![当前多任务布局和字段开关](assets/screenshots/settings-multitask.png) |
+
+| 外观、字体与宽度 | 完成提示音与提醒 |
+| --- | --- |
+| ![当前外观页面，包含鸿蒙字体与宽度调节](assets/screenshots/settings-appearance.png) | ![当前完成提示音文件和提醒设置](assets/screenshots/settings-sound.png) |
 
 悬浮球只显示当前活跃任务数量，文字颜色与低开销背景动效会跟随任务状态变化；单击或短暂悬停即可展开完整 HUD。
 

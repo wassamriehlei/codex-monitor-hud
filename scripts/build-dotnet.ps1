@@ -11,7 +11,7 @@ $dotnet = if (Test-Path -LiteralPath $privateDotnet) {
     $privateDotnet
 } else {
     $command = Get-Command dotnet -ErrorAction SilentlyContinue
-    if ($null -eq $command) { throw 'The .NET 10 SDK is required to build v3.4.2. The repository-private SDK was not found and dotnet is not on PATH.' }
+    if ($null -eq $command) { throw 'The .NET 10 SDK is required to build v3.4.3. The repository-private SDK was not found and dotnet is not on PATH.' }
     $command.Source
 }
 $toolHome = Join-Path $root 'private\toolchain'
@@ -55,7 +55,7 @@ try {
     $healthProcess = Start-Process -FilePath (Join-Path $root 'CodexMonitorHUD.exe') -ArgumentList @('--plugin-root',('"' + $root + '"'),'--health-check',('"' + $healthPath + '"')) -PassThru -Wait
     if ($healthProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $healthPath)) { throw 'Framework-dependent executable health check failed. Install Microsoft .NET 10 Desktop Runtime x64.' }
     $health = Get-Content -Raw -Encoding UTF8 -LiteralPath $healthPath | ConvertFrom-Json
-    if ([string]$health.version -ne '3.4.2' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
+    if ([string]$health.version -ne '3.4.3' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
         throw ('Compiled runtime health check returned an invalid result: ' + ($health | ConvertTo-Json -Compress))
     }
 } finally {

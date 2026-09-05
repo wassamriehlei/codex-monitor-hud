@@ -1,5 +1,11 @@
 # Changelog
 
+## 3.4.3 - 2026-09-05
+
+- Expand the current screenshot gallery to six images: floating ball, expanded HUD, sources/WSL, multi-task controls, appearance, and completion sound.
+- Render every new large screenshot directly from the current XAML with synthetic data, avoiding local session or desktop content.
+- Add a six-image gallery consistency gate shared by the plugin manifest and repository assets.
+
 ## 3.4.2 - 2026-09-05
 
 - Remove screenshots of retired layouts and Settings controls from the repository and Portable package.

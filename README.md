@@ -17,7 +17,7 @@ Download the latest stable assets from [GitHub Releases](https://github.com/wass
 
 | Package | How to run | Data location |
 | --- | --- | --- |
-| `CodexMonitorHUD-Portable-3.4.2-windows-x64.zip` | Extract all files, then double-click `CodexMonitorHUD.exe` | `portable-data\CodexMonitorHUD` beside the EXE |
+| `CodexMonitorHUD-Portable-3.4.3-windows-x64.zip` | Extract all files, then double-click `CodexMonitorHUD.exe` | `portable-data\CodexMonitorHUD` beside the EXE |
 
 Before first run, install Microsoft's [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) for **Windows x64**. Choose **Desktop Runtime**, not the SDK or ASP.NET Core Runtime.
 
@@ -42,11 +42,19 @@ To upgrade, exit the HUD, retain the existing `portable-data` directory, replace
 
 ## Screenshots
 
-<p align="center">
-  <img src="assets/screenshots/floating-ball.png" width="220" alt="Current floating-ball mode showing three active Codex tasks">
-</p>
+| Floating ball | Expanded task list |
+| --- | --- |
+| ![Current floating-ball mode showing three active Codex tasks](assets/screenshots/floating-ball.png) | ![Expanded HUD with four simulated Codex tasks](assets/screenshots/hud-expanded.png) |
 
-The floating ball shows only the active-task count. Its foreground and low-cost background motion follow the current task state; click it or hover briefly to expand the full HUD.
+| Windows, CLI, and WSL sources | Multi-task fields and layout |
+| --- | --- |
+| ![Current monitoring-source page with WSL support](assets/screenshots/settings-sources.png) | ![Current multi-task layout and field switches](assets/screenshots/settings-multitask.png) |
+
+| Appearance, font, and width | Completion sound and reminders |
+| --- | --- |
+| ![Current appearance page with HarmonyOS font and width controls](assets/screenshots/settings-appearance.png) | ![Current completion-sound file and reminder controls](assets/screenshots/settings-sound.png) |
+
+The floating ball shows only the active-task count. Its foreground and low-cost background motion follow task state; click it or hover briefly to expand the full HUD.
 
 ## WSL Codex CLI
 
