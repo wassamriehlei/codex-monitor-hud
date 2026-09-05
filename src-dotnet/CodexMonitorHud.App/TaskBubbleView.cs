@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -19,7 +18,6 @@ internal sealed class TaskBubbleView : IDisposable
     private readonly SessionState _state;
     private readonly Border _shell;
     private readonly Ellipse _dot;
-    private readonly Button _dismiss;
     private readonly Button _merge;
     private readonly TextBlock _number;
     private readonly Border _sourceBadge;
@@ -29,7 +27,7 @@ internal sealed class TaskBubbleView : IDisposable
     private readonly TextBlock _contextText;
     private readonly TextBlock _metrics;
     private readonly StackPanel _content;
-    private readonly Thumb _resize;
+    private readonly ScaleTransform _scale;
     private nint _handle;
     private int _baseStyle;
     private bool _mousePassthrough;
@@ -50,7 +48,6 @@ internal sealed class TaskBubbleView : IDisposable
         Window = XamlLoader.LoadWindow(xamlPath);
         _shell = XamlLoader.Require<Border>(Window, "TaskBubbleShell");
         _dot = XamlLoader.Require<Ellipse>(Window, "TaskBubbleStatusDot");
-        _dismiss = XamlLoader.Require<Button>(Window, "TaskBubbleDismissButton");
         _merge = XamlLoader.Require<Button>(Window, "TaskBubbleMergeButton");
         _number = XamlLoader.Require<TextBlock>(Window, "TaskBubbleNumber");
         _sourceBadge = XamlLoader.Require<Border>(Window, "TaskBubbleSourceBadge");
@@ -60,17 +57,11 @@ internal sealed class TaskBubbleView : IDisposable
         _contextText = XamlLoader.Require<TextBlock>(Window, "TaskBubbleContextText");
         _metrics = XamlLoader.Require<TextBlock>(Window, "TaskBubbleMetrics");
         _content = XamlLoader.Require<StackPanel>(Window, "TaskBubbleContent");
-        _resize = XamlLoader.Require<Thumb>(Window, "TaskBubbleResizeThumb");
-        if (state.BubbleWidth > 0 && state.BubbleHeight > 0)
-        {
-            Window.SizeToContent = SizeToContent.Manual;
-            Window.Width = state.BubbleWidth;
-            Window.Height = state.BubbleHeight;
-        }
-        _dismiss.Click += (_, _) => DismissRequested?.Invoke(StatePath);
+        _scale = (ScaleTransform)XamlLoader.Require<Grid>(Window, "TaskBubbleScaleRoot").LayoutTransform;
+        _scale.ScaleX = _scale.ScaleY = Math.Clamp(state.BubbleScale, 0.6, 2);
         _merge.Click += (_, _) => MergeRequested?.Invoke(StatePath);
         _shell.MouseLeftButtonDown += OnShellMouseLeftButtonDown;
-        _resize.DragDelta += OnResize;
+        Window.PreviewMouseWheel += OnScaleWheel;
         Window.SourceInitialized += (_, _) =>
         {
             _handle = new WindowInteropHelper(Window).Handle;
@@ -95,7 +86,6 @@ internal sealed class TaskBubbleView : IDisposable
     public int LastExitRevision { get; set; }
     public bool IsIndicatorCollapsed { get; private set; }
     public bool IsMouseOver => Window.IsMouseOver;
-    public event Action<string>? DismissRequested;
     public event Action<string>? MergeRequested;
     public event Action<string>? OpenRequested;
     public event Action<string, string>? AttentionPresented;
@@ -138,7 +128,6 @@ internal sealed class TaskBubbleView : IDisposable
             sourceLabel,
             sourceColor,
             Get(locale, "mergeTask"),
-            Get(locale, "closeTaskBubble"),
             Get(locale, "resizeTaskBubble"),
             Get(locale, "openTaskTooltip"));
         if (_appearanceSignature != appearanceSignature)
@@ -191,12 +180,10 @@ internal sealed class TaskBubbleView : IDisposable
             {
             }
             _merge.ToolTip = Get(locale, "mergeTask");
-            _dismiss.ToolTip = Get(locale, "closeTaskBubble");
-            _resize.ToolTip = Get(locale, "resizeTaskBubble");
             _shell.ToolTip = settings.Behavior.OpenTaskOnDoubleClick &&
                              string.Equals(state.ClientSurface, "desktop", StringComparison.OrdinalIgnoreCase)
-                ? Get(locale, "openTaskTooltip")
-                : null;
+                ? Get(locale, "openTaskTooltip") + "\n" + Get(locale, "resizeTaskBubble")
+                : Get(locale, "resizeTaskBubble");
             SetMousePassthrough(settings.MousePassthrough);
         }
 
@@ -289,15 +276,8 @@ internal sealed class TaskBubbleView : IDisposable
         var visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
         _content.Visibility = visibility;
         _merge.Visibility = visibility;
-        _dismiss.Visibility = visibility;
-        _resize.Visibility = visibility;
         if (collapsed)
         {
-            if (Window.SizeToContent == SizeToContent.Manual)
-            {
-                _state.BubbleWidth = Window.Width;
-                _state.BubbleHeight = Window.Height;
-            }
             _dot.Margin = new Thickness(0);
             _shell.Padding = new Thickness(10);
             Window.Width = double.NaN;
@@ -308,18 +288,9 @@ internal sealed class TaskBubbleView : IDisposable
         {
             _dot.Margin = new Thickness(0, 0, 9, 0);
             _shell.Padding = new Thickness(12, 9, 12, 9);
-            if (_state.BubbleWidth > 0 && _state.BubbleHeight > 0)
-            {
-                Window.SizeToContent = SizeToContent.Manual;
-                Window.Width = _state.BubbleWidth;
-                Window.Height = _state.BubbleHeight;
-            }
-            else
-            {
-                Window.Width = double.NaN;
-                Window.Height = double.NaN;
-                Window.SizeToContent = SizeToContent.WidthAndHeight;
-            }
+            Window.Width = double.NaN;
+            Window.Height = double.NaN;
+            Window.SizeToContent = SizeToContent.WidthAndHeight;
         }
         Window.UpdateLayout();
     }
@@ -368,17 +339,12 @@ internal sealed class TaskBubbleView : IDisposable
         }
     }
 
-    private void OnResize(object sender, DragDeltaEventArgs args)
+    private void OnScaleWheel(object sender, MouseWheelEventArgs args)
     {
-        if (IsIndicatorCollapsed)
-        {
-            return;
-        }
-        Window.SizeToContent = SizeToContent.Manual;
-        Window.Width = Math.Clamp(Math.Max(Window.ActualWidth, 220) + args.HorizontalChange, 220, 960);
-        Window.Height = Math.Clamp(Math.Max(Window.ActualHeight, 54) + args.VerticalChange, 54, 360);
-        _state.BubbleWidth = Window.Width;
-        _state.BubbleHeight = Window.Height;
+        if (IsIndicatorCollapsed || !Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
+        _state.BubbleScale = Math.Clamp(_state.BubbleScale + args.Delta / 120d * 0.1, 0.6, 2);
+        _scale.ScaleX = _scale.ScaleY = _state.BubbleScale;
+        args.Handled = true;
     }
 
     private static string StatusColor(HudSettings settings, string status) =>

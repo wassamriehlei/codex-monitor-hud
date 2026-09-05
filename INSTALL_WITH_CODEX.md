@@ -4,7 +4,7 @@ This is the canonical agent procedure. A repository URL plus “帮我安装” 
 
 ## Deterministic procedure
 
-1. Confirm the URL resolves to `https://github.com/LH-03/codex-monitor-hud`. Read `install-manifest.json`; do not read local Codex sessions, prompts, replies, tool output, logs, databases, settings values, or credentials.
+1. Confirm the URL resolves to `https://github.com/wassamriehlei/codex-monitor-hud`. Read `install-manifest.json`; do not read local Codex sessions, prompts, replies, tool output, logs, databases, settings values, or credentials.
 2. Detect the platform and architecture:
    - Windows x64 → `windows-x64`;
    - anything else → stop as unsupported.

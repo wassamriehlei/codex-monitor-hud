@@ -62,10 +62,10 @@ try {
     New-Item -ItemType Directory -Force -Path $pluginsRoot,(Split-Path -Parent $marketplacePath),$localAppData | Out-Null
     New-FixturePlugin $targetRoot '2.2.0' $true
     New-FixturePlugin $rollback21 '2.1.0' $false
-    foreach ($unsafeDirectory in @('.agents','nested\bin','nested\obj')) {
+    foreach ($unsafeDirectory in @('.agents','portable-data','nested\bin','nested\obj')) {
         New-Item -ItemType Directory -Force -Path (Join-Path $rollback21 $unsafeDirectory) | Out-Null
     }
-    foreach ($unsafeRelativePath in @('.agents\local.txt','nested\bin\leak.dll','nested\obj\leak.cache','nested\session.jsonl','.env.local','settings.json')) {
+    foreach ($unsafeRelativePath in @('.agents\local.txt','portable-data\private.txt','nested\bin\leak.dll','nested\obj\leak.cache','nested\session.jsonl','.env.local','settings.json')) {
         [IO.File]::WriteAllText((Join-Path $rollback21 $unsafeRelativePath), 'synthetic local-only data', $encoding)
     }
     [IO.File]::WriteAllText($marketplacePath, '{"name":"personal","plugins":[]}', $encoding)
@@ -74,7 +74,7 @@ try {
     if ($success.ExitCode -ne 0 -or (Get-FixtureVersion $targetRoot) -ne '2.1.0') {
         throw ('Successful rollback transaction failed: ' + $success.Stderr)
     }
-    foreach ($unsafeRelativePath in @('.agents','nested\bin','nested\obj','nested\session.jsonl','.env.local','settings.json')) {
+    foreach ($unsafeRelativePath in @('.agents','portable-data','nested\bin','nested\obj','nested\session.jsonl','.env.local','settings.json')) {
         if (Test-Path -LiteralPath (Join-Path $targetRoot $unsafeRelativePath)) { throw "Installer copied excluded material: $unsafeRelativePath" }
     }
     $rollback22 = Join-Path $pluginsRoot '.codex-monitor-hud-rollback-2.2.0'

@@ -30,9 +30,26 @@ internal sealed class MainHudView : IDisposable
     private readonly StackPanel _quietPanel;
     private readonly Grid _ballPanel;
     private readonly TextBlock _ballCount;
+    private readonly Ellipse _ballBackground;
+    private readonly DispatcherTimer _ballExpandTimer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(200) };
     private readonly DispatcherTimer _ballCollapseTimer = new(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(450) };
     private bool _ballMode;
     private bool _ballExpanded;
+    private bool _ballExpandLeft;
+    private bool _ballExpandUp;
+    private Point _ballOffset;
+    private double _ballDiameter = 48;
+    private bool _surfaceAnimationPending;
+    private bool _ballCollapsing;
+    private int _surfaceMotionVersion;
+    private readonly Grid _surfaceMotion;
+    private string _surfaceModeSignature = string.Empty;
+    private bool _animateSurface;
+    private Storyboard? _ballMotion;
+    private Storyboard? _ballBackgroundMotion;
+    private string _ballMotionSignature = string.Empty;
+    private string _ballStatus = "idle";
+    private bool _showProviderLabel = true;
     private readonly Grid _quietOverallHost;
     private readonly Ellipse _quietOverallRing;
     private readonly Ellipse _quietOverallDot;
@@ -75,6 +92,13 @@ internal sealed class MainHudView : IDisposable
     {
         _taskBubbleXaml = taskBubbleXamlPath;
         Window = XamlLoader.LoadWindow(hudXamlPath);
+        _surfaceMotion = XamlLoader.Require<Grid>(Window, "HudSurfaceMotion");
+        Window.IsVisibleChanged += (_, _) =>
+        {
+            if (!Window.IsVisible) { _ballExpandTimer.Stop(); CancelSurfaceMotion(); }
+            if (Window.IsVisible && _animateSurface) AnimateSurface();
+            UpdateBallMotion(Window.IsVisible && _ballMode && !_ballExpanded && _animateSurface, _ballStatus);
+        };
         _shell = XamlLoader.Require<Border>(Window, "HudShell");
         _contentPanel = XamlLoader.Require<StackPanel>(Window, "HudContentPanel");
         _statusDot = XamlLoader.Require<Ellipse>(Window, "StatusDot");
@@ -86,6 +110,7 @@ internal sealed class MainHudView : IDisposable
         _quietPanel = XamlLoader.Require<StackPanel>(Window, "QuietIndicatorPanel");
         _ballPanel = XamlLoader.Require<Grid>(Window, "FloatingBallPanel");
         _ballCount = XamlLoader.Require<TextBlock>(Window, "FloatingBallCount");
+        _ballBackground = XamlLoader.Require<Ellipse>(Window, "BallStatusBackground");
         _quietOverallHost = XamlLoader.Require<Grid>(Window, "QuietOverallHost");
         _quietOverallRing = XamlLoader.Require<Ellipse>(Window, "QuietOverallRing");
         _quietOverallDot = XamlLoader.Require<Ellipse>(Window, "QuietOverallDot");
@@ -101,19 +126,26 @@ internal sealed class MainHudView : IDisposable
         Window.MouseEnter += (_, _) =>
         {
             _ballCollapseTimer.Stop();
-            if (!_ballMode || _ballExpanded) return;
+            if (_ballCollapsing) AnimateSurface();
+            ScheduleBallExpansion();
+        };
+        Window.MouseLeave += (_, _) => { _ballExpandTimer.Stop(); ScheduleBallCollapse(); };
+        Window.PreviewMouseDown += (_, _) => _ballExpandTimer.Stop();
+        _ballExpandTimer.Tick += (_, _) =>
+        {
+            _ballExpandTimer.Stop();
+            if (!_ballMode || _ballExpanded || !Window.IsVisible || !Window.IsMouseOver || IsDragging || _closing ||
+                Mouse.LeftButton == MouseButtonState.Pressed || Mouse.RightButton == MouseButtonState.Pressed || Window.ContextMenu?.IsOpen == true) return;
             _ballExpanded = true;
             SurfaceChanged?.Invoke();
         };
-        Window.MouseLeave += (_, _) => ScheduleBallCollapse();
         Window.ContextMenuClosing += (_, _) => ScheduleBallCollapse();
         Window.LostMouseCapture += (_, _) => ScheduleBallCollapse();
         _ballCollapseTimer.Tick += (_, _) =>
         {
             _ballCollapseTimer.Stop();
             if (!_ballMode || !_ballExpanded || Window.IsMouseOver || Window.ContextMenu?.IsOpen == true || IsDragging || Mouse.LeftButton == MouseButtonState.Pressed) return;
-            _ballExpanded = false;
-            SurfaceChanged?.Invoke();
+            BeginBallCollapse();
         };
         Window.SourceInitialized += (_, _) =>
         {
@@ -161,6 +193,8 @@ internal sealed class MainHudView : IDisposable
         bool initialScanComplete)
     {
         var now = DateTimeOffset.Now;
+        if (_showProviderLabel != settings.ShowProviderLabel) _listSignature = string.Empty;
+        _showProviderLabel = settings.ShowProviderLabel;
         var hasAttention = states.Any(state => state.AttentionUntil > now);
         ApplyAppearance(settings, overallStatus, hasAttention);
         _statusDot.ToolTip = $"{Get(zhLocale, StatusKey(overallStatus))} ({Get(enLocale, StatusKey(overallStatus))})";
@@ -267,7 +301,10 @@ internal sealed class MainHudView : IDisposable
     public void Dispose()
     {
         _closing = true;
+        CancelSurfaceMotion();
+        UpdateBallMotion(false, _ballStatus);
         _ballCollapseTimer.Stop();
+        _ballExpandTimer.Stop();
         MergeAll();
         Window.Close();
     }
@@ -653,17 +690,7 @@ internal sealed class MainHudView : IDisposable
             row.Children.Add(sourceBadge);
 
             var projectName = ProjectName(state, locale);
-            var collapsedSubtitle = state.StartedAt.ToLocalTime().ToString("HH:mm");
-            var subtitleParts = new List<string>();
-            if (!string.IsNullOrWhiteSpace(state.ConversationLabel) && settings.MultiTask.NameMode != "hidden")
-            {
-                subtitleParts.Add(state.ConversationLabel);
-            }
-            if (settings.MultiTask.ListFields.Time)
-            {
-                subtitleParts.Add(collapsedSubtitle);
-            }
-            var expandedSubtitle = string.Join(" \u00B7 ", subtitleParts);
+            var expandedSubtitle = GetListSubtitle(state, settings, metricLocale);
             var name = new TextBlock
             {
                 Text = projectName,
@@ -678,10 +705,11 @@ internal sealed class MainHudView : IDisposable
             var subtitle = new TextBlock
             {
                 Text = expandedSubtitle,
+                ToolTip = expandedSubtitle,
                 Visibility = expandedSubtitle.Length > 0 ? Visibility.Visible : Visibility.Collapsed,
                 Margin = new Thickness(0, 1, 0, 0),
                 FontSize = Math.Max(9, settings.FontSize - 3),
-                TextTrimming = TextTrimming.CharacterEllipsis,
+                TextWrapping = TextWrapping.Wrap,
                 Foreground = _brushes.Create(settings.Muted, "#FF667085", BrushRole.Secondary, settings, status, false)
             };
             var identity = new StackPanel
@@ -891,7 +919,6 @@ internal sealed class MainHudView : IDisposable
             if (!_bubbles.TryGetValue(state.Path, out var bubble))
             {
                 bubble = new TaskBubbleView(_taskBubbleXaml, state, _brushes);
-                bubble.DismissRequested += path => SetDetached(path, false, settings.MultiTask.MaxSplitBubbles);
                 bubble.MergeRequested += path => SetDetached(path, false, settings.MultiTask.MaxSplitBubbles);
                 bubble.OpenRequested += path => OpenRequested?.Invoke(path);
                 bubble.AttentionPresented += (path, reason) => AttentionPresented?.Invoke("bubble", path, reason);
@@ -957,6 +984,9 @@ internal sealed class MainHudView : IDisposable
         live.Dot.Fill = _brushes.Create(StatusColor(settings, status), "#FF8E8E93", BrushRole.Status, settings, status, hasAttention);
         live.Name.Foreground = _brushes.Create(settings.Foreground, "#FF111827", BrushRole.Primary, settings, status, hasAttention);
         live.Subtitle.Foreground = _brushes.Create(settings.Muted, "#FF667085", BrushRole.Secondary, settings, status, hasAttention);
+        live.Subtitle.Text = GetListSubtitle(state, settings, metricLocale);
+        live.Subtitle.ToolTip = live.Subtitle.Text;
+        live.Subtitle.Visibility = live.Subtitle.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         live.Metrics.Text = WithAgentNotice(
             state,
             GetTaskMetricsText(state, settings, metricLocale, status, listPreset: true),
@@ -1113,13 +1143,16 @@ internal sealed class MainHudView : IDisposable
         var ballMode = settings.SurfaceMode == "ball" && !settings.MousePassthrough;
         if (_ballMode != ballMode)
         {
+            _surfaceAnimationPending = true;
             _ballMode = ballMode;
             _ballExpanded = false;
             _ballCollapseTimer.Stop();
+            _ballExpandTimer.Stop();
         }
         var ballCollapsed = _ballMode && !_ballExpanded;
         _ballPanel.Visibility = ballCollapsed ? Visibility.Visible : Visibility.Collapsed;
-        _ballCount.Foreground = _brushes.Create(settings.Foreground, "#FF1C1C1E", BrushRole.Primary, settings, overallStatus, false);
+        _ballCount.Foreground = _brushes.Create(StatusColor(settings, overallStatus), "#FF8E8E93", BrushRole.Status, settings, overallStatus, false);
+        _ballBackground.Fill = _ballCount.Foreground;
         var activeCount = states.Count(state => statusFor(state) is "active" or "listening");
         _ballCount.Text = activeCount.ToString();
         _ballPanel.ToolTip = Get(locale, "surfaceBallHint");
@@ -1132,16 +1165,19 @@ internal sealed class MainHudView : IDisposable
                              states.All(state => IsQuiet(state, statusFor(state), settings, now, keepTerminalLights));
         var transition = shouldCollapse != _isMainIndicatorCollapsed;
         _isMainIndicatorCollapsed = shouldCollapse;
-        _shell.Width = ballCollapsed ? 48 : shouldCollapse
+        _ballDiameter = settings.FloatingBallSize;
+        _ballPanel.Width = _ballPanel.Height = settings.FloatingBallSize - 4;
+        _ballCount.FontSize = settings.FloatingBallSize * 0.375;
+        _shell.Width = ballCollapsed ? settings.FloatingBallSize : shouldCollapse
             ? double.NaN
             : Math.Min(settings.HudWidth, Math.Max(360, GetCurrentScreenBounds().Width - MainChromeInset * 2));
-        _shell.Height = ballCollapsed ? 48 : double.NaN;
+        _shell.Height = ballCollapsed ? settings.FloatingBallSize : double.NaN;
         _contentPanel.Visibility = shouldCollapse || ballCollapsed ? Visibility.Collapsed : Visibility.Visible;
         _quietPanel.Visibility = shouldCollapse ? Visibility.Visible : Visibility.Collapsed;
         if (ballCollapsed)
         {
             _shell.Padding = new Thickness(1);
-            _shell.CornerRadius = new CornerRadius(24);
+            _shell.CornerRadius = new CornerRadius(settings.FloatingBallSize / 2);
         }
         else if (shouldCollapse)
         {
@@ -1157,6 +1193,12 @@ internal sealed class MainHudView : IDisposable
             if (transition) { _appearanceSignature = string.Empty; _listSignature = string.Empty; }
         }
 
+        _animateSurface = settings.AnimateUpdates;
+        _ballStatus = overallStatus;
+        UpdateBallMotion(ballCollapsed && Window.IsVisible && settings.AnimateUpdates, overallStatus);
+        var surfaceMode = ballCollapsed ? "ball" : shouldCollapse ? "quiet" : "window";
+        if (!_animateSurface || _surfaceModeSignature != surfaceMode) _surfaceAnimationPending = true;
+        _surfaceModeSignature = surfaceMode;
         var stateByPath = states.ToDictionary(static state => state.Path, StringComparer.OrdinalIgnoreCase);
         foreach (var (path, bubble) in _bubbles)
         {
@@ -1302,6 +1344,34 @@ internal sealed class MainHudView : IDisposable
         Window.UpdateLayout();
         var width = Math.Max(1, Window.ActualWidth);
         var height = Math.Max(1, Window.ActualHeight);
+        if (_ballMode)
+        {
+            var ballExtent = settings.FloatingBallSize + MainChromeInset * 2;
+            var ball = settings.Position == "custom"
+                ? HudPlacement.ClampCustom((settings.CustomLeft ?? Window.Left + MainChromeInset) - MainChromeInset,
+                    (settings.CustomTop ?? Window.Top + MainChromeInset) - MainChromeInset,
+                    screen.Left, screen.Top, screen.Width, screen.Height, ballExtent, ballExtent, MainChromeInset)
+                : HudPlacement.GetPreset(settings.Position, screen.Left, screen.Top, screen.Width, screen.Height, ballExtent, ballExtent, MainChromeInset);
+            // Lock the opening edge during a hover/drag. Re-evaluate on collapse.
+            if (!_ballExpanded)
+            {
+                _ballExpandLeft = ball.Left + ballExtent / 2 > screen.Left + screen.Width / 2;
+                _ballExpandUp = ball.Top + ballExtent / 2 > screen.Top + screen.Height / 2;
+            }
+            var placed = _ballExpanded
+                ? HudPlacement.ExpandFromBall(ball, settings.FloatingBallSize, screen.Left, screen.Top, screen.Width, screen.Height, width, height, MainChromeInset, _ballExpandLeft, _ballExpandUp)
+                : ball;
+            Window.Left = placed.Left;
+            Window.Top = placed.Top;
+            _ballOffset = new Point(ball.Left - placed.Left, ball.Top - placed.Top);
+            _surfaceMotion.RenderTransformOrigin = new Point(
+                Math.Abs(width - ballExtent) < 0.01 ? 0.5 : Math.Clamp(_ballOffset.X / (width - ballExtent), 0, 1),
+                Math.Abs(height - ballExtent) < 0.01 ? 0.5 : Math.Clamp(_ballOffset.Y / (height - ballExtent), 0, 1));
+            if (_surfaceAnimationPending) { _surfaceAnimationPending = false; AnimateSurface(); }
+            return;
+        }
+        _surfaceMotion.RenderTransformOrigin = new Point(0.5, 0.5);
+        if (_surfaceAnimationPending) { _surfaceAnimationPending = false; AnimateSurface(); }
         if (settings.Position == "custom")
         {
             // customLeft/customTop represent the visible shell, not the
@@ -1444,6 +1514,7 @@ internal sealed class MainHudView : IDisposable
         }
         if (args.ButtonState == MouseButtonState.Pressed)
         {
+            var expandAfterClick = false;
             try
             {
                 // Keep the pointer's original in-window offset.  DragMove can
@@ -1453,14 +1524,26 @@ internal sealed class MainHudView : IDisposable
                 // shell (inside the transparent chrome) to reach every edge.
                 var grabPoint = args.GetPosition(Window);
                 var dragOrigin = new Point(Window.Left, Window.Top);
+                var movedDuringDrag = false;
+                EventHandler trackMove = (_, _) => movedDuringDrag |=
+                    Math.Abs(Window.Left - dragOrigin.X) >= 0.5 || Math.Abs(Window.Top - dragOrigin.Y) >= 0.5;
                 IsDragging = true;
+                CancelSurfaceMotion();
                 _ballCollapseTimer.Stop();
-                Window.DragMove();
+                _ballExpandTimer.Stop();
+                Window.LocationChanged += trackMove;
+                try { Window.DragMove(); }
+                finally { Window.LocationChanged -= trackMove; }
                 // A click (including the first click of a double-click) must
                 // not snap the window or synchronously write settings.
-                if (Math.Abs(Window.Left - dragOrigin.X) < 0.5 && Math.Abs(Window.Top - dragOrigin.Y) < 0.5) return;
+                if (Math.Abs(Window.Left - dragOrigin.X) < 0.5 && Math.Abs(Window.Top - dragOrigin.Y) < 0.5)
+                {
+                    expandAfterClick = !movedDuringDrag && _ballMode && !_ballExpanded;
+                    return;
+                }
                 RestoreFreeDragPosition(grabPoint);
-                PositionChanged?.Invoke(Window.Left + MainChromeInset, Window.Top + MainChromeInset);
+                PositionChanged?.Invoke(Window.Left + MainChromeInset + (_ballMode ? _ballOffset.X : 0),
+                    Window.Top + MainChromeInset + (_ballMode ? _ballOffset.Y : 0));
             }
             catch (InvalidOperationException)
             {
@@ -1468,6 +1551,13 @@ internal sealed class MainHudView : IDisposable
             finally
             {
                 IsDragging = false;
+                // A completed click opens immediately; even a drag out and
+                // back to the starting point must stay collapsed.
+                if (expandAfterClick && !_closing && Window.IsVisible)
+                {
+                    _ballExpanded = true;
+                    SurfaceChanged?.Invoke();
+                }
                 ScheduleBallCollapse();
             }
         }
@@ -1478,6 +1568,95 @@ internal sealed class MainHudView : IDisposable
         if (!_ballMode || !_ballExpanded || Window.IsMouseOver || _closing) return;
         _ballCollapseTimer.Stop();
         _ballCollapseTimer.Start();
+    }
+
+    private void ScheduleBallExpansion()
+    {
+        _ballExpandTimer.Stop();
+        if (!_ballMode || _ballExpanded || IsDragging || _closing || !Window.IsVisible ||
+            Mouse.LeftButton == MouseButtonState.Pressed || Mouse.RightButton == MouseButtonState.Pressed) return;
+        _ballExpandTimer.Start();
+    }
+
+    private void UpdateBallMotion(bool enabled, string status)
+    {
+        var signature = enabled ? status : string.Empty;
+        if (_ballMotionSignature == signature) return;
+        _ballMotion?.Remove(Window);
+        _ballBackgroundMotion?.Remove(Window);
+        _ballMotion = null;
+        _ballBackgroundMotion = null;
+        _ballMotionSignature = signature;
+        // Paused stays still; unknown states also use a static count.
+        if (!enabled) return;
+        if (Window.TryFindResource("BallMotion_" + status) is Storyboard template)
+        {
+            _ballMotion = template.Clone();
+            _ballMotion.Begin(Window, HandoffBehavior.SnapshotAndReplace, isControllable: true);
+        }
+        if (Window.TryFindResource("BallBackground_" + status) is Storyboard background)
+        {
+            _ballBackgroundMotion = background.Clone();
+            _ballBackgroundMotion.Begin(Window, HandoffBehavior.SnapshotAndReplace, isControllable: true);
+        }
+    }
+
+    private void AnimateSurface()
+    {
+        var scale = (ScaleTransform)_surfaceMotion.RenderTransform;
+        var reversing = _ballCollapsing;
+        var fromX = scale.ScaleX;
+        var fromY = scale.ScaleY;
+        var fromOpacity = _surfaceMotion.Opacity;
+        CancelSurfaceMotion();
+        if (!_animateSurface || IsDragging) return;
+        var expanding = _ballMode && _ballExpanded;
+        var duration = TimeSpan.FromMilliseconds(expanding ? 160 : 100);
+        var x = reversing ? fromX : expanding ? _ballDiameter / Math.Max(1, _shell.ActualWidth) : 0.96;
+        var y = reversing ? fromY : expanding ? _ballDiameter / Math.Max(1, _shell.ActualHeight) : 0.96;
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(x, 1, duration) { EasingFunction = ease, FillBehavior = FillBehavior.Stop });
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(y, 1, duration) { EasingFunction = ease, FillBehavior = FillBehavior.Stop });
+        _surfaceMotion.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(reversing ? fromOpacity : 0.78, 1, duration) { FillBehavior = FillBehavior.Stop });
+    }
+
+    private void CancelSurfaceMotion()
+    {
+        _surfaceMotionVersion++;
+        _ballCollapsing = false;
+        var scale = (ScaleTransform)_surfaceMotion.RenderTransform;
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        _surfaceMotion.BeginAnimation(UIElement.OpacityProperty, null);
+    }
+
+    private void BeginBallCollapse()
+    {
+        if (_ballCollapsing) return;
+        if (!_animateSurface)
+        {
+            _ballExpanded = false;
+            SurfaceChanged?.Invoke();
+            return;
+        }
+        CancelSurfaceMotion();
+        _ballCollapsing = true;
+        var version = _surfaceMotionVersion;
+        var scale = (ScaleTransform)_surfaceMotion.RenderTransform;
+        var duration = TimeSpan.FromMilliseconds(120);
+        var ease = new CubicEase { EasingMode = EasingMode.EaseInOut };
+        var y = new DoubleAnimation(1, _ballDiameter / Math.Max(1, _shell.ActualHeight), duration) { EasingFunction = ease };
+        y.Completed += (_, _) =>
+        {
+            if (version != _surfaceMotionVersion || !_ballMode || !_ballExpanded) return;
+            if (Window.IsMouseOver || Window.ContextMenu?.IsOpen == true) { AnimateSurface(); return; }
+            _ballCollapsing = false;
+            _ballExpanded = false;
+            SurfaceChanged?.Invoke();
+        };
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, _ballDiameter / Math.Max(1, _shell.ActualWidth), duration) { EasingFunction = ease });
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, y);
+        _surfaceMotion.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(1, 0.7, duration));
     }
 
     private void RestoreFreeDragPosition(Point grabPoint)
@@ -1583,6 +1762,16 @@ internal sealed class MainHudView : IDisposable
         _taskListToggle.Content = content;
     }
 
+    private static string GetListSubtitle(SessionState state, HudSettings settings, IReadOnlyDictionary<string, string> locale)
+    {
+        var parts = new List<string>();
+        if (settings.MultiTask.NameMode != "hidden" && !string.IsNullOrWhiteSpace(state.ConversationLabel)) parts.Add(state.ConversationLabel);
+        if (settings.MultiTask.ListFields.Time) parts.Add(state.StartedAt.ToLocalTime().ToString("HH:mm"));
+        if (settings.MultiTask.ListFields.CallTotal && state.Snapshot is not null)
+            parts.Add($"{Get(locale, "callTotal")} {HudFormatting.FormatNumber(state.Snapshot.CallTotal, settings.NumberFormat)}");
+        return string.Join(" \u00B7 ", parts);
+    }
+
     private static string GetTaskMetricsText(
         SessionState state,
         HudSettings settings,
@@ -1605,7 +1794,7 @@ internal sealed class MainHudView : IDisposable
             var metrics = HudFormatting.GetTaskListMetrics(
                 snapshot,
                 settings.MultiTask.ListDetail,
-                settings.MultiTask.ListFields,
+                settings.MultiTask.ListFields with { CallTotal = false },
                 locale,
                 settings.NumberFormat);
             parts.AddRange(metrics.Primary.Select(FormatTaskMetric));
@@ -1671,7 +1860,7 @@ internal sealed class MainHudView : IDisposable
         return includeNumber ? $"#{state.Number} \u00B7 {name}" : name;
     }
 
-    private static HudMetric[] AddSourceBreakdown(
+    private HudMetric[] AddSourceBreakdown(
         HudMetric[] metrics,
         IReadOnlyList<SessionState> states,
         IReadOnlyDictionary<string, string> locale)
@@ -1702,7 +1891,7 @@ internal sealed class MainHudView : IDisposable
         return metrics;
     }
 
-    private static string GetSourceLabel(SessionState state, IReadOnlyDictionary<string, string> locale)
+    private string GetSourceLabel(SessionState state, IReadOnlyDictionary<string, string> locale)
     {
         if (string.Equals(state.ClientSurface, "vscode", StringComparison.OrdinalIgnoreCase))
         {
@@ -1715,6 +1904,7 @@ internal sealed class MainHudView : IDisposable
         if (string.Equals(state.ClientSurface, "cli", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(state.ProfileId, SessionProfile.DeepSeekId, StringComparison.OrdinalIgnoreCase))
         {
+            if (!_showProviderLabel) return Get(locale, "sourceCli");
             if (string.Equals(state.ModelProvider, "deepseek", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(state.ProfileId, SessionProfile.DeepSeekId, StringComparison.OrdinalIgnoreCase))
             {

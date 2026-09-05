@@ -21,6 +21,7 @@ node_modules/
 bin/
 obj/
 runtime/
+portable-data/
 Microsoft/
 
 !src-dotnet/CodexMonitorHud.Core/Sessions/

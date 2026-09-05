@@ -497,6 +497,8 @@
             <Border Height="1" Background="#10000000" Margin="0,14,0,20" />
 
             <TextBlock x:Name="LanguageLayoutTitle" Text="文字与布局  Language &amp; layout" FontSize="15" FontWeight="SemiBold" />
+            <CheckBox x:Name="StartWithWindowsCheck" Content="开机启动（Windows 登录时）" Margin="0,10,0,0" />
+            <TextBlock x:Name="StartWithWindowsHint" Text="登录后自动显示 HUD，不打开设置。仅影响当前用户，可随时关闭。" FontSize="12" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,3,0,4" />
             <StackPanel Margin="0,10,0,12">
               <TextBlock x:Name="SurfaceModeLabel" Text="悬浮显示模式" FontSize="12" Foreground="{StaticResource Muted}" />
               <ComboBox x:Name="SurfaceModeCombo" HorizontalAlignment="Left">
@@ -504,6 +506,11 @@
                 <ComboBoxItem x:Name="SurfaceBallItem" Content="悬浮球（悬停展开）" Tag="ball" />
               </ComboBox>
               <TextBlock x:Name="SurfaceModeHint" Text="悬浮球在鼠标移入时展开，移出后自动收回。开启鼠标穿透时保持悬浮窗。" FontSize="12" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,4,0,0" />
+              <TextBlock x:Name="FloatingBallSizeLabel" Text="悬浮球大小" FontSize="12" Foreground="{StaticResource Muted}" Margin="0,10,0,0" />
+              <StackPanel Orientation="Horizontal">
+                <Slider x:Name="FloatingBallSizeSlider" Minimum="32" Maximum="120" Value="48" TickFrequency="1" IsSnapToTickEnabled="True" Width="240" />
+                <TextBlock Text="{Binding Value, ElementName=FloatingBallSizeSlider, StringFormat={}{0:0} px}" VerticalAlignment="Center" Margin="12,0,0,0" />
+              </StackPanel>
             </StackPanel>
             <WrapPanel Margin="0,6,0,0">
               <StackPanel>
@@ -593,6 +600,7 @@
             <ScrollViewer x:Name="SourcesScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
               <StackPanel Margin="8,14,8,22">
                 <TextBlock x:Name="SessionSourcesTitle" Text="监控来源" FontSize="15" FontWeight="SemiBold" />
+                <CheckBox x:Name="ShowProviderLabelCheck" Content="显示服务提供方标识" Margin="0,10,0,6" />
                 <TextBlock x:Name="SessionSourcesHint"
                            Text="任务行只显示简洁来源图标；把鼠标放到图标上可查看全称。下方图标说明也可以分别控制三类来源。"
                            MaxWidth="620"
@@ -1219,6 +1227,22 @@
                 </Grid>
               </StackPanel>
             </Expander>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+          <TabItem x:Name="AboutTab" Header="关于">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="26,20">
+              <StackPanel>
+                <TextBlock Text="Codex Monitor HUD" FontSize="26" FontWeight="SemiBold" />
+                <TextBlock x:Name="AboutVersion" Margin="0,8,0,16" Foreground="{StaticResource Muted}" TextWrapping="Wrap" />
+                <TextBlock x:Name="AboutDescription" TextWrapping="Wrap" Margin="0,0,0,16" />
+                <TextBlock Text="Fork: wassamriehlei · Upstream: LH-03 / Codex Monitor HUD Contributors" TextWrapping="Wrap" Margin="0,0,0,12" />
+                <TextBlock x:Name="AboutLicense" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,16" />
+                <WrapPanel>
+                  <Button x:Name="AboutRepositoryButton" Content="项目仓库" />
+                  <Button x:Name="AboutReleasesButton" Content="查看更新" />
+                  <Button x:Name="AboutUpstreamButton" Content="上游项目" />
+                </WrapPanel>
               </StackPanel>
             </ScrollViewer>
           </TabItem>

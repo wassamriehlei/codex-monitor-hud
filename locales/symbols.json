@@ -1,4 +1,15 @@
 {
+  "startWithWindows": "Start with Windows",
+  "startWithWindowsHint": "Start for this Windows user only. Off by default. For portable mode, keep this folder in place; enable again after moving it.",
+  "startupFailed": "Startup setting failed",
+  "aboutTab": "About",
+  "portableMode": "Portable",
+  "installedMode": "Installed",
+  "aboutDescription": "Local monitoring for Codex Desktop, VS Code and CLI, including WSL paths. No session uploads. This is a community project, not an official OpenAI application.",
+  "aboutLicense": "Code: MIT. Lucide icons: ISC. The bundled completion sound is distributed with permission confirmed by its supplier; it is not covered by the code license.",
+  "aboutRepository": "Repository",
+  "aboutReleases": "Check releases",
+  "aboutUpstream": "Upstream project",
   "appName": "Codex Monitor HUD",
   "waiting": "…",
   "noActiveTasks": "○",
@@ -100,8 +111,8 @@
   "listDetailBalanced": "Balanced · one row",
   "listDetailDetailed": "Diagnostic · two rows",
   "taskBubbleFieldsTitle": "Independent bubble details",
-  "taskBubbleResizeHint": "Drag the lower-right corner of any independent bubble to resize it. Its fields are separate from the list.",
-  "resizeTaskBubble": "Drag to resize bubble",
+  "taskBubbleResizeHint": "Hold Ctrl and scroll over a bubble to scale its text, icons and border together (60%–200%).",
+  "resizeTaskBubble": "Ctrl + wheel: scale whole bubble (60%–200%)",
   "dismissTask": "Remove from HUD; it returns when this conversation runs again",
   "closeTaskBubble": "Close this bubble only; main monitoring continues",
   "sessionSourcesTitle": "Monitoring sources",
@@ -348,8 +359,10 @@
   "cancel": "Cancel",
   "apply": "Apply",
   "surfaceMode": "Floating surface",
+  "floatingBallSize": "Floating ball size",
+  "showProviderLabel": "Show provider labels (custom / OpenAI / DeepSeek)",
   "surfaceWindow": "▣ Window",
   "surfaceBall": "● Ball (hover)",
   "surfaceModeHint": "Hover to expand; leave to collapse. Click-through keeps the window expanded.",
-  "surfaceBallHint": "Hover to expand · Double-click for settings · Drag to move"
+  "surfaceBallHint": "Click to expand · Hover for 0.2 seconds · Double-click for settings · Stays collapsed while dragging"
 }

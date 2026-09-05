@@ -131,6 +131,8 @@ public sealed record HudSettings
     public double? CustomTop { get; init; }
     public required double HudWidth { get; init; }
     public string SurfaceMode { get; init; } = "window";
+    public double FloatingBallSize { get; init; } = 48;
+    public bool ShowProviderLabel { get; init; } = true;
     public required double FontSize { get; init; }
     public required double CornerRadius { get; init; }
     public required double Opacity { get; init; }
@@ -171,6 +173,8 @@ public sealed record HudSettings
             Preset = Text(document, "preset"),
             Language = Text(document, "language", "en"),
             SurfaceMode = Text(document, "surfaceMode", "window") == "ball" ? "ball" : "window",
+            FloatingBallSize = Math.Clamp(Number(document, "floatingBallSize", 48), 32, 120),
+            ShowProviderLabel = Boolean(document, "showProviderLabel", true),
             Layout = Text(document, "layout", "chips"),
             NumberFormat = Text(document, "numberFormat", "exact"),
             MonitorScope = Text(document, "monitorScope", "aggregate"),

@@ -21,12 +21,12 @@ function Resolve-SyntheticPlan([string]$Platform,[string]$Architecture,[Validate
 }
 
 $prompts = @(
-    '帮我安装 https://github.com/LH-03/codex-monitor-hud',
-    '这个插件帮我装一下：https://github.com/LH-03/codex-monitor-hud',
-    'install this https://github.com/LH-03/codex-monitor-hud'
+    '帮我安装 https://github.com/wassamriehlei/codex-monitor-hud',
+    '这个插件帮我装一下：https://github.com/wassamriehlei/codex-monitor-hud',
+    'install this https://github.com/wassamriehlei/codex-monitor-hud'
 )
 foreach ($prompt in $prompts) {
-    $url = [regex]::Match($prompt,'https://github\.com/LH-03/codex-monitor-hud').Value
+    $url = [regex]::Match($prompt,'https://github\.com/wassamriehlei/codex-monitor-hud').Value
     Assert-Protocol ($url -eq $manifest.repository) 'vague install prompts must resolve to the canonical repository'
 }
 

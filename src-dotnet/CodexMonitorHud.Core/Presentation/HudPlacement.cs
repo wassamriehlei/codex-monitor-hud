@@ -4,6 +4,19 @@ public readonly record struct HudPoint(double Left, double Top);
 
 public static class HudPlacement
 {
+    public static HudPoint ExpandFromBall(
+        HudPoint ball, double diameter, double screenLeft, double screenTop,
+        double screenWidth, double screenHeight, double windowWidth, double windowHeight,
+        double inset, bool? towardLeft = null, bool? towardTop = null)
+    {
+        var leftward = towardLeft ?? ball.Left + inset + diameter / 2 > screenLeft + screenWidth / 2;
+        var upward = towardTop ?? ball.Top + inset + diameter / 2 > screenTop + screenHeight / 2;
+        return ClampCustom(
+            ball.Left + (leftward ? diameter + 2 * inset - windowWidth : 0),
+            ball.Top + (upward ? diameter + 2 * inset - windowHeight : 0),
+            screenLeft, screenTop, screenWidth, screenHeight, windowWidth, windowHeight, inset);
+    }
+
     public static HudPoint GetPreset(
         string position,
         double screenLeft,

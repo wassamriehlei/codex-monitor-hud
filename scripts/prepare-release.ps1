@@ -1,6 +1,8 @@
 param(
-    [string]$Version = '3.2.1',
-    [string]$OutputRoot = ''
+    [string]$Version = '3.3.0',
+    [string]$OutputRoot = '',
+    [string]$InnoCompiler = '',
+    [switch]$SkipInstaller
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,19 +26,25 @@ if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
 }
 $outputRoot = [IO.Path]::GetFullPath($OutputRoot)
 $artifactRoot = [IO.Path]::GetFullPath((Join-Path $sourceRoot 'artifacts'))
-if (-not $outputRoot.StartsWith($artifactRoot, [StringComparison]::OrdinalIgnoreCase)) {
+if (-not $outputRoot.StartsWith($artifactRoot.TrimEnd([char]92) + '\', [StringComparison]::OrdinalIgnoreCase)) {
     throw 'OutputRoot must stay under the repository artifacts directory.'
 }
 
 $stageRoot = Join-Path $outputRoot 'stage'
 $archiveName = 'CodexMonitorHUD-windows-x64.zip'
 $archivePath = Join-Path $outputRoot $archiveName
-$excludedRootNames = @('.git','.agents','.codex','artifacts','.test-output','private','node_modules','sessions','logs','archive','Microsoft')
+$excludedRootNames = @('.git','.agents','.codex','artifacts','.test-output','private','portable-data','node_modules','sessions','logs','archive','Microsoft')
 $excludedDirectoryNames = @('bin','obj')
 $excludedFileNames = @('.DS_Store','Thumbs.db','settings.json','AGENTS.md','WORKSPACE_STATE.md')
 $excludedExtensions = @('.log','.zip','.db','.sqlite','.sqlite3','.jsonl')
 $excludedRelativePaths = @('docs/MAINTENANCE_WORKFLOW.md','docs/MACOS_PREVIEW_TESTING.md','scripts/prepare-delivery.ps1')
 
+if (Test-Path -LiteralPath $stageRoot) { throw 'Use a fresh OutputRoot to avoid stale release files.' }
+$manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $sourceRoot '.codex-plugin\plugin.json') | ConvertFrom-Json
+if ([string]$manifest.version -ne $Version) { throw 'Release version differs from plugin manifest.' }
+foreach ($required in @('runtime\win-x64\dotnet\dotnet.exe','runtime\win-x64\app\CodexMonitorHud.dll','assets\audio\default-completion.mp3','Start-Portable.cmd','Settings-Portable.cmd')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot $required))) { throw "Missing release payload: $required" }
+}
 New-Item -ItemType Directory -Force -Path $stageRoot | Out-Null
 $files = Get-ChildItem -LiteralPath $sourceRoot -File -Recurse -Force | Where-Object {
     $relative = $_.FullName.Substring($sourceRoot.Length).TrimStart([char[]]@([char]92,[char]47))
@@ -64,9 +72,21 @@ $packageFiles = Get-ChildItem -LiteralPath $stageRoot -File -Recurse -Force | Fo
     $_.FullName.Substring($stageRoot.Length).TrimStart([char[]]@([char]92,[char]47)) -replace '\\','/'
 } | Sort-Object
 $packageFiles | Set-Content -LiteralPath (Join-Path $outputRoot 'PACKAGE_FILES.txt') -Encoding utf8
-Compress-Archive -Path (Join-Path $stageRoot '*') -DestinationPath $archivePath -CompressionLevel Optimal -Force
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+# ZipFile includes dotfiles required by Codex (.codex-plugin and .mcp.json).
+[IO.Compression.ZipFile]::CreateFromDirectory($stageRoot, $archivePath, [IO.Compression.CompressionLevel]::Optimal, $false)
+$portableName = "CodexMonitorHUD-Portable-$Version-windows-x64.zip"
+Copy-Item -LiteralPath $archivePath -Destination (Join-Path $outputRoot $portableName)
+if (-not $SkipInstaller) {
+    if ([string]::IsNullOrWhiteSpace($InnoCompiler)) { $InnoCompiler = Join-Path $sourceRoot 'private\toolchain\innosetup\ISCC.exe' }
+    if (-not (Test-Path -LiteralPath $InnoCompiler)) { throw 'Inno Setup 6 compiler is required for the EXE. Use -InnoCompiler or explicitly choose -SkipInstaller.' }
+    & $InnoCompiler '/Qp' "/DPackageVersion=$Version" "/DStageRoot=$stageRoot" "/DReleaseRoot=$outputRoot" (Join-Path $sourceRoot 'scripts\installer.iss')
+    if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed: $LASTEXITCODE" }
+}
 $hash = Get-Sha256Hex $archivePath
-"$hash  $archiveName" | Set-Content -LiteralPath (Join-Path $outputRoot 'SHA256SUMS.txt') -Encoding ascii
+$assetNames = @($archiveName,$portableName)
+if (-not $SkipInstaller) { $assetNames += "CodexMonitorHUD-Setup-$Version-windows-x64.exe" }
+$assetNames | ForEach-Object { "$(Get-Sha256Hex (Join-Path $outputRoot $_))  $_" } | Set-Content -LiteralPath (Join-Path $outputRoot 'SHA256SUMS.txt') -Encoding ascii
 
 $upload = @"
 # Release upload fields

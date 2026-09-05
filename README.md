@@ -18,6 +18,22 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1
 
 The Windows Release bundles a private .NET/WPF runtime so it can run without requiring a matching system-wide .NET installation; most of the download size comes from that runtime rather than the HUD itself.
 
+## Windows downloads
+
+Download the stable release from [Releases](https://github.com/wassamriehlei/codex-monitor-hud/releases/latest):
+
+- **EXE installer:** `CodexMonitorHUD-Setup-3.3.0-windows-x64.exe`. Current-user installation; no administrator or .NET SDK required. Upgrades preserve settings and keep a rollback copy.
+- **Portable ZIP:** `CodexMonitorHUD-Portable-3.3.0-windows-x64.zip`. Extract to a writable folder, then double-click `Start-Portable.cmd`; use `Settings-Portable.cmd` to configure it. Configuration and state stay under `portable-data/CodexMonitorHUD` beside the launchers. No installation, marketplace registration, or desktop shortcuts are created.
+- `CodexMonitorHUD-windows-x64.zip` is the compatibility asset used by the repository installer. It carries the same payload as the portable archive.
+
+Both downloads include the private Windows runtime and the completion sound. Verify downloads against `SHA256SUMS.txt`. The EXE is not code-signed, so Windows may show an unknown-publisher warning.
+
+**Start with Windows** is opt-in under Settings → General. It creates a shortcut for the current user only. Keep a portable folder at the same path while startup is enabled; turn startup off before deleting it, or re-enable after moving it. Only one HUD login shortcut is registered at a time; enabling another copy transfers that shortcut to it.
+
+Settings → About shows the current version, installed/portable mode, attribution, license information, repository and releases links.
+
+For a portable WSL bridge, launch `Start-Portable.cmd -HudHome "\\wsl.localhost\Ubuntu\home\YOUR_USER"`. WSL is a session location, not a separate client filter: select CLI or VS Code in Sources. Supply the bridge on manual launches; enabling Windows startup from that process captures the path.
+
 ## What you see
 
 - Active, listening, idle, paused, read-error, completed, and aborted task state.
@@ -37,7 +53,17 @@ The Windows Release bundles a private .NET/WPF runtime so it can run without req
 
 ## iOS 26-inspired Liquid design
 
-In **Settings > General > Floating surface**, choose a window or a floating ball. The ball shows only the number of active/listening tasks (zero when none); completed, idle, and error tasks are excluded. Hover to expand and leave for 450 ms to collapse. Mouse click-through keeps the window expanded so controls remain recoverable. This option is independent of summary/list/split layout.
+This fork's project defaults now reflect the current personal setup: Chinese, a 60 DIP floating ball, a 547 DIP expanded window, list layout, hidden provider labels and list model/cache-hit fields. Reset uses this configuration; upgrades preserve existing settings. The supplied completion sound is bundled at `assets/audio/default-completion.mp3` and enabled by default. Both hosts resolve relative audio paths against the installation directory, so the original desktop file is no longer required. See [audio provenance](assets/audio/README.md) before redistributing the supplied recording.
+
+Detached task bubbles retain only the merge action; it removes the separate window while keeping the task monitored in the main HUD. The redundant close button is removed without leaving a layout placeholder.
+
+The ball's count and soft radial background use the current overall status color, including custom colors. Finite number effects distinguish active (pulse), listening (breath), completed (pop), error (short shake), aborted (settle), and idle (fade); paused stays still. The background breathes slowly during active/listening tasks, briefly brightens on completion/error, and stays still when idle/paused. Background motion is capped at 24 fps, adds no glass/compositor effects, and stops alongside count motion when expanded, hidden, or animations are disabled. Ordinary count refreshes do not restart either animation.
+
+The floating ball diameter is adjustable from 32 to 120 DIP in **Settings > General**. It unfolds toward the available screen side in 160 ms and shrinks back to its ball anchor in 120 ms (ordinary show transitions take 100 ms). These bounded transitions follow **Animate updates**; ordinary monitoring ticks do not replay them. **Settings > Sources > Show provider labels** hides provider names such as `custom` while retaining `CLI` and the client's source icon. `custom` is the provider identifier recorded by the session, not the model or an error. In task lists, the call total appears after the time on the lower line, with both fields still independently optional.
+
+In **Settings > General > Floating surface**, choose a window or a floating ball. The ball shows only the number of active/listening tasks (zero when none); completed, idle, and error tasks are excluded. Click to expand immediately, or hover continuously for **0.2 seconds** to expand and leave for 450 ms to collapse. Pressing, leaving, or dragging cancels the expansion timer; after dragging, move away and hover again to expand. Left-side balls open rightward and right-side balls open leftward, keeping the ball anchor when collapsing. Mouse click-through keeps the window expanded so controls remain recoverable. This option is independent of summary/list/split layout.
+
+Settings stays cached for up to 10 minutes after closing, so reopening reuses the same window and reloads current configuration. It then exits to release memory. System font enumeration happens only on first opening the font picker. A first launch still loads PowerShell/WPF; there is no extra settings process before you first open Settings.
 
 Dragging pauses nonessential polling and automatic placement until release. Plain clicks no longer save or snap the window. Settings generates its color wheel only when opening the picker, and repeated Settings requests focus the existing window.
 
@@ -78,7 +104,7 @@ Codex CLI may also run inside WSL while the visible HUD remains a native Windows
 | --- | --- |
 | Summary | A compact aggregate bubble. |
 | List | Stable numbered task rows inside the main HUD; rows, cards, and rail styles are available. |
-| Split | Independent, resizable task bubbles (up to 12), backed by the same bounded task table. |
+| Split | Independent task bubbles (up to 12); Ctrl + mouse wheel scales text, icons and borders together from 60% to 200%, without a corner resize icon. |
 
 The aggregate count button is only a list expand/collapse control. If task bubbles have been detached, collapsing the list leaves those independent bubbles open. Use **Merge all task bubbles** from the HUD or tray menu when you actually want to merge them.
 
@@ -112,6 +138,6 @@ macOS support has been intentionally dropped from this project. macOS users are 
 
 ## Project status
 
-`3.2.1` keeps the allowance guard and multi-client monitoring from 3.2.0, and repairs the Windows Release path so it uses the bundled runtime instead of unexpectedly building source on a user's machine. Its optional cost display uses an offline standard API list-price snapshot only; it is not a Codex credit or subscription-bill calculation. This is an unofficial, independent project and is not affiliated with or endorsed by OpenAI, Microsoft, or DeepSeek.
+`3.3.0` adds portable and EXE distribution, opt-in Windows startup, an About page, and the compact customizable floating-ball interface. Its optional cost display uses an offline standard API list-price snapshot only; it is not a Codex credit or subscription-bill calculation. This is an unofficial, independent project and is not affiliated with or endorsed by OpenAI, Microsoft, or DeepSeek.
 
 MIT License.

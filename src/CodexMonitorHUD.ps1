@@ -17,7 +17,7 @@ param(
     [string]$ImportThemeFile,
     [switch]$PreviewSettingsAdvanced,
     [switch]$PreviewSettingsReminders,
-    [ValidateSet('general','sources','multi','behavior','metrics','appearance')][string]$PreviewSettingsTab = 'general',
+    [ValidateSet('general','sources','multi','behavior','metrics','appearance','about')][string]$PreviewSettingsTab = 'general',
     [ValidateSet('zh-CN','en','symbols')][string]$PreviewLanguage = 'zh-CN',
     [ValidateSet('chips','compact','inline','outline','cards','stacked')][string]$PreviewLayout = 'chips',
     [ValidateSet('summary','list')][string]$PreviewHudMode = 'summary',
@@ -99,6 +99,7 @@ try { [void][HudNativeMethods]::SetCurrentProcessExplicitAppUserModelID('CodexMo
 $pluginRoot = Split-Path -Parent $PSScriptRoot
 $script:windowIconHandles = @{}
 Import-Module (Join-Path $PSScriptRoot 'MonitorHud.Core.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'MonitorHud.Startup.psm1') -Force
 $paths = Get-HudPaths $pluginRoot
 $configuredHome = [string]$env:CODEX_MONITOR_HUD_HOME
 if (-not [string]::IsNullOrWhiteSpace($configuredHome)) {
@@ -136,7 +137,8 @@ $mutex = $null
 $isUtilityRun = $SelfTest -or -not [string]::IsNullOrWhiteSpace($RenderPreview) -or -not [string]::IsNullOrWhiteSpace($RenderSettingsPreview) -or -not [string]::IsNullOrWhiteSpace($RenderColorPickerPreview) -or -not [string]::IsNullOrWhiteSpace($ImportThemeFile)
 if (-not $isUtilityRun) {
     $createdNew = $false
-    $mutexSuffix = if ($SettingsHost) { '-settings' } elseif ([string]::IsNullOrWhiteSpace($InstanceId)) { '' } else { '-' + ([regex]::Replace($InstanceId, '[^A-Za-z0-9_.-]', '_')) }
+    $instanceSuffix = if ([string]::IsNullOrWhiteSpace($InstanceId)) { '' } else { '-' + ([regex]::Replace($InstanceId, '[^A-Za-z0-9_.-]', '_')) }
+    $mutexSuffix = $(if ($SettingsHost) { '-settings' } else { '' }) + $instanceSuffix
     $mutex = New-Object Threading.Mutex($true, ('Local\CodexMonitorHUD' + $mutexSuffix), [ref]$createdNew)
     if (-not $createdNew) {
         if ($SettingsHost) { [IO.File]::WriteAllText($settingsHostOpenSignal, [DateTime]::UtcNow.ToString('O')) }
@@ -182,9 +184,7 @@ if ([string]::IsNullOrWhiteSpace($RenderPreview) -and [string]::IsNullOrWhiteSpa
 
 function Load-XamlWindow {
     param([Parameter(Mandatory = $true)][string]$Path)
-    [xml]$xaml = Get-Content -Raw -Encoding UTF8 -LiteralPath $Path
-    $reader = New-Object Xml.XmlNodeReader $xaml
-    [Windows.Markup.XamlReader]::Load($reader)
+    [Windows.Markup.XamlReader]::Parse([IO.File]::ReadAllText($Path))
 }
 
 function Set-HudWindowIcon {
@@ -421,6 +421,12 @@ $ballModeActive = $false
 $isFloatingBallExpanded = $false
 $wasBallCollapsed = $false
 $ballCollapseTimer = $null
+$ballExpandTimer = $null
+$ballExpandLeft = $false
+$ballExpandUp = $false
+$ballOffsetX = 0.0
+$ballOffsetY = 0.0
+$surfaceMotionState = [pscustomobject]@{ Version=0; Collapsing=$false }
 $isHudDragging = $false
 $colorWheelBitmap = $null
 $contextMetricContainer = $null
@@ -466,6 +472,14 @@ $taskListPanel = Find-Control $hud 'TaskListPanel'
 $quietIndicatorPanel = Find-Control $hud 'QuietIndicatorPanel'
 $floatingBallPanel = Find-Control $hud 'FloatingBallPanel'
 $floatingBallCount = Find-Control $hud 'FloatingBallCount'
+$ballStatusBackground = Find-Control $hud 'BallStatusBackground'
+$hudSurfaceMotion = Find-Control $hud 'HudSurfaceMotion'
+$surfaceMotionInitialized = $false
+$lastMotionCollapsed = $false
+$ballMotionSignature = ''
+$ballStateStoryboard = $null
+$ballBackgroundStoryboard = $null
+$ballStatus = 'idle'
 $quietOverallHost = Find-Control $hud 'QuietOverallHost'
 $quietOverallRing = Find-Control $hud 'QuietOverallRing'
 $quietOverallDot = Find-Control $hud 'QuietOverallDot'
@@ -484,6 +498,10 @@ $themeWorkshopDropZone = Find-Control $settings 'ThemeWorkshopDropZone'
 $themeImportButton = Find-Control $settings 'ThemeImportButton'
 $languageCombo = Find-Control $settings 'LanguageCombo'
 $surfaceModeCombo = Find-Control $settings 'SurfaceModeCombo'
+$startWithWindowsCheck = Find-Control $settings 'StartWithWindowsCheck'
+$startWithWindowsHint = Find-Control $settings 'StartWithWindowsHint'
+$floatingBallSizeSlider = Find-Control $settings 'FloatingBallSizeSlider'
+$showProviderLabelCheck = Find-Control $settings 'ShowProviderLabelCheck'
 $layoutCombo = Find-Control $settings 'LayoutCombo'
 $numberCombo = Find-Control $settings 'NumberCombo'
 $positionCombo = Find-Control $settings 'PositionCombo'
@@ -613,8 +631,12 @@ $settingsTabControls = [ordered]@{
     BehaviorTab = Find-Control $settings 'BehaviorTab'
     MetricsTab = Find-Control $settings 'MetricsTab'
     AppearanceTab = Find-Control $settings 'AppearanceTab'
+    AboutTab = Find-Control $settings 'AboutTab'
 }
 $sourceDesktopCheck = Find-Control $settings 'SourceDesktopCheck'
+(Find-Control $settings 'AboutRepositoryButton').Add_Click({ Start-Process 'https://github.com/wassamriehlei/codex-monitor-hud' })
+(Find-Control $settings 'AboutReleasesButton').Add_Click({ Start-Process 'https://github.com/wassamriehlei/codex-monitor-hud/releases/latest' })
+(Find-Control $settings 'AboutUpstreamButton').Add_Click({ Start-Process 'https://github.com/LH-03/codex-monitor-hud' })
 $sourceVsCodeCheck = Find-Control $settings 'SourceVsCodeCheck'
 $sourceDefaultCliCheck = Find-Control $settings 'SourceDefaultCliCheck'
 $sourceDeepSeekCliCheck = Find-Control $settings 'SourceDeepSeekCliCheck'
@@ -648,7 +670,7 @@ foreach ($key in @('Input','Cached','CacheHitRate','Uncached','Output','Reasonin
 
 $settingsTextControls = @{}
 foreach ($name in @(
-    'SurfaceModeLabel','SurfaceModeHint',
+    'SurfaceModeLabel','SurfaceModeHint','FloatingBallSizeLabel',
     'SettingsSubtitle','PresetsTitle','PresetsHint','ThemeWorkshopTitle','ThemeWorkshopHint','LanguageLayoutTitle','DisplayLanguageLabel','BubbleStyleLabel','SessionSourcesTitle','SessionSourcesHint','SessionSourcesPrivacy','SourceDesktopOptionText','SourceVsCodeOptionText','SourceDefaultCliOptionText','SourceDeepSeekCliOptionText',
     'NumberFormatLabel','PositionLabel','MonitorScopeLabel','ActiveWindowLabel','TaskRetentionLabel','TerminalExitModeLabel','TerminalExitHint','MetricsTitle','MetricsHint','PricingSourceTitle','PricingSourceHint','PricingPathLabel',
     'AppearanceTitle','FontFamilyLabel','HudWidthLabel','FontSizeLabel','RadiusLabel','OpacityLabel','BackgroundColorLabel','ForegroundColorLabel','AccentColorLabel','FontPreviewText',
@@ -764,6 +786,7 @@ function New-FontFamilyChoice {
 }
 
 function Initialize-FontFamilyChoices {
+    param([switch]$IncludeSystem)
     $fontFamilyCombo.Items.Clear()
     $seen = @{}
     foreach ($entry in @(
@@ -776,6 +799,7 @@ function Initialize-FontFamilyChoices {
             $seen[$value] = $true
         }
     }
+    if (-not $IncludeSystem) { return }
     foreach ($family in @([Windows.Media.Fonts]::SystemFontFamilies | Sort-Object Source)) {
         $value = [string]$family.Source
         if (-not [string]::IsNullOrWhiteSpace($value) -and -not $seen.ContainsKey($value)) {
@@ -822,7 +846,7 @@ function Apply-SettingsLanguage {
     $script:locale = Get-RuntimeHudLocale ([string]$config.language)
     $script:settingsLocale = if ([string]$config.language -eq 'symbols') { Get-RuntimeHudLocale 'en' } else { $locale }
     $map = @{
-        SurfaceModeLabel='surfaceMode'; SurfaceModeHint='surfaceModeHint';
+        SurfaceModeLabel='surfaceMode'; SurfaceModeHint='surfaceModeHint'; FloatingBallSizeLabel='floatingBallSize';
         SettingsSubtitle='settingsSubtitle'; PresetsTitle='presetsTitle'; PresetsHint='presetsHint'; ThemeWorkshopTitle='themeWorkshopTitle'; ThemeWorkshopHint='themeWorkshopHint';
         LanguageLayoutTitle='languageLayoutTitle'; DisplayLanguageLabel='displayLanguage'; BubbleStyleLabel='bubbleStyle';
         SessionSourcesTitle='sessionSourcesTitle'; SessionSourcesHint='sessionSourcesHint'; SessionSourcesPrivacy='sessionSourcesPrivacy'; SourceDesktopOptionText='sourceDesktopOption'; SourceVsCodeOptionText='sourceVsCodeOption'; SourceDefaultCliOptionText='sourceDefaultCliOption'; SourceDeepSeekCliOptionText='sourceDeepSeekCliOption';
@@ -907,9 +931,12 @@ function Apply-SettingsLanguage {
         } else { [string]$settingsLocale.$key }
     }
     $alwaysOnTopCheck.Content = [string]$settingsLocale.alwaysOnTop
+    $startWithWindowsCheck.Content = [string]$settingsLocale.startWithWindows
+    $startWithWindowsHint.Text = [string]$settingsLocale.startWithWindowsHint
     $mousePassthroughCheck.Content = [string]$settingsLocale.mousePassthrough
     $statusDotCheck.Content = [string]$settingsLocale.statusDot
     $animateCheck.Content = [string]$settingsLocale.animateUpdates
+    $showProviderLabelCheck.Content = [string]$settingsLocale.showProviderLabel
     $animateCheck.ToolTip = [string]$settingsLocale.animateUpdatesTooltip
     $autoSplitCheck.Content = [string]$settingsLocale.autoSplitNewTasks
     $attentionCompletedCheck.Content = [string]$settingsLocale.attentionCompleted
@@ -970,6 +997,15 @@ function Apply-SettingsLanguage {
     $settingsTabControls['BehaviorTab'].Header = [string]$settingsLocale.behaviorTab
     $settingsTabControls['MetricsTab'].Header = [string]$settingsLocale.metricsTab
     $settingsTabControls['AppearanceTab'].Header = [string]$settingsLocale.appearanceTab
+    $settingsTabControls['AboutTab'].Header = [string]$settingsLocale.aboutTab
+    $releaseVersion = [string](Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $pluginRoot '.codex-plugin\plugin.json') | ConvertFrom-Json).version
+    $runMode = if ($env:CODEX_MONITOR_HUD_DATA_HOME) { [string]$settingsLocale.portableMode } else { [string]$settingsLocale.installedMode }
+    (Find-Control $settings 'AboutVersion').Text = "v$releaseVersion · Windows x64 · $runMode"
+    (Find-Control $settings 'AboutDescription').Text = [string]$settingsLocale.aboutDescription
+    (Find-Control $settings 'AboutLicense').Text = [string]$settingsLocale.aboutLicense
+    (Find-Control $settings 'AboutRepositoryButton').Content = [string]$settingsLocale.aboutRepository
+    (Find-Control $settings 'AboutReleasesButton').Content = [string]$settingsLocale.aboutReleases
+    (Find-Control $settings 'AboutUpstreamButton').Content = [string]$settingsLocale.aboutUpstream
     $resetButton.Content = [string]$settingsLocale.resetDefaults
     $saveButton.Content = [string]$settingsLocale.saveAndClose
     $saveStatus.Text = [string]$settingsLocale.livePreview
@@ -1092,7 +1128,7 @@ if ($loadSettingsUi) {
     $pickerCancelButton.Add_Click({$colorPicker.Hide()})
     $colorPickerClose.Add_Click({$colorPicker.Hide()})
     $colorPickerTitleBar.Add_MouseLeftButtonDown({if($_.ButtonState -eq [Windows.Input.MouseButtonState]::Pressed){$colorPicker.DragMove()}})
-    $colorPicker.Add_Closing({if(-not$SettingsHost-and-not$closingApp){$_.Cancel=$true;$colorPicker.Hide()}})
+    $colorPicker.Add_Closing({if(-not$closingApp){$_.Cancel=$true;$colorPicker.Hide()}})
 }
 
 function Export-ColorPickerPreview {
@@ -1166,31 +1202,59 @@ function Get-HudClampedPosition {
     return [pscustomobject]@{ Left=$clampedLeft; Top=$clampedTop }
 }
 
+function Get-HudBallExpansionPosition {
+    param($Ball, [double]$Diameter, $Screen, [double]$Width, [double]$Height, [double]$Inset = 18, $TowardLeft = $null, $TowardTop = $null)
+    if ($null -eq $TowardLeft) { $TowardLeft = $Ball.Left + $Inset + $Diameter / 2 -gt $Screen.Left + $Screen.Width / 2 }
+    if ($null -eq $TowardTop) { $TowardTop = $Ball.Top + $Inset + $Diameter / 2 -gt $Screen.Top + $Screen.Height / 2 }
+    $left = $Ball.Left + $(if ($TowardLeft) { $Diameter + 2 * $Inset - $Width } else { 0 })
+    $top = $Ball.Top + $(if ($TowardTop) { $Diameter + 2 * $Inset - $Height } else { 0 })
+    Get-HudClampedPosition $left $top $Screen $Width $Height $Inset
+}
+
 function Move-HudToConfiguredPosition {
     if ($isHudDragging) { return }
     $screen = Get-HudWorkArea $hud
     $hud.MaxWidth = [Math]::Max(480,$screen.Width + 36)
     $hud.UpdateLayout()
     $inset = 18.0
+    $width = [Math]::Max(1,[double]$hud.ActualWidth)
+    $height = [Math]::Max(1,[double]$hud.ActualHeight)
+    $ballExtent = [double]$config.floatingBallSize + 2 * $inset
+    $anchorWidth = if ($ballModeActive) { $ballExtent } else { $width }
+    $anchorHeight = if ($ballModeActive) { $ballExtent } else { $height }
     $minLeft = $screen.Left - $inset
     $minTop = $screen.Top - $inset
-    $maxLeft = [Math]::Max($minLeft,$screen.Left + $screen.Width - $hud.ActualWidth + $inset)
-    $maxTop = [Math]::Max($minTop,$screen.Top + $screen.Height - $hud.ActualHeight + $inset)
+    $maxLeft = [Math]::Max($minLeft,$screen.Left + $screen.Width - $anchorWidth + $inset)
+    $maxTop = [Math]::Max($minTop,$screen.Top + $screen.Height - $anchorHeight + $inset)
     $left = $maxLeft
     $top = $minTop
     switch ([string]$config.position) {
         'top-left' { $left = $minLeft; $top = $minTop }
-        'top-center' { $left = $screen.Left + (($screen.Width - $hud.ActualWidth) / 2); $top = $minTop }
+        'top-center' { $left = $screen.Left + (($screen.Width - $anchorWidth) / 2); $top = $minTop }
         'top-right' { $left = $maxLeft; $top = $minTop }
         'bottom-left' { $left = $minLeft; $top = $maxTop }
-        'bottom-center' { $left = $screen.Left + (($screen.Width - $hud.ActualWidth) / 2); $top = $maxTop }
+        'bottom-center' { $left = $screen.Left + (($screen.Width - $anchorWidth) / 2); $top = $maxTop }
         'bottom-right' { $left = $maxLeft; $top = $maxTop }
         'custom' {
             if ($null -ne $config.customLeft) { $left = [double]$config.customLeft - $inset }
             if ($null -ne $config.customTop) { $top = [double]$config.customTop - $inset }
         }
     }
-    $point = Get-HudClampedPosition $left $top $screen ([Math]::Max(1,[double]$hud.ActualWidth)) ([Math]::Max(1,[double]$hud.ActualHeight)) $inset
+    $point = Get-HudClampedPosition $left $top $screen $anchorWidth $anchorHeight $inset
+    if ($ballModeActive) {
+        $ball = $point
+        if (-not $isFloatingBallExpanded) {
+            $script:ballExpandLeft = $ball.Left + $ballExtent / 2 -gt $screen.Left + $screen.Width / 2
+            $script:ballExpandUp = $ball.Top + $ballExtent / 2 -gt $screen.Top + $screen.Height / 2
+        } else {
+            $point = Get-HudBallExpansionPosition $ball ([double]$config.floatingBallSize) $screen $width $height $inset $ballExpandLeft $ballExpandUp
+        }
+        $script:ballOffsetX = $ball.Left - $point.Left
+        $script:ballOffsetY = $ball.Top - $point.Top
+        $originX = if ([Math]::Abs($width - $ballExtent) -lt 0.01) { 0.5 } else { [Math]::Max(0,[Math]::Min(1,$ballOffsetX / ($width - $ballExtent))) }
+        $originY = if ([Math]::Abs($height - $ballExtent) -lt 0.01) { 0.5 } else { [Math]::Max(0,[Math]::Min(1,$ballOffsetY / ($height - $ballExtent))) }
+        $hudSurfaceMotion.RenderTransformOrigin = New-Object Windows.Point($originX,$originY)
+    } else { $hudSurfaceMotion.RenderTransformOrigin = New-Object Windows.Point(0.5,0.5) }
     $hud.Left = $point.Left
     $hud.Top = $point.Top
 }
@@ -1327,6 +1391,7 @@ function Get-TaskSourceLabel {
     if ($client -eq 'desktop') { return [string]$settingsLocale.sourceDesktop }
     if ($client -eq 'vscode') { return [string]$settingsLocale.sourceVsCode }
     if ($client -eq 'cli' -or $profile -eq 'deepseek') {
+        if (-not [bool]$config.showProviderLabel) { return [string]$settingsLocale.sourceCli }
         if ($provider -eq 'deepseek' -or $profile -eq 'deepseek') { return [string]$settingsLocale.sourceCliDeepSeek }
         if ([string]::IsNullOrWhiteSpace($provider) -or $provider -eq 'openai') { return [string]$settingsLocale.sourceCliOpenAI }
         $shortProvider = $provider.Trim()
@@ -1437,6 +1502,10 @@ function Get-TaskListSubtitle {
     $label = if ($null -ne $State.PSObject.Properties['ConversationLabel']) { [string]$State.ConversationLabel } else { '' }
     if ($IncludeConversationTitle -and [string]$config.multiTask.nameMode -ne 'hidden' -and -not [string]::IsNullOrWhiteSpace($label)) { [void]$parts.Add($label) }
     if ([bool]$config.multiTask.listFields.time) { [void]$parts.Add(([DateTimeOffset]$State.StartedAt).ToLocalTime().ToString('HH:mm')) }
+    if ([bool]$config.multiTask.listFields.callTotal -and $null -ne $State.Snapshot) {
+        $metricLocale = if ([string]$config.language -eq 'symbols') { $locale } else { $settingsLocale }
+        [void]$parts.Add(('{0} {1}' -f [string]$metricLocale.callTotal,(Format-HudNumber ([Int64]$State.Snapshot.CallTotal) ([string]$config.numberFormat))))
+    }
     return ($parts -join (' {0} ' -f [char]0x00B7))
 }
 
@@ -1593,6 +1662,8 @@ function Invoke-HudCompletionSound {
     try {
         if ($Sound -eq 'file') {
             $path = [Environment]::ExpandEnvironmentVariables($FilePath.Trim())
+            if ([string]::IsNullOrWhiteSpace($path)) { return }
+            if (-not [IO.Path]::IsPathRooted($path)) { $path = Join-Path $pluginRoot $path }
             if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
                 Write-HudDebug ('Completion audio file not found: ' + $path)
                 return
@@ -2085,7 +2156,6 @@ function Get-TaskListMetricsText {
     if ([bool]$fields.status) { [void]$parts.Add((Get-TaskStatusText (Get-TaskStatus $State))) }
     if ([bool]$fields.model -and -not [string]::IsNullOrWhiteSpace([string]$snapshot.Model)) { [void]$parts.Add([string]$snapshot.Model) }
     if ([bool]$fields.cacheHitRate) { [void]$parts.Add(('{0} {1}' -f [string]$metricLocale.cacheHitRate,(Format-HudCacheHitRate ([Int64]$snapshot.Input) ([Int64]$snapshot.Cached)))) }
-    if ([bool]$fields.callTotal) { [void]$parts.Add(('{0} {1}' -f [string]$metricLocale.callTotal,(Format-HudNumber ([Int64]$snapshot.CallTotal) ([string]$config.numberFormat)))) }
     if ([bool]$fields.taskTotal) { [void]$parts.Add(('{0} {1}' -f [string]$metricLocale.taskTotal,(Format-HudNumber ([Int64]$snapshot.TaskTotal) ([string]$config.numberFormat)))) }
     if ([bool]$fields.estimatedCost) {
         $taskCost = if ($null -ne $snapshot.PSObject.Properties['EstimatedCostUsd']) { $snapshot.EstimatedCostUsd } else { $null }
@@ -2154,9 +2224,7 @@ function Update-TaskBubble {
         $entry.Number.FontFamily = $themeFont; $entry.Name.FontFamily = $themeFont; $entry.ContextText.FontFamily = $themeFont; $entry.Metrics.FontFamily = $themeFont
     } catch { }
     $entry.Merge.ToolTip = [string]$settingsLocale.mergeTask
-    $entry.Dismiss.ToolTip = [string]$settingsLocale.closeTaskBubble
-    $entry.Resize.ToolTip = [string]$settingsLocale.resizeTaskBubble
-    $entry.Shell.ToolTip = if ([bool]$config.behavior.openTaskOnDoubleClick -and (Test-HudDesktopTask $State)) { [string]$settingsLocale.openTaskTooltip } else { $null }
+    $entry.Shell.ToolTip = if ([bool]$config.behavior.openTaskOnDoubleClick -and (Test-HudDesktopTask $State)) { [string]$settingsLocale.openTaskTooltip + "`n" + [string]$settingsLocale.resizeTaskBubble } else { [string]$settingsLocale.resizeTaskBubble }
     if ([int]$State.AttentionRevision -gt [int]$entry.LastAttentionRevision -and $State.AttentionUntil -gt [DateTimeOffset]::Now) {
         $entry.LastAttentionRevision = [int]$State.AttentionRevision
         Write-HudDebug ('Attention surface: bubble {0} r{1} reason={2}' -f [string]$State.Workspace,[int]$State.AttentionRevision,[string]$State.AttentionReason)
@@ -2383,8 +2451,6 @@ function Set-TaskBubbleIndicatorCollapsed {
     $visibility = if ($Collapsed) { [Windows.Visibility]::Collapsed } else { [Windows.Visibility]::Visible }
     $Entry.Content.Visibility = $visibility
     $Entry.Merge.Visibility = $visibility
-    $Entry.Dismiss.Visibility = $visibility
-    $Entry.Resize.Visibility = $visibility
     if ($Collapsed) {
         $Entry.Dot.Margin = New-Object Windows.Thickness(0)
         $Entry.Shell.Padding = New-Object Windows.Thickness(10)
@@ -2394,15 +2460,9 @@ function Set-TaskBubbleIndicatorCollapsed {
     } else {
         $Entry.Dot.Margin = New-Object Windows.Thickness(0,0,9,0)
         $Entry.Shell.Padding = New-Object Windows.Thickness(12,9,12,9)
-        if ($null -ne $State -and [double]$State.BubbleWidth -gt 0 -and [double]$State.BubbleHeight -gt 0) {
-            $Entry.Window.SizeToContent = [Windows.SizeToContent]::Manual
-            $Entry.Window.Width = [double]$State.BubbleWidth
-            $Entry.Window.Height = [double]$State.BubbleHeight
-        } else {
-            $Entry.Window.Width = [double]::NaN
-            $Entry.Window.Height = [double]::NaN
-            $Entry.Window.SizeToContent = [Windows.SizeToContent]::WidthAndHeight
-        }
+        $Entry.Window.Width = [double]::NaN
+        $Entry.Window.Height = [double]::NaN
+        $Entry.Window.SizeToContent = [Windows.SizeToContent]::WidthAndHeight
     }
     $Entry.Window.UpdateLayout()
 }
@@ -2428,23 +2488,29 @@ function Update-HudIdleIndicatorMode {
 function Update-HudFloatingSurface {
     param([int]$TaskCount)
     $effectiveBall = [string]$config.surfaceMode -eq 'ball' -and -not [bool]$config.mousePassthrough
-    if ($script:ballModeActive -ne $effectiveBall) {
+    $modeChanged = $script:ballModeActive -ne $effectiveBall
+    if ($modeChanged) {
         $script:ballModeActive = $effectiveBall
         $script:isFloatingBallExpanded = $false
         if ($null -ne $ballCollapseTimer) { $ballCollapseTimer.Stop() }
+        if ($null -ne $ballExpandTimer) { $ballExpandTimer.Stop() }
     }
     $collapsed = $effectiveBall -and -not $isFloatingBallExpanded
+    $script:ballStatus = Get-HudStatus
     $floatingBallPanel.Visibility = if ($collapsed) { [Windows.Visibility]::Visible } else { [Windows.Visibility]::Collapsed }
-    $floatingBallCount.Foreground = New-HudRoleBrush ([string]$config.foreground) '#FF1C1C1E' 'primary'
+    $floatingBallCount.Foreground = New-HudRoleBrush ([string]$config.statusColors.$ballStatus) '#FF8E8E93' 'status'
+    $ballStatusBackground.Fill = $floatingBallCount.Foreground
     $floatingBallCount.Text = [string]$TaskCount
     $floatingBallPanel.ToolTip = [string]$settingsLocale.surfaceBallHint
     if ($collapsed) {
         $hudContentPanel.Visibility = [Windows.Visibility]::Collapsed
         $quietIndicatorPanel.Visibility = [Windows.Visibility]::Collapsed
-        $hudShell.Width = 48
-        $hudShell.Height = 48
+        $hudShell.Width = [double]$config.floatingBallSize
+        $hudShell.Height = [double]$config.floatingBallSize
+        $floatingBallPanel.Width = $floatingBallPanel.Height = [double]$config.floatingBallSize - 4
+        $floatingBallCount.FontSize = [double]$config.floatingBallSize * 0.375
         $hudShell.Padding = New-Object Windows.Thickness(1)
-        $hudShell.CornerRadius = New-Object Windows.CornerRadius(24)
+        $hudShell.CornerRadius = New-Object Windows.CornerRadius([double]$config.floatingBallSize / 2)
     } else {
         $hudShell.Height = [double]::NaN
         if ($script:wasBallCollapsed -and -not $isMainIndicatorCollapsed) {
@@ -2453,12 +2519,102 @@ function Update-HudFloatingSurface {
             [void](Apply-HudAppearance)
         }
     }
-    if ($script:wasBallCollapsed -ne $collapsed) {
+    if ($effectiveBall -or $modeChanged -or $script:wasBallCollapsed -ne $collapsed) {
         $hud.UpdateLayout()
         Move-HudToConfiguredPosition
         Write-HudDebug ('Floating ball: ' + $(if ($collapsed) { 'collapsed' } else { 'expanded' }))
     }
     $script:wasBallCollapsed = $collapsed
+    if ($modeChanged -or -not $surfaceMotionInitialized -or $lastMotionCollapsed -ne $collapsed -or -not [bool]$config.animateUpdates) { Start-HudSurfaceMotion }
+    $script:surfaceMotionInitialized = $true
+    $script:lastMotionCollapsed = $collapsed
+    Update-HudBallMotion ($collapsed -and $hud.IsVisible -and [bool]$config.animateUpdates) $ballStatus
+}
+
+function Update-HudBallMotion {
+    param([bool]$Enabled, [string]$Status)
+    $signature = if ($Enabled) { $Status } else { '' }
+    if ($ballMotionSignature -eq $signature) { return }
+    if ($null -ne $ballStateStoryboard) { $ballStateStoryboard.Remove($hud) }
+    if ($null -ne $ballBackgroundStoryboard) { $ballBackgroundStoryboard.Remove($hud) }
+    $script:ballStateStoryboard = $null
+    $script:ballBackgroundStoryboard = $null
+    $script:ballMotionSignature = $signature
+    if (-not $Enabled) { return }
+    # Shared finite XAML storyboards keep both hosts identical. Paused stays still.
+    $template = $hud.TryFindResource('BallMotion_' + $Status)
+    if ($template -is [Windows.Media.Animation.Storyboard]) {
+        $script:ballStateStoryboard = $template.Clone()
+        $ballStateStoryboard.Begin($hud,[Windows.Media.Animation.HandoffBehavior]::SnapshotAndReplace,$true)
+    }
+    $background = $hud.TryFindResource('BallBackground_' + $Status)
+    if ($background -is [Windows.Media.Animation.Storyboard]) {
+        $script:ballBackgroundStoryboard = $background.Clone()
+        $ballBackgroundStoryboard.Begin($hud,[Windows.Media.Animation.HandoffBehavior]::SnapshotAndReplace,$true)
+    }
+}
+
+function Stop-HudSurfaceMotion {
+    $surfaceMotionState.Version++
+    $surfaceMotionState.Collapsing = $false
+    $scale = $hudSurfaceMotion.RenderTransform
+    $scale.BeginAnimation([Windows.Media.ScaleTransform]::ScaleXProperty,$null)
+    $scale.BeginAnimation([Windows.Media.ScaleTransform]::ScaleYProperty,$null)
+    $hudSurfaceMotion.BeginAnimation([Windows.UIElement]::OpacityProperty,$null)
+}
+
+function Start-HudSurfaceMotion {
+    $scale = $hudSurfaceMotion.RenderTransform
+    $reversing = $surfaceMotionState.Collapsing
+    $fromX = $scale.ScaleX; $fromY = $scale.ScaleY; $fromOpacity = $hudSurfaceMotion.Opacity
+    Stop-HudSurfaceMotion
+    if (-not [bool]$config.animateUpdates -or $isHudDragging) { return }
+    $expanding = $ballModeActive -and $isFloatingBallExpanded
+    $duration = New-Object Windows.Duration([TimeSpan]::FromMilliseconds($(if ($expanding) { 160 } else { 100 })))
+    $x = if ($reversing) { $fromX } elseif ($expanding) { [double]$config.floatingBallSize / [Math]::Max(1,$hudShell.ActualWidth) } else { 0.96 }
+    $y = if ($reversing) { $fromY } elseif ($expanding) { [double]$config.floatingBallSize / [Math]::Max(1,$hudShell.ActualHeight) } else { 0.96 }
+    $zoom = New-Object Windows.Media.Animation.DoubleAnimation($x,1,$duration)
+    $zoom.EasingFunction = New-Object Windows.Media.Animation.CubicEase
+    $zoom.EasingFunction.EasingMode = [Windows.Media.Animation.EasingMode]::EaseOut
+    $zoom.FillBehavior = [Windows.Media.Animation.FillBehavior]::Stop
+    $scale.BeginAnimation([Windows.Media.ScaleTransform]::ScaleXProperty,$zoom)
+    $zoomY = $zoom.Clone(); $zoomY.From = $y
+    $scale.BeginAnimation([Windows.Media.ScaleTransform]::ScaleYProperty,$zoomY)
+    $fade = New-Object Windows.Media.Animation.DoubleAnimation($(if ($reversing) { $fromOpacity } else { 0.78 }),1,$duration)
+    $fade.FillBehavior = [Windows.Media.Animation.FillBehavior]::Stop
+    $hudSurfaceMotion.BeginAnimation([Windows.UIElement]::OpacityProperty,$fade)
+}
+
+function Start-HudBallCollapse {
+    if (-not $ballModeActive -or -not $isFloatingBallExpanded -or $surfaceMotionState.Collapsing) { return }
+    if (-not [bool]$config.animateUpdates) { Set-HudBallExpanded $false; return }
+    Stop-HudSurfaceMotion
+    $surfaceMotionState.Collapsing = $true
+    $motionState = $surfaceMotionState
+    $version = $motionState.Version
+    $duration = New-Object Windows.Duration([TimeSpan]::FromMilliseconds(120))
+    $zoomX = New-Object Windows.Media.Animation.DoubleAnimation(1,([double]$config.floatingBallSize / [Math]::Max(1,$hudShell.ActualWidth)),$duration)
+    $zoomX.EasingFunction = New-Object Windows.Media.Animation.CubicEase
+    $zoomX.EasingFunction.EasingMode = [Windows.Media.Animation.EasingMode]::EaseInOut
+    $zoomY = $zoomX.Clone(); $zoomY.To = [double]$config.floatingBallSize / [Math]::Max(1,$hudShell.ActualHeight)
+    # Capture function scriptblocks as closures execute in a dynamic module.
+    $finish = ${function:Set-HudBallExpanded}; $reverse = ${function:Start-HudSurfaceMotion}
+    $zoomY.Add_Completed(({
+        if ($motionState.Version -ne $version) { return }
+        if ($hud.IsMouseOver -or ($null -ne $hud.ContextMenu -and $hud.ContextMenu.IsOpen)) { & $reverse; return }
+        $motionState.Collapsing = $false
+        & $finish $false
+    }).GetNewClosure())
+    $hudSurfaceMotion.RenderTransform.BeginAnimation([Windows.Media.ScaleTransform]::ScaleXProperty,$zoomX)
+    $hudSurfaceMotion.RenderTransform.BeginAnimation([Windows.Media.ScaleTransform]::ScaleYProperty,$zoomY)
+    $hudSurfaceMotion.BeginAnimation([Windows.UIElement]::OpacityProperty,(New-Object Windows.Media.Animation.DoubleAnimation(1,0.7,$duration)))
+}
+
+function Schedule-HudBallExpansion {
+    if ($null -eq $ballExpandTimer) { return }
+    $ballExpandTimer.Stop()
+    if (-not $ballModeActive -or $isFloatingBallExpanded -or $isHudDragging -or $closingApp -or -not $hud.IsVisible -or [Windows.Input.Mouse]::LeftButton -eq [Windows.Input.MouseButtonState]::Pressed -or [Windows.Input.Mouse]::RightButton -eq [Windows.Input.MouseButtonState]::Pressed) { return }
+    $ballExpandTimer.Start()
 }
 
 function Set-HudBallExpanded {
@@ -2506,8 +2662,7 @@ function Show-TaskBubble {
         Metrics = Find-Control $window 'TaskBubbleMetrics'
         Content = Find-Control $window 'TaskBubbleContent'
         Merge = Find-Control $window 'TaskBubbleMergeButton'
-        Dismiss = Find-Control $window 'TaskBubbleDismissButton'
-        Resize = Find-Control $window 'TaskBubbleResizeThumb'
+        Scale = (Find-Control $window 'TaskBubbleScaleRoot').LayoutTransform
         Handle = [IntPtr]::Zero
         BaseStyle = $null
         InternalClosing = $false
@@ -2522,34 +2677,22 @@ function Show-TaskBubble {
     $sessionStateMap = $sessionStates
     $window.Add_SourceInitialized(({ $entryRecord.Handle=(New-Object Windows.Interop.WindowInteropHelper($entryRecord.Window)).Handle;if($entryRecord.Handle-ne[IntPtr]::Zero){$entryRecord.BaseStyle=[HudNativeMethods]::GetWindowLong($entryRecord.Handle,-20);Set-WindowMousePassthrough $entryRecord.Handle $entryRecord.BaseStyle ([bool]$config.mousePassthrough)} }).GetNewClosure())
     $entry.Merge.Add_Click(({ Set-SessionDetached $taskPath $false }).GetNewClosure())
-    $entry.Dismiss.Add_Click(({ Set-SessionDetached $taskPath $false }).GetNewClosure())
     $window.Add_MouseLeftButtonDown(({ param($sender,$eventArgs)
         if ($eventArgs.ClickCount -ge 2 -and (Open-HudTaskByPath $taskPath)) { $eventArgs.Handled = $true }
     }).GetNewClosure())
     $window.Add_MouseEnter(({ if ($entryRecord.IsIndicatorCollapsed -and $sessionStateMap.ContainsKey($taskPath)) { Set-TaskBubbleIndicatorCollapsed $entryRecord $sessionStateMap[$taskPath] $false; Position-TaskBubbles } }).GetNewClosure())
-    $entry.Resize.Add_DragDelta(({ param($sender,$eventArgs)
-        $currentWidth = [Math]::Max(280.0, [double]$entryRecord.Window.ActualWidth)
-        $currentHeight = [Math]::Max(84.0, [double]$entryRecord.Window.ActualHeight)
-        if ($entryRecord.Window.SizeToContent -ne [Windows.SizeToContent]::Manual) {
-            $entryRecord.Window.SizeToContent = [Windows.SizeToContent]::Manual
-            $entryRecord.Window.Width = $currentWidth
-            $entryRecord.Window.Height = $currentHeight
-        }
-        $entryRecord.Window.Width = [Math]::Max(280.0, [Math]::Min(960.0, [double]$entryRecord.Window.Width + [double]$eventArgs.HorizontalChange))
-        $entryRecord.Window.Height = [Math]::Max(84.0, [Math]::Min(360.0, [double]$entryRecord.Window.Height + [double]$eventArgs.VerticalChange))
-        if ($sessionStateMap.ContainsKey($taskPath)) {
-            $sessionStateMap[$taskPath].BubbleWidth = [double]$entryRecord.Window.Width
-            $sessionStateMap[$taskPath].BubbleHeight = [double]$entryRecord.Window.Height
-        }
+    $window.Add_PreviewMouseWheel(({ param($sender,$eventArgs)
+        if ($entryRecord.IsIndicatorCollapsed -or -not ([Windows.Input.Keyboard]::Modifiers -band [Windows.Input.ModifierKeys]::Control)) { return }
+        $scale = [Math]::Max(0.6, [Math]::Min(2.0, $entryRecord.Scale.ScaleX + $eventArgs.Delta / 120.0 * 0.1))
+        $entryRecord.Scale.ScaleX = $scale
+        $entryRecord.Scale.ScaleY = $scale
+        if ($sessionStateMap.ContainsKey($taskPath)) { $sessionStateMap[$taskPath].BubbleScale = $scale }
+        $eventArgs.Handled = $true
         Position-TaskBubbles
     }).GetNewClosure())
     $window.Add_Closed(({ if($splitWindowMap.ContainsKey($taskPath)){ $record=$splitWindowMap[$taskPath];if(-not$record.InternalClosing-and$sessionStateMap.ContainsKey($taskPath)){$sessionStateMap[$taskPath].Detached=$false};$splitWindowMap.Remove($taskPath)} }).GetNewClosure())
     $State.Detached = $true
-    if ([double]$State.BubbleWidth -gt 0 -and [double]$State.BubbleHeight -gt 0) {
-        $window.SizeToContent = [Windows.SizeToContent]::Manual
-        $window.Width = [Math]::Max(280.0, [Math]::Min(960.0, [double]$State.BubbleWidth))
-        $window.Height = [Math]::Max(84.0, [Math]::Min(360.0, [double]$State.BubbleHeight))
-    }
+    $entry.Scale.ScaleX = $entry.Scale.ScaleY = [Math]::Max(0.6, [Math]::Min(2.0, [double]$State.BubbleScale))
     Update-TaskBubble $State
     $window.Show()
     Position-TaskBubbles
@@ -2712,6 +2855,7 @@ function Render-TaskList {
         '{0}:{1}:{2}:{3}:{4}:{5}:{6}:{7}:{8}:{9}:{10}:{11}:{12}:{13}:{14}:{15}' -f $identity,[int]$state.Number,(Get-TaskStatus $state),[bool]$state.Detached,(Get-TaskProjectName $state),(Get-TaskListSubtitle $state -IncludeConversationTitle),$snapshotContext,(Get-TaskListMetricsText $state),[int]$state.AttentionRevision,[int]$state.TerminalExitRevision,[string]$state.AgentNoticeText,($state.AttentionUntil-gt$signatureNow),($state.ContextAlertUntil-gt$signatureNow),[string]$state.ProfileId,[string]$state.ClientSurface,[string]$state.ModelProvider
     }) -join ';' } else { '' }
     $listFieldSignature = @($config.multiTask.listFields.PSObject.Properties | Sort-Object Name | ForEach-Object { '{0}={1}' -f [string]$_.Name,[bool]$_.Value }) -join ','
+    $listFieldSignature += '|provider=' + [string]$config.showProviderLabel
     $renderSignature = '{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}' -f $visible,[string]$config.multiTask.listStyle,[string]$config.multiTask.listDensity,[string]$config.multiTask.listDetail,[string]$config.multiTask.nameMode,$listFieldSignature,[string]$script:lastHudAppearanceSignature,$stateSignature
     if ([string]$script:lastTaskListRenderSignature -eq $renderSignature) { return }
     $script:lastTaskListRenderSignature = $renderSignature
@@ -2744,7 +2888,7 @@ function Render-TaskList {
         $name=New-Object Windows.Controls.TextBlock;$name.Text=$projectName;$name.FontWeight=[Windows.FontWeights]::SemiBold;$name.TextTrimming=[Windows.TextTrimming]::CharacterEllipsis;$name.Foreground=New-HudRoleBrush ([string]$config.foreground) '#FF111827' 'primary'
         $name.Visibility=if([bool]$config.multiTask.listFields.directory){[Windows.Visibility]::Visible}else{[Windows.Visibility]::Collapsed}
         $name.MaxWidth=180;$name.Margin=New-Object Windows.Thickness(0,0,7,0);$name.VerticalAlignment='Center'
-        $subtitle=New-Object Windows.Controls.TextBlock;$subtitle.Text=if([string]$config.multiTask.nameMode-eq'hidden'){$collapsedSubtitle}else{$expandedSubtitle};$subtitle.Margin=New-Object Windows.Thickness(0,1,0,0);$subtitle.FontSize=[Math]::Max(9,[double]$config.fontSize-3);$subtitle.TextTrimming=[Windows.TextTrimming]::CharacterEllipsis;$subtitle.Foreground=New-HudRoleBrush ([string]$config.muted) '#FF667085' 'secondary';$subtitle.Visibility=if([string]::IsNullOrWhiteSpace([string]$subtitle.Text)){[Windows.Visibility]::Collapsed}else{[Windows.Visibility]::Visible}
+        $subtitle=New-Object Windows.Controls.TextBlock;$subtitle.Text=if([string]$config.multiTask.nameMode-eq'hidden'){$collapsedSubtitle}else{$expandedSubtitle};$subtitle.Margin=New-Object Windows.Thickness(0,1,0,0);$subtitle.FontSize=[Math]::Max(9,[double]$config.fontSize-3);$subtitle.TextWrapping=[Windows.TextWrapping]::Wrap;$subtitle.ToolTip=$subtitle.Text;$subtitle.Foreground=New-HudRoleBrush ([string]$config.muted) '#FF667085' 'secondary';$subtitle.Visibility=if([string]::IsNullOrWhiteSpace([string]$subtitle.Text)){[Windows.Visibility]::Collapsed}else{[Windows.Visibility]::Visible}
         [Windows.Controls.Grid]::SetColumn($identityHost,3);[void]$row.Children.Add($identityHost)
         $metricsHost=New-Object Windows.Controls.WrapPanel;$metricsHost.VerticalAlignment='Center'
         $contextMetric=New-Object Windows.Controls.Border;$contextMetric.CornerRadius=New-Object Windows.CornerRadius(7);$contextMetric.Padding=New-Object Windows.Thickness(6,2,6,2);$contextMetric.Margin=New-Object Windows.Thickness(0,0,7,0);$contextMetric.BorderThickness=New-Object Windows.Thickness(1);$contextMetric.BorderBrush=New-HudRoleBrush '#330A84FF' '#330A84FF' 'decoration';$contextMetric.Background=New-HudRoleBrush '#0D0A84FF' '#0D0A84FF' 'decoration'
@@ -3282,8 +3426,7 @@ function Export-HudPreview {
                 PendingCompletionDueAt = [DateTimeOffset]::MinValue
                 LastWriteTimeUtc = [DateTime]::UtcNow.AddSeconds(-($index * 14))
                 Detached = $false
-                BubbleWidth = 0.0
-                BubbleHeight = 0.0
+                BubbleScale = 1.0
             }
         }
     }
@@ -3560,6 +3703,8 @@ function Sync-ControlsFromConfig {
         $quotaGuardHandoffInstructionText.Text = if ([string]::IsNullOrWhiteSpace([string]$config.quotaGuard.handoffInstruction)) { [string]$settingsLocale.quotaGuardHandoffDefault } else { [string]$config.quotaGuard.handoffInstruction }
         Select-ComboTag $transparencyModeCombo ([string]$config.transparencyMode)
         Select-ComboTag $surfaceModeCombo ([string]$config.surfaceMode)
+        $floatingBallSizeSlider.Value = [double]$config.floatingBallSize
+        $showProviderLabelCheck.IsChecked = [bool]$config.showProviderLabel
         Select-FontFamilyChoice ([string]$config.themeStyle.fontFamily)
         $hudWidthSlider.Value = [double]$config.hudWidth
         Select-ComboTag $idleIndicatorDelayCombo ([string][int]$config.behavior.idleIndicator.afterMinutes)
@@ -3578,6 +3723,7 @@ function Sync-ControlsFromConfig {
         $radiusSlider.Value = [double]$config.cornerRadius
         $opacitySlider.Value = [double]$config.opacity
         $alwaysOnTopCheck.IsChecked = [bool]$config.alwaysOnTop
+        $startWithWindowsCheck.IsChecked = [bool]$config.startWithWindows
         $mousePassthroughCheck.IsChecked = [bool]$config.mousePassthrough
         $statusDotCheck.IsChecked = [bool]$config.showStatusDot
         $animateCheck.IsChecked = [bool]$config.animateUpdates
@@ -3628,7 +3774,7 @@ function Export-SettingsPreview {
     $script:config.language = $PreviewLanguage
     Build-ThemeButtons
     Sync-ControlsFromConfig
-    $tabMap = @{ general='GeneralTab'; sources='SourcesTab'; multi='MultiTaskTab'; behavior='BehaviorTab'; metrics='MetricsTab'; appearance='AppearanceTab' }
+    $tabMap = @{ general='GeneralTab'; sources='SourcesTab'; multi='MultiTaskTab'; behavior='BehaviorTab'; metrics='MetricsTab'; appearance='AppearanceTab'; about='AboutTab' }
     $settingsTabs.SelectedItem = $settingsTabControls[[string]$tabMap[$PreviewSettingsTab]]
     if ($PreviewSettingsAdvanced) {
         $settingsTabs.SelectedItem = $settingsTabControls['AppearanceTab']
@@ -3666,6 +3812,18 @@ if (-not [string]::IsNullOrWhiteSpace($RenderSettingsPreview)) {
 function Apply-ControlsToConfig {
     param([switch]$StatusColorsChanged)
     if ($syncingControls) { return }
+    $requestedStartup = [bool]$startWithWindowsCheck.IsChecked
+    if ($requestedStartup -ne [bool]$config.startWithWindows) {
+        try {
+            Set-HudStartupRegistration -Enabled $requestedStartup -PluginRoot $pluginRoot -HudHome ([string]$env:CODEX_MONITOR_HUD_HOME)
+            $config.startWithWindows = $requestedStartup
+        } catch {
+            $startWithWindowsCheck.IsChecked = [bool]$config.startWithWindows
+            $saveStatus.Text = [string]$settingsLocale.startupFailed
+            $saveStatus.ToolTip = $_.Exception.Message
+            return
+        }
+    }
     $language = Get-ComboTag $languageCombo
     $layout = Get-ComboTag $layoutCombo
     $number = Get-ComboTag $numberCombo
@@ -3781,6 +3939,8 @@ function Apply-ControlsToConfig {
     $config.mousePassthrough = [bool]$mousePassthroughCheck.IsChecked
     $config.showStatusDot = [bool]$statusDotCheck.IsChecked
     $config.animateUpdates = [bool]$animateCheck.IsChecked
+    $config.showProviderLabel = [bool]$showProviderLabelCheck.IsChecked
+    $config.floatingBallSize = [Math]::Round([double]$floatingBallSizeSlider.Value)
     $config.multiTask.autoSplitNewTasks = [bool]$autoSplitCheck.IsChecked
     $config.sessionSources.desktop = [bool]$sourceDesktopCheck.IsChecked
     $config.sessionSources.vscode = [bool]$sourceVsCodeCheck.IsChecked
@@ -3858,10 +4018,21 @@ function Apply-ControlsToConfig {
 
 function Show-HudSettings {
     if (-not $loadSettingsUi) {
-        Start-Process -FilePath powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',$PSCommandPath,'-SettingsHost') -WindowStyle Hidden | Out-Null
+        $existing = $null
+        $settingsSuffix = if ([string]::IsNullOrWhiteSpace($InstanceId)) { '' } else { '-' + ([regex]::Replace($InstanceId,'[^A-Za-z0-9_.-]','_')) }
+        if ([Threading.Mutex]::TryOpenExisting(('Local\CodexMonitorHUD-settings' + $settingsSuffix),[ref]$existing)) {
+            $existing.Dispose()
+            [IO.File]::WriteAllText($settingsHostOpenSignal,[DateTime]::UtcNow.ToString('O'))
+        } else {
+            Start-Process -FilePath powershell.exe -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"' + $PSCommandPath + '"'),'-SettingsHost','-InstanceId',('"' + $InstanceId + '"')) -WindowStyle Hidden | Out-Null
+        }
         return
     }
-    Sync-ControlsFromConfig
+    if (-not $settings.IsVisible) {
+        # Reload changes made by the HUD while this cached window was hidden.
+        $script:config = Get-HudConfig $paths
+        Sync-ControlsFromConfig
+    }
     if (-not $settings.IsVisible) { $settings.Show() }
     $settings.Activate() | Out-Null
 }
@@ -4064,8 +4235,7 @@ function Initialize-SessionFile {
         PendingCompletionAt = [DateTimeOffset]::MinValue
         PendingCompletionDueAt = [DateTimeOffset]::MinValue
         Detached = $false
-        BubbleWidth = 0.0
-        BubbleHeight = 0.0
+        BubbleScale = 1.0
         IsInternalSession = [bool]$identity.IsInternalSession
         IdentityMetadataFound = [bool]$identityMetadataFound
         IdentityProvisional = [bool]$identityProvisional
@@ -4523,6 +4693,14 @@ if (-not [string]::IsNullOrWhiteSpace($ImportThemeFile)) {
 if ($loadSettingsUi) {
 Build-ThemeButtons
 Initialize-FontFamilyChoices
+$systemFontsLoaded = $false
+$fontFamilyCombo.Add_DropDownOpened({
+    if ($systemFontsLoaded) { return }
+    $selectedFont = Get-SelectedFontFamily
+    $script:syncingControls = $true
+    try { Initialize-FontFamilyChoices -IncludeSystem; Select-FontFamilyChoice $selectedFont; $script:systemFontsLoaded = $true }
+    finally { $script:syncingControls = $false }
+})
 
 function Flush-SliderPreview {
     if (-not $script:sliderPreviewDirty) { return }
@@ -4554,6 +4732,7 @@ function Apply-SliderPreview {
     param([string]$Property)
     if($syncingControls){return}
     switch($Property){
+        'floatingBallSize' { $config.floatingBallSize = [Math]::Round([double]$floatingBallSizeSlider.Value) }
         'hudWidth' {
             $config.hudWidth=[Math]::Round([double]$hudWidthSlider.Value)
             $hudWidthValue.Text=('{0} px' -f [int]$config.hudWidth)
@@ -4586,7 +4765,7 @@ $liveControls = @(
     $summaryAttentionModeCombo,$listAttentionModeCombo,$taskBubbleAttentionModeCombo,$dotPatternCombo,$dotBrightnessCombo,$dotSpeedCombo,$attentionDurationCombo,$completionSoundCombo,$transparencyModeCombo,$fontFamilyCombo,
     $agentNotificationPermissionCombo,$agentNotificationModeCombo,$agentNotificationIntensityCombo,$agentNotificationDurationCombo,
     $idleIndicatorDelayCombo,$idleIndicatorLayoutCombo,$idleIndicatorTaskStyleCombo,
-    $alwaysOnTopCheck,$mousePassthroughCheck,$statusDotCheck,$animateCheck,$autoSplitCheck,$sourceDesktopCheck,$sourceVsCodeCheck,$sourceDefaultCliCheck,$sourceDeepSeekCliCheck,
+    $alwaysOnTopCheck,$startWithWindowsCheck,$mousePassthroughCheck,$statusDotCheck,$animateCheck,$autoSplitCheck,$sourceDesktopCheck,$sourceVsCodeCheck,$sourceDefaultCliCheck,$sourceDeepSeekCliCheck,$showProviderLabelCheck,
     $attentionCompletedCheck,$attentionErrorCheck,$attentionSettledCheck,$dotAttentionEnabledCheck,$dotBreathingCheck,$agentNotificationEnabledCheck,$quotaGuardEnabledCheck,$officialAllowanceEnabledCheck,
     $openTaskOnDoubleClickCheck,$edgeSnapEnabledCheck,$edgeSnapDistanceCombo,$idleIndicatorEnabledCheck,$idleIndicatorBubblesCheck
 ) + @($fieldControls.GetEnumerator() | Where-Object { [string]$_.Key -ne 'context' } | ForEach-Object { $_.Value }) + @($listFieldControls.Values) + @($bubbleFieldControls.Values)
@@ -4632,6 +4811,7 @@ $agentNotificationGlowPresetCombo.Add_SelectionChanged({
     Apply-ControlsToConfig
 })
 $hudWidthSlider.Add_ValueChanged({ Apply-SliderPreview 'hudWidth' })
+$floatingBallSizeSlider.Add_ValueChanged({ Apply-SliderPreview 'floatingBallSize' })
 $fontSizeSlider.Add_ValueChanged({ Apply-SliderPreview 'fontSize' })
 $radiusSlider.Add_ValueChanged({ Apply-SliderPreview 'cornerRadius' })
 $opacitySlider.Add_ValueChanged({ Apply-SliderPreview 'opacity' })
@@ -4686,14 +4866,16 @@ $settings.Add_Drop($themeDrop)
 $closeSettingsButton.Add_Click({
     Flush-SliderPreview
     Save-HudConfig $paths $config
-    if ($SettingsHost) { $script:closingApp=$true; $settings.Close() } else { $settings.Hide() }
+    $settings.Close()
 })
 $saveButton.Add_Click({
     Flush-SliderPreview
     Apply-ControlsToConfig
-    if ($SettingsHost) { $script:closingApp=$true; $settings.Close() } else { $settings.Hide() }
+    $settings.Close()
 })
 $resetButton.Add_Click({
+    try { Set-HudStartupRegistration -Enabled $false -PluginRoot $pluginRoot }
+    catch { $saveStatus.Text = [string]$settingsLocale.startupFailed; $saveStatus.ToolTip = $_.Exception.Message; return }
     $script:config = Get-Content -Raw -Encoding UTF8 -LiteralPath $paths.DefaultConfigPath | ConvertFrom-Json
     $script:pricingCatalog = Get-HudPricingCatalog $pluginRoot ([string]$config.pricing.path)
     Sync-ControlsFromConfig
@@ -4701,33 +4883,50 @@ $resetButton.Add_Click({
     Update-DisplaySnapshot
 })
 $settings.Add_Closing({
-    Flush-SliderPreview
-    Save-HudConfig $paths $config
-    if ($SettingsHost) {
-        [IO.File]::WriteAllText($reloadSettingsSignal,[DateTime]::UtcNow.ToString('O'))
-        $script:closingApp = $true
-    } elseif (-not $closingApp) { $_.Cancel = $true; $settings.Hide() }
+    if (-not $closingApp) {
+        Flush-SliderPreview
+        Save-HudConfig $paths $config
+        if ($SettingsHost) { [IO.File]::WriteAllText($reloadSettingsSignal,[DateTime]::UtcNow.ToString('O')) }
+        $_.Cancel = $true
+        $settings.Hide()
+        $colorPicker.Hide()
+        $script:settingsHiddenAt = [DateTime]::UtcNow
+    }
 })
 }
 
 if ($SettingsHost) {
+    $settingsHiddenAt = [DateTime]::MinValue
     Sync-ControlsFromConfig
     $settingsApplication = [Windows.Application]::new()
+    $settingsApplication.ShutdownMode = [Windows.ShutdownMode]::OnExplicitShutdown
     $settings.Add_Loaded({
-        # The settings host is short-lived. Keep it above normal/maximized
-        # windows for its whole lifetime so an open request is immediately
-        # actionable instead of requiring a taskbar click.
+        # Keep the cached settings window above normal/maximized windows.
         $settings.Topmost = $true
         $settings.Activate() | Out-Null
         $settings.Focus() | Out-Null
     })
     $settingsRequestTimer = New-Object Windows.Threading.DispatcherTimer
-    $settingsRequestTimer.Interval = [TimeSpan]::FromMilliseconds(300)
+    $settingsRequestTimer.Interval = [TimeSpan]::FromMilliseconds(100)
     $settingsRequestTimer.Add_Tick({
+        $settingsExitSignal = Join-Path $paths.StateRoot 'settings-host-exit.signal'
+        if ([IO.File]::Exists($settingsExitSignal)) {
+            Remove-Item -LiteralPath $settingsExitSignal -Force -ErrorAction SilentlyContinue
+            if ($settings.IsVisible) { $settings.Close() }
+            $script:closingApp = $true
+            $settingsRequestTimer.Stop()
+            $settingsApplication.Shutdown()
+            return
+        }
         if ([IO.File]::Exists($settingsHostOpenSignal)) {
             Remove-Item -LiteralPath $settingsHostOpenSignal -Force -ErrorAction SilentlyContinue
             if ($settings.WindowState -eq [Windows.WindowState]::Minimized) { $settings.WindowState = [Windows.WindowState]::Normal }
-            [void]$settings.Activate()
+            Show-HudSettings
+        }
+        if (-not $settings.IsVisible -and ([DateTime]::UtcNow - $settingsHiddenAt).TotalMinutes -ge 10) {
+            $script:closingApp = $true
+            $settingsRequestTimer.Stop()
+            $settingsApplication.Shutdown()
         }
     })
     $settingsRequestTimer.Start()
@@ -4752,13 +4951,24 @@ $taskListToggleButton.Add_Click({
 $hud.Add_MouseLeftButtonDown({
     if ($_.ClickCount -ge 2) { Show-HudSettings; return }
     if ($_.ButtonState -eq [Windows.Input.MouseButtonState]::Pressed) {
+        $expandAfterClick = $false
         try {
             $grabPoint = $_.GetPosition($hud)
             $dragOrigin = New-Object Windows.Point($hud.Left,$hud.Top)
+            $dragProbe = [pscustomobject]@{ Moved=$false; Left=$hud.Left; Top=$hud.Top }
+            $trackMove = [EventHandler]({
+                if ([Math]::Abs($hud.Left - $dragProbe.Left) -ge 0.5 -or [Math]::Abs($hud.Top - $dragProbe.Top) -ge 0.5) { $dragProbe.Moved = $true }
+            }).GetNewClosure()
             $script:isHudDragging = $true
+            Stop-HudSurfaceMotion
             $ballCollapseTimer.Stop()
-            $hud.DragMove()
-            if ([Math]::Abs($hud.Left - $dragOrigin.X) -lt 0.5 -and [Math]::Abs($hud.Top - $dragOrigin.Y) -lt 0.5) { return }
+            $ballExpandTimer.Stop()
+            $hud.Add_LocationChanged($trackMove)
+            try { $hud.DragMove() } finally { $hud.Remove_LocationChanged($trackMove) }
+            if ([Math]::Abs($hud.Left - $dragOrigin.X) -lt 0.5 -and [Math]::Abs($hud.Top - $dragOrigin.Y) -lt 0.5) {
+                $expandAfterClick = -not $dragProbe.Moved -and $ballModeActive -and -not $isFloatingBallExpanded
+                return
+            }
             $screen = Get-HudWorkArea $hud -AtCursor
             $cursorPosition = [System.Windows.Forms.Cursor]::Position
             $desiredLeft = [double]$screen.Left + (([double]$cursorPosition.X - [double]$screen.PixelLeft) / [double]$screen.DpiScaleX) - [double]$grabPoint.X
@@ -4767,12 +4977,16 @@ $hud.Add_MouseLeftButtonDown({
             $hud.Left = $point.Left
             $hud.Top = $point.Top
             $config.position = 'custom'
-            $config.customLeft = [double]$hud.Left + 18
-            $config.customTop = [double]$hud.Top + 18
+            $config.customLeft = [double]$hud.Left + 18 + $(if ($ballModeActive) { $ballOffsetX } else { 0 })
+            $config.customTop = [double]$hud.Top + 18 + $(if ($ballModeActive) { $ballOffsetY } else { 0 })
             Save-HudConfig $paths $config
             Position-TaskBubbles
         } catch { }
-        finally { $script:isHudDragging = $false; Schedule-HudBallCollapse }
+        finally {
+            $script:isHudDragging = $false
+            if ($expandAfterClick -and -not $closingApp -and $hud.IsVisible) { Set-HudBallExpanded $true }
+            Schedule-HudBallCollapse
+        }
     }
 })
 $ballCollapseTimer = New-Object Windows.Threading.DispatcherTimer
@@ -4780,10 +4994,22 @@ $ballCollapseTimer.Interval = [TimeSpan]::FromMilliseconds(450)
 $ballCollapseTimer.Add_Tick({
     $ballCollapseTimer.Stop()
     if ($hud.IsMouseOver -or ($null -ne $hud.ContextMenu -and $hud.ContextMenu.IsOpen) -or $isHudDragging -or [Windows.Input.Mouse]::LeftButton -eq [Windows.Input.MouseButtonState]::Pressed) { return }
-    Set-HudBallExpanded $false
+    Start-HudBallCollapse
 })
-$hud.Add_MouseEnter({ $ballCollapseTimer.Stop(); if ($ballModeActive) { Set-HudBallExpanded $true } elseif ($isMainIndicatorCollapsed) { Set-HudIndicatorCollapsed $false } })
-$hud.Add_MouseLeave({ Schedule-HudBallCollapse })
+$ballExpandTimer = New-Object Windows.Threading.DispatcherTimer
+$ballExpandTimer.Interval = [TimeSpan]::FromMilliseconds(200)
+$ballExpandTimer.Add_Tick({
+    $ballExpandTimer.Stop()
+    if (-not $ballModeActive -or $isFloatingBallExpanded -or -not $hud.IsVisible -or -not $hud.IsMouseOver -or $isHudDragging -or $closingApp -or ($null -ne $hud.ContextMenu -and $hud.ContextMenu.IsOpen) -or [Windows.Input.Mouse]::LeftButton -eq [Windows.Input.MouseButtonState]::Pressed -or [Windows.Input.Mouse]::RightButton -eq [Windows.Input.MouseButtonState]::Pressed) { return }
+    Set-HudBallExpanded $true
+})
+$hud.Add_PreviewMouseDown({ $ballExpandTimer.Stop() })
+$hud.Add_MouseEnter({ $ballCollapseTimer.Stop(); if ($surfaceMotionState.Collapsing) { Start-HudSurfaceMotion }; if ($ballModeActive) { Schedule-HudBallExpansion } elseif ($isMainIndicatorCollapsed) { Set-HudIndicatorCollapsed $false } })
+$hud.Add_MouseLeave({ $ballExpandTimer.Stop(); Schedule-HudBallCollapse })
+$hud.Add_IsVisibleChanged({
+    if ($hud.IsVisible) { Start-HudSurfaceMotion } else { $ballExpandTimer.Stop(); Stop-HudSurfaceMotion }
+    Update-HudBallMotion ($hud.IsVisible -and $ballModeActive -and -not $isFloatingBallExpanded -and [bool]$config.animateUpdates) $ballStatus
+})
 $hud.Add_ContextMenuClosing({ Schedule-HudBallCollapse })
 $hud.Add_LostMouseCapture({ Schedule-HudBallCollapse })
 

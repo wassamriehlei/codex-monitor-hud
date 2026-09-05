@@ -1,6 +1,24 @@
 # Changelog
 
-## Unreleased - UI customization and desktop polish
+## 3.3.0 - 2026-09-05
+
+- Publish a current-user EXE installer and a portable ZIP, both with a private runtime and the approved bundled completion sound; include SHA-256 checksums.
+- Add opt-in Windows login startup, preserve captured WSL bridge paths, and clean up owned shortcuts on uninstall or old-version rollback.
+- Isolate portable configuration/state and process identities from the installed HUD and other portable folders; exclude portable user data from installation and release payloads.
+- Add a localized About tab with version, run mode, license/attribution, fork repository, upstream and update links.
+
+- Shorten surface unfolding to 160 ms, shrinking to 120 ms, and ordinary entrance to 100 ms without changing the 200 ms hover dwell or drag guards.
+- Adopt the current personal configuration as the project defaults (Chinese, 60 DIP ball, 547 DIP width, list layout, provider/model visibility choices) and bundle the supplied MP3 as the default completion sound using an installation-relative path.
+- Expand the floating ball immediately after a completed click; keep it collapsed after dragging, including dragging out and back to the starting point.
+- Remove the redundant close button from detached task bubbles; retain a single merge action, main-HUD monitoring, and whole-content scaling.
+- Delay ball expansion until a continuous 0.2-second hover; cancel on mouse press, drag, leave, hide, and mode changes. Unfold toward the available screen side and shrink back to the saved ball anchor.
+- Add status-colored radial background breathing for active/listening tasks and brief completion/error accents; share low-cost 24 fps resources and cancel hidden/disabled clocks in both hosts.
+- Cache the Settings window for 10 minutes after closing, reload configuration on reopening, enumerate fonts on demand, and simplify XAML parsing. Add isolated cold/warm latency and graceful shutdown checks.
+- Color the floating-ball count with the existing aggregate status palette, including custom colors, and share finite state-specific count animations across both hosts. Keep paused static, avoid replaying unchanged states, and cancel on expansion, hide, or animation disable.
+
+- Replace the independent-bubble corner resize icon with Ctrl + wheel whole-content scaling (60%–200%), retained for each active task; scale text, icons, borders and the optical rim together.
+- Add a configurable 32–120 DIP floating-ball diameter, optional provider labels, and bounded show/expand/collapse motion that respects the animation switch.
+- Move the list call total to the lower line immediately after time and preserve independent visibility controls and live token updates.
 
 - Add a configurable floating ball showing only the active/listening task count, hover expansion, and delayed collapse; preserve normal window access with mouse click-through enabled.
 - Pause nonessential refresh and placement while dragging, avoid settings writes on plain clicks, generate/cache color-wheel pixels on demand in compiled code, and focus an existing Settings process on repeated requests.

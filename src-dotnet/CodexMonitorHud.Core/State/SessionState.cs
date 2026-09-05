@@ -55,6 +55,5 @@ public sealed class SessionState
     public string ClientSurface { get; set; } = "unknown";
     public string ModelProvider { get; set; } = string.Empty;
     public bool Dismissed { get; set; }
-    public double BubbleWidth { get; set; }
-    public double BubbleHeight { get; set; }
+    public double BubbleScale { get; set; } = 1;
 }

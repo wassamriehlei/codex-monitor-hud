@@ -9,7 +9,22 @@ $desktopShortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Codex Mo
 $startMenuFolder = Join-Path ([Environment]::GetFolderPath('Programs')) 'Codex Monitor HUD'
 
 New-Item -ItemType Directory -Force -Path $stateRoot | Out-Null
+Import-Module (Join-Path $PSScriptRoot '..\src\MonitorHud.Startup.psm1') -Force
+Set-HudStartupRegistration -Enabled $false -PluginRoot $targetRoot -Portable $false
+[IO.File]::WriteAllText((Join-Path $stateRoot 'settings-host-exit.signal'), [DateTime]::UtcNow.ToString('O'))
+[IO.File]::WriteAllText((Join-Path $stateRoot 'manual-exit.signal'), [DateTime]::UtcNow.ToString('O'))
 [IO.File]::WriteAllText((Join-Path $stateRoot 'exit.signal'), [DateTime]::UtcNow.ToString('O'))
+foreach ($entry in @(Get-CimInstance Win32_Process | Where-Object {
+    $_.Name -in @('dotnet.exe','powershell.exe','CodexMonitorHud.exe') -and
+    $_.ProcessId -ne $PID -and $_.CommandLine -like ('*' + $targetRoot + '\*') -and
+    $_.CommandLine -notlike '*Get-CimInstance*'
+})) {
+    $process = Get-Process -Id $entry.ProcessId -ErrorAction SilentlyContinue
+    if ($null -eq $process) { continue }
+    try {
+        if (-not $process.WaitForExit(10000)) { throw 'Close the HUD and its Settings window before uninstalling.' }
+    } finally { $process.Dispose() }
+}
 
 if (Test-Path -LiteralPath $marketplacePath) {
     $marketplace = Get-Content -Raw -Encoding UTF8 -LiteralPath $marketplacePath | ConvertFrom-Json

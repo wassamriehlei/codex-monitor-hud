@@ -1,6 +1,6 @@
 param(
     [string]$SourceRoot = (Split-Path -Parent $PSScriptRoot),
-    [ValidateSet('zh-CN','en')][string]$DefaultLanguage = 'en',
+    [ValidateSet('zh-CN','en')][string]$DefaultLanguage = 'zh-CN',
     [ValidatePattern('^\d+\.\d+\.\d+$')][string]$RollbackVersion,
     [string]$PerformanceMetricsRoot,
     [switch]$UseBundledRuntime,
@@ -31,8 +31,27 @@ function Get-PluginVersion {
 
 function Stop-InstalledHud {
     if (-not (Test-Path -LiteralPath $stateRoot)) { return }
+    [IO.File]::WriteAllText((Join-Path $stateRoot 'settings-host-exit.signal'), [DateTime]::UtcNow.ToString('O'), $encoding)
     [IO.File]::WriteAllText((Join-Path $stateRoot 'manual-exit.signal'), [DateTime]::UtcNow.ToString('O'), $encoding)
     [IO.File]::WriteAllText((Join-Path $stateRoot 'exit.signal'), [DateTime]::UtcNow.ToString('O'), $encoding)
+    # A cached Settings host also needs to release old code/assets before swap.
+    # Resolve only this installation's process, never unrelated PowerShell UIs.
+    $settingsScript = Join-Path $targetRoot 'src\CodexMonitorHUD.ps1'
+    $settingsHosts = @(Get-CimInstance Win32_Process | Where-Object {
+        $_.Name -eq 'powershell.exe' -and $_.CommandLine -like ('*' + $settingsScript + '*') -and
+        $_.CommandLine -like '*-SettingsHost*' -and $_.CommandLine -notlike '*Get-CimInstance*'
+    })
+    foreach ($hostInfo in $settingsHosts) {
+        $hostProcess = Get-Process -Id $hostInfo.ProcessId -ErrorAction SilentlyContinue
+        if ($null -eq $hostProcess) { continue }
+        try {
+            if (-not $hostProcess.WaitForExit(1500)) {
+                # Older versions exit on normal close rather than this signal.
+                [void]$hostProcess.CloseMainWindow()
+                if (-not $hostProcess.WaitForExit(5000)) { throw 'Close the installed HUD Settings window before retrying installation.' }
+            }
+        } finally { $hostProcess.Dispose() }
+    }
     $heartbeatPath = Join-Path $stateRoot 'hud.heartbeat'
     for ($attempt = 0; $attempt -lt 30 -and (Test-Path -LiteralPath $heartbeatPath); $attempt++) {
         Start-Sleep -Milliseconds 200
@@ -40,17 +59,25 @@ function Stop-InstalledHud {
 }
 
 function Clear-HudStopSignals {
-    # Stop-InstalledHud intentionally writes both signals. A replacement host
+    # Stop-InstalledHud intentionally writes stop signals. A replacement host
     # must never inherit either one or it can exit immediately after launch.
-    foreach ($signalName in @('manual-exit.signal','exit.signal')) {
+    foreach ($signalName in @('manual-exit.signal','exit.signal','settings-host-exit.signal')) {
         Remove-Item -LiteralPath (Join-Path $stateRoot $signalName) -Force -ErrorAction SilentlyContinue
     }
+}
+
+# Keep the current startup module available when restoring older versions.
+Import-Module (Join-Path $PSScriptRoot '..\src\MonitorHud.Startup.psm1') -Force
+function Sync-InstalledStartup {
+    $startupConfig = if (Test-Path -LiteralPath $settingsPath) { Get-Content -Raw -Encoding UTF8 -LiteralPath $settingsPath | ConvertFrom-Json } else { $null }
+    $enabled = $null -ne $startupConfig -and [bool]$startupConfig.startWithWindows -and (Test-Path -LiteralPath (Join-Path $targetRoot 'scripts\start-at-login.ps1'))
+    Set-HudStartupRegistration -Enabled $enabled -PluginRoot $targetRoot -HudHome ([string]$env:CODEX_MONITOR_HUD_HOME) -Portable $false
 }
 
 function Copy-PluginTree {
     param([string]$From, [string]$To)
     New-Item -ItemType Directory -Force -Path $To | Out-Null
-    $excludedRootNames = @('.git','.agents','.codex','artifacts','.test-output','private','node_modules','sessions','logs','archive','Microsoft','AGENTS.md','WORKSPACE_STATE.md')
+    $excludedRootNames = @('.git','.agents','.codex','artifacts','.test-output','private','portable-data','node_modules','sessions','logs','archive','Microsoft','AGENTS.md','WORKSPACE_STATE.md')
     $excludedRelativePaths = @('docs/MAINTENANCE_WORKFLOW.md','docs/MACOS_PREVIEW_TESTING.md','scripts/prepare-delivery.ps1')
     foreach ($item in Get-ChildItem -Force -LiteralPath $From | Where-Object { $_.Name -notin $excludedRootNames -and $_.Name -notlike '.test-output*' }) {
         Copy-Item -LiteralPath $item.FullName -Destination $To -Recurse -Force
@@ -207,12 +234,14 @@ if (-not [string]::IsNullOrWhiteSpace($RollbackVersion)) {
             if (-not $SkipShortcuts) {
                 & (Join-Path $targetRoot 'scripts\create-shortcuts.ps1') -TargetRoot $targetRoot
             }
+            Sync-InstalledStartup
             Clear-HudStopSignals
             & (Join-Path $targetRoot 'scripts\start.ps1') -Settings
             Complete-InstalledTreeSwitch $rollbackTransaction
         } catch {
             try { Undo-InstalledTreeSwitch $rollbackTransaction }
             finally { Restore-MarketplaceSnapshot $rollbackMarketplaceSnapshot }
+            try { Sync-InstalledStartup } catch { Write-Warning ('Startup restoration: ' + $_.Exception.Message) }
             throw
         }
         Write-Output "Rolled back: $targetRoot -> $RollbackVersion"
@@ -236,7 +265,7 @@ if (-not $UseBundledRuntime -and (Test-Path -LiteralPath $buildScript) -and ((Te
     # repaired or rolled back without requiring a global SDK.
     & $buildScript -Configuration Release
 } elseif (-not (Test-Path -LiteralPath $compiledApp)) {
-    throw 'The compiled v3.2.1 runtime is missing and no .NET 10 SDK is available to build it.'
+    throw 'The compiled v3.3.0 runtime is missing and no .NET 10 SDK is available to build it.'
 }
 
 $stageRoot = Join-Path $pluginsRoot ('.codex-monitor-hud-stage-' + [Guid]::NewGuid().ToString('N'))
@@ -252,7 +281,7 @@ try {
     & $stageDotnet $stageApp --plugin-root $stageRoot --health-check $healthPath
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $healthPath)) { throw 'Staged install health check failed.' }
     $health = Get-Content -Raw -Encoding UTF8 -LiteralPath $healthPath | ConvertFrom-Json
-    if ([string]$health.version -ne '3.2.1' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
+    if ([string]$health.version -ne '3.3.0' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
         throw ('Staged install health check returned an invalid result: ' + ($health | ConvertTo-Json -Compress))
     }
     & (Join-Path $stageRoot 'scripts\test.ps1') -TestOutputRoot (Join-Path $validationRoot 'static')
@@ -286,6 +315,7 @@ try {
         if (-not $SkipShortcuts) {
             & (Join-Path $targetRoot 'scripts\create-shortcuts.ps1') -TargetRoot $targetRoot
         }
+        Sync-InstalledStartup
         Clear-HudStopSignals
         if (-not $SkipLaunch) {
             & (Join-Path $targetRoot 'scripts\start.ps1') -Settings
@@ -295,6 +325,7 @@ try {
         if ($settingsCreated) { Remove-Item -LiteralPath $settingsPath -Force -ErrorAction SilentlyContinue }
         try { Undo-InstalledTreeSwitch $installTransaction }
         finally { Restore-MarketplaceSnapshot $marketplaceSnapshot }
+        try { Sync-InstalledStartup } catch { Write-Warning ('Startup restoration: ' + $_.Exception.Message) }
         if (Test-Path -LiteralPath (Join-Path $targetRoot 'scripts\create-shortcuts.ps1')) {
             try { & (Join-Path $targetRoot 'scripts\create-shortcuts.ps1') -TargetRoot $targetRoot } catch { }
         }
@@ -309,6 +340,6 @@ Write-Output "Installed transactionally: $targetRoot"
 Write-Output "Marketplace: $marketplacePath"
 Write-Output "Rollback command: scripts\install.ps1 -RollbackVersion <version>"
 Write-Output "First-install language: $DefaultLanguage (existing settings are preserved)"
-Write-Output 'Windows login startup is disabled. The Codex plugin MCP host starts the HUD when Codex loads the plugin.'
+Write-Output 'Windows login startup is controlled in Settings > General (off by default). Existing preference is preserved.'
 Write-Output 'Restart Codex or start a new task after enabling the plugin.'
 Write-Output 'Basic monitoring is ready. Optional features remain user-controlled: proactive Codex notices and expressive choreography, Theme Workshop, API-equivalent cost, split bubbles, advanced transparency, and click-through.'

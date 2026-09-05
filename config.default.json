@@ -1,9 +1,12 @@
 {
   "preset": "ios26-liquid",
-  "language": "en",
-  "surfaceMode": "window",
+  "language": "zh-CN",
+  "surfaceMode": "ball",
+  "startWithWindows": false,
+  "floatingBallSize": 60,
+  "showProviderLabel": false,
   "layout": "compact",
-  "numberFormat": "exact",
+  "numberFormat": "auto",
   "monitorScope": "aggregate",
   "activeWindowMinutes": 30,
   "sessionSources": {
@@ -13,7 +16,7 @@
     "deepSeekCli": true
   },
   "multiTask": {
-    "displayMode": "summary",
+    "displayMode": "list",
     "listStyle": "cards",
     "listDensity": "compact",
     "listDetail": "balanced",
@@ -26,9 +29,9 @@
       "time": true,
       "context": true,
       "status": true,
-      "model": true,
+      "model": false,
       "callTotal": true,
-      "cacheHitRate": true,
+      "cacheHitRate": false,
       "taskTotal": false,
       "estimatedCost": false,
       "updated": false
@@ -37,7 +40,7 @@
       "model": true,
       "callTotal": true,
       "cacheHitRate": false,
-      "taskTotal": true,
+      "taskTotal": false,
       "estimatedCost": false,
       "updated": true
     }
@@ -79,8 +82,8 @@
     "onAbortedOrError": true,
     "onSettled": false
   },
-  "completionSound": "off",
-  "completionSoundFile": "",
+  "completionSound": "file",
+  "completionSoundFile": "assets/audio/default-completion.mp3",
   "agentNotifications": {
     "enabled": false,
     "permission": "text",
@@ -96,17 +99,17 @@
     "prepareWeeklyPercent": 10,
     "handoffFiveHourPercent": 5,
     "handoffWeeklyPercent": 3,
-    "prepareInstruction": "",
-    "handoffInstruction": ""
+    "prepareInstruction": "额度已进入预警。在开始下一项高消耗或大范围工作前，先检查当前项目是否已有交接文档或约定的收尾格式；若有，按其更新。若没有，在项目合适位置写一份简洁、可恢复的交接：当前目标和进度、已改文件、已验证内容、未完成事项和下次的确切命令。完成后再决定是否继续。",
+    "handoffInstruction": "额度接近断档。不要开始新的大范围或高消耗工作；立即优先更新项目已有交接文档或约定格式。若没有，写一份可恢复交接：当前目标和进度、已改文件、已验证内容、未完成事项、风险或阻塞及下次的确切命令。保存后停止扩张范围，以便下次从这里继续。"
   },
   "officialAllowance": {
     "enabled": false
   },
   "separator": "dot",
-  "position": "top-right",
-  "customLeft": null,
-  "customTop": null,
-  "hudWidth": 900,
+  "position": "custom",
+  "customLeft": 1555.3333333333333,
+  "customTop": 73.33333333333334,
+  "hudWidth": 547,
   "fontSize": 14,
   "cornerRadius": 28,
   "opacity": 0.97,
@@ -130,7 +133,7 @@
     "statusDotSize": 7,
     "fontFamily": "HarmonyOS Sans SC, HarmonyOS Sans, Microsoft YaHei UI"
   },
-  "statusPalette": "default",
+  "statusPalette": "custom",
   "statusColors": {
     "active": "#FF248A3D",
     "listening": "#FF007AFF",
@@ -156,7 +159,7 @@
     "path": ""
   },
   "fields": {
-    "input": false,
+    "input": true,
     "cached": true,
     "cacheHitRate": false,
     "uncached": true,
@@ -168,8 +171,8 @@
     "model": false,
     "updated": false,
     "activeTasks": true,
-    "weeklyRemaining": true,
-    "fiveHourRemaining": true,
+    "weeklyRemaining": false,
+    "fiveHourRemaining": false,
     "estimatedCost": false
   }
 }

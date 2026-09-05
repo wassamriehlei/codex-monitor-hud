@@ -47,7 +47,10 @@ try {
             Select-Object -First 1
         if ($null -eq $checksumLine) { throw 'status=failed reason=checksum-entry-missing' }
         $expected = ($checksumLine -split '\s+')[0].ToLowerInvariant()
-        $actual = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $stream = [IO.File]::OpenRead($archivePath)
+        $sha256 = [Security.Cryptography.SHA256]::Create()
+        try { $actual = ([BitConverter]::ToString($sha256.ComputeHash($stream))).Replace('-','').ToLowerInvariant() }
+        finally { $sha256.Dispose(); $stream.Dispose() }
         if ($expected -ne $actual) { throw 'status=failed reason=checksum-mismatch' }
 
         $stage = Join-Path $temporaryRoot 'stage'

@@ -20,7 +20,7 @@ The resident hot path is compiled C#. `CodexMonitorHud.Core` has no WPF, Windows
 
 ## Scope
 
-Codex Monitor HUD 3.2.1 is a local Windows projection over recent Codex Desktop, VS Code, and CLI session records. It combines the normal `CODEX_HOME` (`~/.codex` by default) with an optional isolated `~/.codex-deepseek` profile without reading either profile's provider configuration or authentication files. It does not maintain a historical database and does not modify Codex sessions.
+Codex Monitor HUD 3.3.0 is a local Windows projection over recent Codex Desktop, VS Code, and CLI session records. It combines the normal `CODEX_HOME` (`~/.codex` by default) with an optional isolated `~/.codex-deepseek` profile without reading either profile's provider configuration or authentication files. It does not maintain a historical database and does not modify Codex sessions.
 
 ```text
 Codex local session JSONL + session_index.jsonl
@@ -68,7 +68,15 @@ The task registry is deliberately smaller than the UI state. Registry v2 stores 
 
 ## Rendering
 
-`surfaceMode` selects the normal window or a 48 DIP count-only floating ball independently from summary/list/split. Both hosts count only visible `active` and `listening` states, expand immediately on hover, and collapse after a 450 ms leave delay outside menus and drags. Click-through disables effective ball mode. Dragging suspends polling/render/reposition work while retaining heartbeat updates; position persistence occurs only after actual movement. The short-lived Settings host is reused while open; its frozen color-wheel bitmap is generated lazily from compiled pixel code.
+Completed single clicks expand the ball immediately after mouse release. Both hosts track movement during `DragMove`, not just final displacement, so dragging out and back never becomes a click. Movement tracking is detached in `finally`, and rendering resumes only after the drag guard is cleared.
+
+`surfaceMode` selects the normal window or a count-only floating ball independently from summary/list/split. `floatingBallSize` defaults to 60 DIP and is bounded to 32–120 DIP. Both hosts count only visible `active` and `listening` states and require a continuous 0.2-second hover before expansion. Press, leave, hide and mode changes cancel the timer; dragging suppresses expansion and requires fresh re-entry afterward. Collapse follows a 450 ms leave delay outside menus and drags. Placement computes the collapsed ball anchor first, picks left/right and up/down by screen midpoint, and locks that direction until collapse. Custom ball-mode coordinates persist the ball shell anchor, including when dragging the expanded window. A separate outer render transform provides 160 ms unfold/120 ms shrink and 100 ms show transitions without layout animation or interference with attention transforms; versioned completion guards prevent stale collapses after reversal, hide, drag or animation disable. Click-through disables effective ball mode. Dragging suspends polling/render/reposition work while retaining heartbeat updates; position persistence occurs only after actual movement.
+
+Shared XAML resources give the ball finite number feedback and status-colored radial background motion. Only active/listening backgrounds loop, at 24 fps using opacity alone. Both hosts retain storyboard signatures to avoid refresh replay and remove clocks on expansion, hide, or `animateUpdates=false`; idle/paused backgrounds remain static. No native glass or animated blur is used.
+
+The Settings host hides on close and stays cached for 10 minutes, then shuts down explicitly. Reopen requests reuse the window through a 100 ms signal timer and reload configuration only when hidden. A settings mutex avoids redundant launches from either host. The installer requests explicit settings-host exit before swapping files. System fonts are enumerated only when the font picker is opened; the frozen color-wheel bitmap remains lazy. XAML uses direct string parsing without an intermediate XML DOM. `scripts/test-settings-runtime.ps1` measures synthetic cold/warm visibility, HWND reuse, and graceful shutdown without reading user settings or sessions.
+
+Independent bubbles use a root layout scale with automatic window sizing; Ctrl + wheel changes the per-session `BubbleScale` from 0.6 to 2.0, preserving it through collapse/merge/re-detach for the active session. No corner resize handle or manual width/height is retained. `showProviderLabel` affects display labels and summary source grouping only, not identity metadata, source filtering, model display, or the privacy-safe registry.
 
 The dispatcher uses an adaptive 250/800/1,500 ms cadence: bursts and parser backlog stay responsive, active/listening tasks retain the existing cadence, and idle state backs off. File-system changes for sessions, official titles, notices, and control signals coalesce into an immediate dispatcher wake, so the idle cadence does not add interaction latency. Directory discovery is separately bounded. A no-change tick advances lifecycle state without statting every session path, and a timer tick does not imply a full render.
 

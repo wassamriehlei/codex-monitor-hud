@@ -9,8 +9,8 @@
         SizeToContent="WidthAndHeight"
         MinWidth="0"
         MinHeight="0"
-        MaxWidth="960"
-        MaxHeight="360"
+        MaxWidth="1920"
+        MaxHeight="720"
         ShowInTaskbar="False"
         ShowActivated="False"
         Topmost="True"
@@ -55,20 +55,11 @@
       </Setter>
     </Style>
   </Window.Resources>
-  <Grid Margin="16">
+  <Grid x:Name="TaskBubbleScaleRoot" Margin="16" MaxWidth="928" MaxHeight="344">
+    <Grid.LayoutTransform><ScaleTransform ScaleX="1" ScaleY="1" /></Grid.LayoutTransform>
     <Border x:Name="TaskBubbleShell" CornerRadius="18" Padding="12,9" BorderThickness="1" SnapsToDevicePixels="True">
       <DockPanel LastChildFill="True">
         <Ellipse x:Name="TaskBubbleStatusDot" DockPanel.Dock="Left" Width="8" Height="8" Margin="0,0,9,0" VerticalAlignment="Center" />
-        <Button x:Name="TaskBubbleDismissButton" DockPanel.Dock="Right" Style="{StaticResource HudIconButton}" Margin="5,0,0,0">
-          <Viewbox Width="14" Height="14">
-            <Path Data="M18,6 L6,18 M6,6 L18,18"
-                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type Button}}}"
-                  StrokeThickness="1.8"
-                  StrokeStartLineCap="Round"
-                  StrokeEndLineCap="Round"
-                  StrokeLineJoin="Round" />
-          </Viewbox>
-        </Button>
         <Button x:Name="TaskBubbleMergeButton" DockPanel.Dock="Right" Style="{StaticResource HudIconButton}" Margin="9,0,0,0">
           <Viewbox Width="15" Height="15">
             <Path Data="M14,10 L21,3 M20,10 H14 V4 M3,21 L10,14 M4,14 H10 V20"
@@ -114,31 +105,5 @@
         </LinearGradientBrush>
       </Border.BorderBrush>
     </Border>
-    <Thumb x:Name="TaskBubbleResizeThumb"
-           Width="18"
-           Height="18"
-           Margin="0,0,4,4"
-           HorizontalAlignment="Right"
-           VerticalAlignment="Bottom"
-           Cursor="SizeNWSE"
-           Opacity="0.62">
-      <Thumb.Template>
-        <ControlTemplate TargetType="{x:Type Thumb}">
-          <Grid Background="Transparent">
-            <Path Data="M19,13 V19 H13 M5,11 V5 H11 M19,5 L12,12 M5,19 L12,12"
-                  Stroke="#A60A84FF"
-                  StrokeThickness="1.6"
-                  Stretch="Uniform"
-                  Width="14"
-                  Height="14"
-                  HorizontalAlignment="Center"
-                  VerticalAlignment="Center"
-                  StrokeStartLineCap="Round"
-                  StrokeEndLineCap="Round"
-                  StrokeLineJoin="Round" />
-          </Grid>
-        </ControlTemplate>
-      </Thumb.Template>
-    </Thumb>
   </Grid>
 </Window>

@@ -2,7 +2,8 @@ Set-StrictMode -Version Latest
 
 function Get-HudPaths {
     param([Parameter(Mandatory = $true)][string]$PluginRoot)
-    $stateRoot = Join-Path $env:LOCALAPPDATA 'CodexMonitorHUD'
+    $dataHome = if ([string]::IsNullOrWhiteSpace($env:CODEX_MONITOR_HUD_DATA_HOME)) { $env:LOCALAPPDATA } else { [IO.Path]::GetFullPath($env:CODEX_MONITOR_HUD_DATA_HOME) }
+    $stateRoot = Join-Path $dataHome 'CodexMonitorHUD'
     [pscustomobject]@{
         PluginRoot = $PluginRoot
         SessionsRoot = Join-Path $HOME '.codex\sessions'
@@ -313,6 +314,7 @@ function Get-HudConfig {
     if ($result.quotaGuard.handoffInstruction.Length -gt 1200) { $result.quotaGuard.handoffInstruction = $result.quotaGuard.handoffInstruction.Substring(0,1200) }
     if (@('uniform','layered','focus') -notcontains [string]$result.transparencyMode) { $result.transparencyMode = 'uniform' }
     if (@('window','ball') -notcontains [string]$result.surfaceMode) { $result.surfaceMode = 'window' }
+    $result.floatingBallSize = [Math]::Max(32.0, [Math]::Min(120.0, [double]$result.floatingBallSize))
     $result.opacity = [Math]::Max(0.0, [Math]::Min(1.0, [double]$result.opacity))
     $result.hudWidth = [Math]::Max(360.0, [Math]::Min(1600.0, [double]$result.hudWidth))
     # Retired native backdrop metadata remains readable for old settings/themes.

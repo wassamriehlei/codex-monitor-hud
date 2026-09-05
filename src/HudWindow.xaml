@@ -15,6 +15,61 @@
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType">
   <Window.Resources>
+    <!-- Cheap opacity-only status breathing. Hosts remove clocks when hidden/expanded. -->
+    <Storyboard x:Key="BallBackground_active" Timeline.DesiredFrameRate="24">
+      <DoubleAnimation Storyboard.TargetName="BallStatusBackground" Storyboard.TargetProperty="Opacity" From="0.12" To="0.34" Duration="0:0:1.6" AutoReverse="True" RepeatBehavior="Forever">
+        <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut" /></DoubleAnimation.EasingFunction>
+      </DoubleAnimation>
+    </Storyboard>
+    <Storyboard x:Key="BallBackground_listening" Timeline.DesiredFrameRate="24">
+      <DoubleAnimation Storyboard.TargetName="BallStatusBackground" Storyboard.TargetProperty="Opacity" From="0.10" To="0.26" Duration="0:0:2.4" AutoReverse="True" RepeatBehavior="Forever">
+        <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut" /></DoubleAnimation.EasingFunction>
+      </DoubleAnimation>
+    </Storyboard>
+    <Storyboard x:Key="BallBackground_completed" FillBehavior="Stop" Timeline.DesiredFrameRate="24">
+      <DoubleAnimation Storyboard.TargetName="BallStatusBackground" Storyboard.TargetProperty="Opacity" From="0.12" To="0.40" Duration="0:0:0.65" AutoReverse="True" RepeatBehavior="2x" />
+    </Storyboard>
+    <Storyboard x:Key="BallBackground_error" FillBehavior="Stop" Timeline.DesiredFrameRate="24">
+      <DoubleAnimation Storyboard.TargetName="BallStatusBackground" Storyboard.TargetProperty="Opacity" From="0.12" To="0.42" Duration="0:0:0.8" AutoReverse="True" RepeatBehavior="2x" />
+    </Storyboard>
+    <Storyboard x:Key="BallBackground_aborted" FillBehavior="Stop" Timeline.DesiredFrameRate="24">
+      <DoubleAnimation Storyboard.TargetName="BallStatusBackground" Storyboard.TargetProperty="Opacity" From="0.26" To="0.12" Duration="0:0:1.2" />
+    </Storyboard>
+    <!-- Shared by both hosts. Finite, count-only motion, separate from shell transitions. -->
+    <Storyboard x:Key="BallMotion_active" FillBehavior="Stop">
+      <DoubleAnimation Storyboard.TargetName="FloatingBallCount" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" From="1" To="1.10" Duration="0:0:0.5" AutoReverse="True" RepeatBehavior="2x" />
+      <DoubleAnimation Storyboard.TargetName="FloatingBallCount" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" From="1" To="1.10" Duration="0:0:0.5" AutoReverse="True" RepeatBehavior="2x" />
+    </Storyboard>
+    <Storyboard x:Key="BallMotion_listening" FillBehavior="Stop">
+      <DoubleAnimation Storyboard.TargetName="FloatingBallCount" Storyboard.TargetProperty="Opacity" From="1" To="0.65" Duration="0:0:0.9" AutoReverse="True" RepeatBehavior="2x">
+        <DoubleAnimation.EasingFunction><SineEase EasingMode="EaseInOut" /></DoubleAnimation.EasingFunction>
+      </DoubleAnimation>
+    </Storyboard>
+    <Storyboard x:Key="BallMotion_completed" FillBehavior="Stop">
+      <DoubleAnimation Storyboard.TargetName="FloatingBallCount" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleX)" From="0.82" To="1" Duration="0:0:0.42">
+        <DoubleAnimation.EasingFunction><BackEase EasingMode="EaseOut" Amplitude="0.3" /></DoubleAnimation.EasingFunction>
+      </DoubleAnimation>
+      <DoubleAnimation Storyboard.TargetName="FloatingBallCount" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[0].(ScaleTransform.ScaleY)" From="0.82" To="1" Duration="0:0:0.42">
+        <DoubleAnimation.EasingFunction><BackEase EasingMode="EaseOut" Amplitude="0.3" /></DoubleAnimation.EasingFunction>
+      </DoubleAnimation>
+    </Storyboard>
+    <Storyboard x:Key="BallMotion_error" FillBehavior="Stop">
+      <DoubleAnimationUsingKeyFrames Storyboard.TargetName="FloatingBallCount" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(TranslateTransform.X)" Duration="0:0:0.42">
+        <LinearDoubleKeyFrame KeyTime="0:0:0" Value="0" />
+        <LinearDoubleKeyFrame KeyTime="0:0:0.08" Value="-2" />
+        <LinearDoubleKeyFrame KeyTime="0:0:0.16" Value="2" />
+        <LinearDoubleKeyFrame KeyTime="0:0:0.24" Value="-1" />
+        <LinearDoubleKeyFrame KeyTime="0:0:0.32" Value="1" />
+        <LinearDoubleKeyFrame KeyTime="0:0:0.42" Value="0" />
+      </DoubleAnimationUsingKeyFrames>
+    </Storyboard>
+    <Storyboard x:Key="BallMotion_aborted" FillBehavior="Stop">
+      <DoubleAnimation Storyboard.TargetName="FloatingBallCount" Storyboard.TargetProperty="(UIElement.RenderTransform).(TransformGroup.Children)[1].(TranslateTransform.Y)" From="0" To="2" Duration="0:0:0.2" AutoReverse="True" />
+      <DoubleAnimation Storyboard.TargetName="FloatingBallCount" Storyboard.TargetProperty="Opacity" From="0.65" To="1" Duration="0:0:0.4" />
+    </Storyboard>
+    <Storyboard x:Key="BallMotion_idle" FillBehavior="Stop">
+      <DoubleAnimation Storyboard.TargetName="FloatingBallCount" Storyboard.TargetProperty="Opacity" From="0.8" To="1" Duration="0:0:0.8" />
+    </Storyboard>
     <Style x:Key="HudIconButton" TargetType="{x:Type Button}">
       <Setter Property="Width" Value="30" />
       <Setter Property="Height" Value="30" />
@@ -91,7 +146,8 @@
       </Setter>
     </Style>
   </Window.Resources>
-  <Grid Margin="18">
+  <Grid x:Name="HudSurfaceMotion" Margin="18" RenderTransformOrigin="0.5,0.5">
+    <Grid.RenderTransform><ScaleTransform ScaleX="1" ScaleY="1" /></Grid.RenderTransform>
     <Border x:Name="HudShell"
             CornerRadius="22"
             Padding="16,11"
@@ -133,7 +189,12 @@
         </ScrollViewer>
       </StackPanel>
       <Grid x:Name="FloatingBallPanel" Width="44" Height="44" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center" Background="Transparent">
-        <TextBlock x:Name="FloatingBallCount" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <Ellipse x:Name="BallStatusBackground" IsHitTestVisible="False" Opacity="0.12">
+          <Ellipse.OpacityMask><RadialGradientBrush GradientOrigin="0.4,0.35" Center="0.5,0.5" RadiusX="0.55" RadiusY="0.55"><GradientStop Color="#FFFFFFFF" Offset="0" /><GradientStop Color="#B0FFFFFF" Offset="0.65" /><GradientStop Color="#00FFFFFF" Offset="1" /></RadialGradientBrush></Ellipse.OpacityMask>
+        </Ellipse>
+        <TextBlock x:Name="FloatingBallCount" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5">
+          <TextBlock.RenderTransform><TransformGroup><ScaleTransform /><TranslateTransform /></TransformGroup></TextBlock.RenderTransform>
+        </TextBlock>
       </Grid>
       <StackPanel x:Name="QuietIndicatorPanel"
                   Visibility="Collapsed"

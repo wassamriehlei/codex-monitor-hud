@@ -130,6 +130,9 @@ $lateUserPath = Write-SyntheticTask 9005 'late-user' -OmitMetadata
 
 $config = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'config.default.json') | ConvertFrom-Json
 $config.language = 'en'
+$config.surfaceMode = 'window'
+$config.completionSound = 'off'
+$config.position = 'top-right'
 $config.activeWindowMinutes = 60
 $config.multiTask.displayMode = $Mode
 $config.multiTask.maxSplitBubbles = 6
@@ -150,6 +153,8 @@ $savedModuleAnalysisCache = $env:PSModuleAnalysisCachePath
 $savedDebugPath = $env:CODEX_MONITOR_HUD_DEBUG_PATH
 $savedCompiledTestHome = $env:CODEX_MONITOR_HUD_TEST_HOME
 $savedCompiledTestLocalAppData = $env:CODEX_MONITOR_HUD_TEST_LOCALAPPDATA
+$savedHudHome = $env:CODEX_MONITOR_HUD_HOME
+$savedDataHome = $env:CODEX_MONITOR_HUD_DATA_HOME
 $process = $null
 $runtimeSamples = New-Object System.Collections.Generic.List[object]
 $runtimeStartedAt = [DateTimeOffset]::UtcNow
@@ -177,6 +182,9 @@ try {
     $env:PSModuleAnalysisCachePath = Join-Path $testRoot 'ModuleAnalysisCache'
     $env:CODEX_MONITOR_HUD_TEST_HOME = $profileRoot
     $env:CODEX_MONITOR_HUD_TEST_LOCALAPPDATA = $localAppData
+    # Both hosts must stay on fixtures even when invoked by a WSL/portable install.
+    $env:CODEX_MONITOR_HUD_HOME = $profileRoot
+    $env:CODEX_MONITOR_HUD_DATA_HOME = $localAppData
     if ($HostMode -eq 'legacy') { $env:CODEX_MONITOR_HUD_DEBUG_PATH = $runtimeLog }
     if ($HostMode -eq 'compiled') {
         $compiledDotnet = Join-Path $root 'runtime\win-x64\dotnet\dotnet.exe'
@@ -351,6 +359,17 @@ try {
         Start-Sleep -Seconds 2
         & (Join-Path $PSScriptRoot 'test-window-region.ps1') -ProcessId $process.Id -ExpectUnclipped
     }
+    # Exercise the shared count-animation namescope in both live hosts, plus
+    # cancellation on expansion and animateUpdates=false. Synthetic state only.
+    foreach ($surfaceCase in @(@('ball',$true),@('window',$true),@('ball',$false))) {
+        $config.surfaceMode = $surfaceCase[0]
+        $config.animateUpdates = $surfaceCase[1]
+        [IO.File]::WriteAllText((Join-Path $stateRoot 'settings.json'), ($config | ConvertTo-Json -Depth 8), $encoding)
+        [IO.File]::WriteAllText((Join-Path $stateRoot 'reload-settings.signal'), [DateTime]::UtcNow.ToString('O'), $encoding)
+        Start-Sleep -Seconds 2
+        $process.Refresh()
+        if ($process.HasExited) { throw 'HUD exited while switching floating-ball state animations.' }
+    }
     Add-RuntimeSample 'post-reload'
     [IO.File]::WriteAllText((Join-Path $stateRoot 'exit.signal'), [DateTime]::UtcNow.ToString('O'), $encoding)
     if (-not $process.WaitForExit(10000)) { throw 'Isolated HUD did not exit through its own signal.' }
@@ -358,7 +377,7 @@ try {
 
     $logText = Get-Content -Raw -Encoding UTF8 -LiteralPath $runtimeLog
     if ($HostMode -eq 'compiled') {
-        if ($logText -notmatch 'Compiled HUD v3\.2\.1 starting\.') { throw 'Compiled HUD startup marker is missing.' }
+        if ($logText -notmatch 'Compiled HUD v3\.3\.0 starting\.') { throw 'Compiled HUD startup marker is missing.' }
         if ($logText -match 'Unhandled dispatcher exception:|Unhandled domain exception:|Fatal startup error:') { throw 'Compiled runtime log contains an unhandled HUD error.' }
     } else {
         if ($logText -notmatch 'HUD Loaded event completed\.') { throw 'HUD Loaded completion marker is missing.' }
@@ -418,4 +437,6 @@ try {
     $env:CODEX_MONITOR_HUD_DEBUG_PATH = $savedDebugPath
     $env:CODEX_MONITOR_HUD_TEST_HOME = $savedCompiledTestHome
     $env:CODEX_MONITOR_HUD_TEST_LOCALAPPDATA = $savedCompiledTestLocalAppData
+    $env:CODEX_MONITOR_HUD_HOME = $savedHudHome
+    $env:CODEX_MONITOR_HUD_DATA_HOME = $savedDataHome
 }

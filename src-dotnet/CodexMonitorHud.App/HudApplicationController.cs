@@ -123,7 +123,7 @@ internal sealed partial class HudApplicationController : IDisposable
 
     public void Start()
     {
-        _log.Write($"Compiled HUD v3.2.1 starting. config={_paths.ConfigPath}; profiles={string.Join(',', _profiles.Select(static profile => profile.Id))}; agentNotices={_settings.AgentNotifications.Enabled}/{_settings.AgentNotifications.Permission}");
+        _log.Write($"Compiled HUD v3.3.0 starting. config={_paths.ConfigPath}; profiles={string.Join(',', _profiles.Select(static profile => profile.Id))}; agentNotices={_settings.AgentNotifications.Enabled}/{_settings.AgentNotifications.Permission}");
         var now = DateTimeOffset.Now;
         _engine.RefreshActiveSessions(now);
         _engine.Poll(now);
@@ -731,6 +731,8 @@ internal sealed partial class HudApplicationController : IDisposable
             if (_settings.CompletionSound == "file")
             {
                 var path = Environment.ExpandEnvironmentVariables(_settings.CompletionSoundFile.Trim());
+                if (string.IsNullOrWhiteSpace(path)) return;
+                if (!Path.IsPathRooted(path)) path = Path.Combine(_paths.PluginRoot, path);
                 if (!File.Exists(path))
                 {
                     _log.Write("Completion audio file not found: " + path);
@@ -776,7 +778,8 @@ internal sealed partial class HudApplicationController : IDisposable
         }
         try
         {
-            if (_settingsHostProcess is not null && !_settingsHostProcess.HasExited)
+            using var existingSettings = OpenSettingsMutex();
+            if ((_settingsHostProcess is not null && !_settingsHostProcess.HasExited) || existingSettings is not null)
             {
                 TryWriteText(Path.Combine(_paths.StateRoot, "settings-host-open.signal"), DateTime.UtcNow.ToString("O"));
                 return;
@@ -795,7 +798,9 @@ internal sealed partial class HudApplicationController : IDisposable
                     "Bypass",
                     "-File",
                     legacy,
-                    "-SettingsHost"
+                    "-SettingsHost",
+                    "-InstanceId",
+                    _arguments.InstanceId
                 }
             });
         }
@@ -803,6 +808,13 @@ internal sealed partial class HudApplicationController : IDisposable
         {
             _log.Write("Settings host launch failed: " + exception.Message);
         }
+    }
+
+    private Mutex? OpenSettingsMutex()
+    {
+        var suffix = string.IsNullOrWhiteSpace(_arguments.InstanceId) ? "" : "-" + string.Concat(_arguments.InstanceId.Select(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.' ? c : '_'));
+        try { return Mutex.TryOpenExisting(@"Local\CodexMonitorHUD-settings" + suffix, out var mutex) ? mutex : null; }
+        catch (UnauthorizedAccessException) { return null; }
     }
 
     private void OpenTask(string path)

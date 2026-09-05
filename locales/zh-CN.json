@@ -1,4 +1,15 @@
 {
+  "startWithWindows": "开机启动",
+  "startWithWindowsHint": "仅为当前 Windows 用户启动，默认关闭。便携版请保留解压目录；移动目录后请重新开启。",
+  "startupFailed": "设置开机启动失败",
+  "aboutTab": "关于",
+  "portableMode": "便携模式",
+  "installedMode": "安装模式",
+  "aboutDescription": "本地监控 Codex Desktop、VS Code 和 CLI，支持 WSL 路径。不上传会话。这是社区项目，并非 OpenAI 官方应用。",
+  "aboutLicense": "代码：MIT。Lucide 图标：ISC。内置完成音频已由提供者确认可随项目公开分发，不适用代码的 MIT 许可。",
+  "aboutRepository": "项目仓库",
+  "aboutReleases": "查看更新",
+  "aboutUpstream": "上游项目",
   "appName": "Codex Monitor HUD",
   "waiting": "等待 Codex 产生用量记录…",
   "noActiveTasks": "当前没有活动的 Codex 任务",
@@ -100,8 +111,8 @@
   "listDetailBalanced": "标准布局：所选字段单行显示",
   "listDetailDetailed": "诊断布局：第二行附加输入输出明细",
   "taskBubbleFieldsTitle": "独立小气泡信息",
-  "taskBubbleResizeHint": "每个独立气泡都可拖动右下角调整大小；字段选择与列表互不影响。",
-  "resizeTaskBubble": "拖动调整气泡大小",
+  "taskBubbleResizeHint": "鼠标移到独立气泡上，按住 Ctrl 滚动滚轮，整体缩放文字、图标和边框（60%–200%）。",
+  "resizeTaskBubble": "Ctrl + 滚轮：整体缩放气泡（60%–200%）",
   "dismissTask": "从 HUD 移除；此对话再次运行时会重新出现",
   "closeTaskBubble": "只关闭这个独立气泡；主 HUD 会继续监控该任务",
   "sessionSourcesTitle": "监控来源",
@@ -348,8 +359,10 @@
   "cancel": "取消",
   "apply": "应用",
   "surfaceMode": "悬浮显示模式",
+  "floatingBallSize": "悬浮球大小",
+  "showProviderLabel": "显示服务提供方标识（custom / OpenAI / DeepSeek）",
   "surfaceWindow": "悬浮窗",
   "surfaceBall": "悬浮球（悬停展开）",
   "surfaceModeHint": "悬浮球在鼠标移入时展开，移出后自动收回。开启鼠标穿透时保持悬浮窗。",
-  "surfaceBallHint": "移入展开 · 双击设置 · 拖动移动"
+  "surfaceBallHint": "单击立即展开 · 悬停 0.2 秒展开 · 双击设置 · 拖动时保持悬浮球"
 }

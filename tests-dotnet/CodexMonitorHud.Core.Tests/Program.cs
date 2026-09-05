@@ -689,6 +689,22 @@ void TestPlacement()
     var free = HudPlacement.SnapCustom(240, 320, 0, 0, 1920, 1040, 700, 80, 18, 28);
     Equal(240d, free.Left, "center placement remains freely positioned");
     Equal(320d, free.Top, "center placement keeps its vertical position");
+    foreach (var screenLeft in new[] { 0d, -1920d })
+    foreach (var diameter in new[] { 32d, 48d, 120d })
+    foreach (var leftward in new[] { false, true })
+    foreach (var upward in new[] { false, true })
+    {
+        var ball = new HudPoint(leftward ? screenLeft + 1920 - diameter - 18 : screenLeft - 18,
+            upward ? 1040 - diameter - 18 : -18);
+        var expanded = HudPlacement.ExpandFromBall(ball, diameter, screenLeft, 0, 1920, 1040, 700, 300, 18);
+        Equal(leftward ? screenLeft + 1238 : screenLeft - 18, expanded.Left, "ball screen-side expansion");
+        Equal(upward ? 758d : -18d, expanded.Top, "ball vertical edge anchor");
+        var offset = new HudPoint(ball.Left - expanded.Left, ball.Top - expanded.Top);
+        Equal(ball, new HudPoint(expanded.Left + offset.Left, expanded.Top + offset.Top), "collapse restores ball anchor");
+    }
+    var middleBall = new HudPoint(918, 478);
+    Equal(middleBall, HudPlacement.ExpandFromBall(middleBall, 48, 0, 0, 1920, 1040, 700, 300, 18), "center ties expand right/down");
+    Equal(284d, HudPlacement.ExpandFromBall(new HudPoint(900, 100), 48, 0, 0, 1920, 1040, 700, 300, 18, true, false).Left, "locked direction survives crossing midpoint");
 }
 
 void TestSurfaceEffects()
@@ -716,10 +732,10 @@ void TestConfiguration()
         Directory.CreateDirectory(paths.StateRoot);
         File.WriteAllText(paths.ConfigPath, """{"multiTask":"corrupt","behavior":{"contextAlerts":"corrupt"},"completionSound":"invalid","opacity":-0.01,"alwaysOnTop":"yes","fontSize":"large","fields":{"context":"yes"},"statusColors":{"active":17}}""");
         var config = HudConfigStore.Load(paths);
-        Equal("summary", config["multiTask"]!["displayMode"]!.GetValue<string>(), "object/scalar corruption recovery");
+        Equal("list", config["multiTask"]!["displayMode"]!.GetValue<string>(), "object/scalar corruption recovery");
         Equal(0d, config["opacity"]!.GetValue<double>(), "opacity clamp");
         var settings = HudSettings.From(config);
-        Equal("summary", settings.MultiTask.DisplayMode, "typed settings projection");
+        Equal("list", settings.MultiTask.DisplayMode, "typed settings projection");
         Equal(true, settings.SessionSources.VsCode, "missing VS Code source setting defaults to enabled");
         Equal("always", settings.MultiTask.NameMode, "conversation subtitle is visible by default");
         Equal(0d, settings.Opacity, "typed numeric settings projection");
@@ -728,8 +744,16 @@ void TestConfiguration()
         Equal(false, settings.Fields["context"], "wrong nested scalar type retains default");
         Equal("#FF248A3D", settings.StatusColors["active"], "wrong dictionary scalar type retains Liquid default");
         Equal("off", settings.CompletionSound, "invalid completion sound falls back to off");
-        Equal(900d, settings.HudWidth, "default HUD width projection");
-        Equal("window", settings.SurfaceMode, "existing settings retain window mode");
+        Equal(547d, settings.HudWidth, "default HUD width projection");
+        Equal("ball", settings.SurfaceMode, "personal default surface mode");
+        Equal(60d, settings.FloatingBallSize, "default ball diameter");
+        Equal(false, settings.ShowProviderLabel, "provider labels hidden by personal default");
+        config["floatingBallSize"] = 999;
+        Equal(120d, HudSettings.From(config).FloatingBallSize, "oversized ball clamped");
+        config["floatingBallSize"] = 1;
+        Equal(32d, HudSettings.From(config).FloatingBallSize, "undersized ball clamped");
+        config["floatingBallSize"] = 80;
+        config["showProviderLabel"] = false;
         config["surfaceMode"] = "invalid";
         HudConfigStore.Save(paths, config);
         Equal("window", HudSettings.From(HudConfigStore.Load(paths)).SurfaceMode, "invalid surface mode recovers to window");
@@ -760,6 +784,8 @@ void TestConfiguration()
         NotNull(JsonNode.Parse(File.ReadAllText(paths.ConfigPath)), "saved config JSON");
         var reloaded = HudSettings.From(HudConfigStore.Load(paths));
         Equal("ball", reloaded.SurfaceMode, "floating ball preference survives config merge");
+        Equal(80d, reloaded.FloatingBallSize, "ball diameter persists");
+        Equal(false, reloaded.ShowProviderLabel, "provider visibility persists");
         Equal(true, reloaded.AgentNotifications.Enabled, "saved agent-notification boolean survives config merge");
         Equal("expressive", reloaded.AgentNotifications.Permission, "saved agent-notification permission survives config merge");
         Equal("file", reloaded.CompletionSound, "saved completion sound survives config merge");

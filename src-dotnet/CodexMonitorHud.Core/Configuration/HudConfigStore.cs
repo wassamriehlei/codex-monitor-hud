@@ -177,6 +177,7 @@ public static partial class HudConfigStore
 
         SetAllowed(result, "uniform", new[] { "uniform", "layered", "focus" }, "transparencyMode");
         SetAllowed(result, "window", new[] { "window", "ball" }, "surfaceMode");
+        SetDouble(result, Math.Clamp(GetDouble(result, 48, "floatingBallSize"), 32, 120), "floatingBallSize");
         SetDouble(result, Math.Clamp(GetDouble(result, 0.97, "opacity"), 0, 1), "opacity");
         SetDouble(result, Math.Clamp(GetDouble(result, 900, "hudWidth"), 360, 1600), "hudWidth");
         // Native glass was retired; preserve old documents while disabling the mode.

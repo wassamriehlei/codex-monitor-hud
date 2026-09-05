@@ -32,10 +32,12 @@ internal static class Program
         var configuredHome = Environment.GetEnvironmentVariable("CODEX_MONITOR_HUD_HOME");
         var testHome = Environment.GetEnvironmentVariable("CODEX_MONITOR_HUD_TEST_HOME");
         var testLocalAppData = Environment.GetEnvironmentVariable("CODEX_MONITOR_HUD_TEST_LOCALAPPDATA");
+        var portableDataHome = Environment.GetEnvironmentVariable("CODEX_MONITOR_HUD_DATA_HOME");
+        var dataHome = string.IsNullOrWhiteSpace(testLocalAppData) ? portableDataHome : testLocalAppData;
         var sessionHome = string.IsNullOrWhiteSpace(testHome) ? configuredHome : testHome;
         var paths = HudPaths.Create(
             pluginRoot,
-            localAppData: string.IsNullOrWhiteSpace(testLocalAppData) ? null : testLocalAppData,
+            localAppData: string.IsNullOrWhiteSpace(dataHome) ? null : dataHome,
             home: string.IsNullOrWhiteSpace(sessionHome) ? null : sessionHome);
         var log = new HudLog(paths.StateRoot, arguments.DebugLog);
 
@@ -164,7 +166,7 @@ internal static class Program
             var result = JsonSerializer.Serialize(new
             {
                 product = "Codex Monitor HUD",
-                version = "3.2.1",
+                version = "3.3.0",
                 framework = Environment.Version.ToString(),
                 config = "ok",
                 xaml = "ok",
