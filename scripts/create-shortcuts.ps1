@@ -3,13 +3,14 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$settingsExe = Join-Path $TargetRoot 'CodexMonitorHUD-Settings.exe'
+$mainExe = Join-Path $TargetRoot 'CodexMonitorHUD.exe'
 $sourceIconPath = Join-Path $TargetRoot 'assets\codex-monitor-hud.ico'
 $manifestPath = Join-Path $TargetRoot '.codex-plugin\plugin.json'
 $buildVersion = if (Test-Path -LiteralPath $manifestPath) { [string](Get-Content -Raw -Encoding UTF8 -LiteralPath $manifestPath | ConvertFrom-Json).version } else { 'current' }
 $safeVersion = [regex]::Replace($buildVersion, '[^A-Za-z0-9._-]', '_')
 $iconCacheRoot = Join-Path $env:LOCALAPPDATA 'CodexMonitorHUD\icons'
-$iconPath = Join-Path $iconCacheRoot ('codex-monitor-hud-' + $safeVersion + '.ico')
+$iconHash = if (Test-Path -LiteralPath $sourceIconPath) { (Get-FileHash -LiteralPath $sourceIconPath -Algorithm SHA256).Hash.Substring(0,12).ToLowerInvariant() } else { 'default' }
+$iconPath = Join-Path $iconCacheRoot ('codex-monitor-hud-' + $safeVersion + '-' + $iconHash + '.ico')
 New-Item -ItemType Directory -Force -Path $iconCacheRoot | Out-Null
 if (Test-Path -LiteralPath $sourceIconPath) { Copy-Item -LiteralPath $sourceIconPath -Destination $iconPath -Force }
 $shell = New-Object -ComObject WScript.Shell
@@ -22,15 +23,15 @@ foreach ($path in @(
     (Join-Path $desktop 'Codex Monitor HUD Settings.lnk')
 )) {
     $shortcut = $shell.CreateShortcut($path)
-    $shortcut.TargetPath = $settingsExe
-    $shortcut.Arguments = ('--plugin-root "{0}"' -f $TargetRoot)
+    $shortcut.TargetPath = $mainExe
+    $shortcut.Arguments = ('--plugin-root "{0}" --open-settings' -f $TargetRoot)
     $shortcut.WorkingDirectory = $TargetRoot
     $shortcut.Description = 'Open Codex Monitor HUD settings'
     if (Test-Path -LiteralPath $iconPath) { $shortcut.IconLocation = $iconPath + ',0' }
     $shortcut.Save()
 }
 
-# A build-specific icon path avoids Explorer retaining the previous design for
+# A content-specific icon path avoids Explorer retaining the previous design for
 # a stable .lnk name. Ask Explorer to refresh after both shortcuts are saved.
 $iconRefresh = Join-Path $env:SystemRoot 'System32\ie4uinit.exe'
 if (Test-Path -LiteralPath $iconRefresh) { & $iconRefresh -show 2>$null }

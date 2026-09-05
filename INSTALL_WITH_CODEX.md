@@ -1,73 +1,43 @@
 # Install with Codex
 
-This is the canonical agent procedure. A repository URL plus “帮我安装” or “install this” is sufficient. Do not infer installation commands from other documents.
+This is the canonical agent procedure. A repository URL plus “帮我安装” or “install this” is sufficient. Releases are Windows x64 Portable ZIPs only.
 
-## Deterministic procedure
+## Deterministic Portable procedure
 
-1. Confirm the URL resolves to `https://github.com/wassamriehlei/codex-monitor-hud`. Read `install-manifest.json`; do not read local Codex sessions, prompts, replies, tool output, logs, databases, settings values, or credentials.
-2. Detect the platform and architecture:
-   - Windows x64 → `windows-x64`;
-   - anything else → stop as unsupported.
-3. Use a user-local install. Never request administrator access unless the user explicitly asks for a machine-wide install.
-4. Use a clean checkout of the manifest's exact tag when consuming a Release. If the exact Release is absent, use the currently trusted checkout only after confirming its origin and manifest version. Run exactly one platform entrypoint:
-   - Windows: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-windows-from-repository.ps1 -DefaultLanguage <zh-CN|en>`.
-5. The entrypoint prefers the matching app asset from the manifest's exact version/tag and verifies it with `SHA256SUMS.txt`. Plugin files come from the same trusted exact-tag checkout. A missing matching Release/asset may use the pinned source-build fallback. A checksum mismatch, missing checksum entry, network error, wrong architecture, mismatched app/plugin version, or unavailable Node.js must stop; never switch silently to another artifact.
-6. Preserve the existing settings/state directory. The installer must stage and health-check the candidate before switching, retain the previous app and plugin as a paired rollback, update the personal marketplace atomically without changing unrelated entries, launch it, and check a fresh heartbeat.
-7. Report only the bounded summary emitted by the installer: version, platform, architecture, app/plugin roots, config status/path, heartbeat status, and paired rollback paths. Do not upload local evidence.
-8. First installation enables only basic local monitoring. After it succeeds, tell the user that source filters, themes, cost estimates, proactive CODEX notices, and the optional MCP/plugin control surface exist; let the user decide whether to enable or install those extras.
+1. Confirm the repository is `https://github.com/wassamriehlei/codex-monitor-hud` and read `install-manifest.json`.
+2. Select `windows-x64`. Stop for other platforms or architectures.
+3. Download the manifest's exact-tag Portable ZIP and `SHA256SUMS.txt` from GitHub Releases.
+4. Verify that the checksum file contains exactly the expected asset name, then verify the ZIP's SHA-256 before extraction.
+5. Extract every file to a new user-writable directory. No administrator access or system .NET installation is needed.
+6. For an upgrade, close the old HUD, retain the existing `portable-data` directory, replace the remaining application files, and restore `portable-data` unchanged.
+7. Start `CodexMonitorHUD.exe`. Open settings from the HUD or notification-area menu; automation can run `CodexMonitorHUD.exe --open-settings`.
+8. Confirm that `portable-data\CodexMonitorHUD\hud.heartbeat` is fresh. Report the version, asset checksum, extraction directory, data directory, and heartbeat result.
 
-## Desktop and CLI monitoring
+Do not run the EXE from inside the ZIP. A checksum mismatch, archive traversal path, missing marker, missing root EXE, wrong architecture, or stale heartbeat must stop the operation. Do not upload local evidence or read prompts, replies, tool output, credentials, provider configuration, or settings values.
 
-The installed HUD can monitor three independently selectable sources without reading provider configuration or authentication files:
+## Upgrade and rollback
 
-- Codex Desktop sessions under the normal `CODEX_HOME` (`~/.codex` by default);
-- Codex CLI sessions under that normal profile, usually OpenAI/GPT;
-- Codex CLI sessions under the optional isolated `~/.codex-deepseek` profile.
+- Upgrade: keep the old `portable-data` directory, fully extract the new ZIP, and place the retained data directory beside the new EXEs.
+- Rollback: keep the previous extracted application directory or release ZIP, then pair it with the same retained `portable-data` directory.
+- Reset: exit the HUD and rename `portable-data` only when the user explicitly asks to reset settings.
 
-The three sources are enabled by default after configuration merge and can be changed in **Settings > Sources**. Source detection comes from bounded session metadata; do not open `config.toml`, auth files, prompts, replies, or archives merely to identify a source. Future model IDs remain monitorable without adding them to an allowlist.
+## Desktop, CLI, and WSL monitoring
+
+The HUD can monitor independently selectable local sources:
+
+- Codex Desktop and VS Code sessions under the normal `CODEX_HOME`;
+- native Windows Codex CLI sessions;
+- WSL Codex CLI sessions selected in **Settings > Sources**;
+- the optional isolated `~/.codex-deepseek` CLI profile.
+
+Source detection uses bounded session metadata. The HUD does not need provider configuration or authentication files. Future model IDs remain monitorable without an allowlist.
 
 ## Optional plugin and MCP connection
 
-Do this only when the user explicitly asks Codex to operate the HUD, send opt-in notices, or install the plugin. A normal HUD installation does not require it.
+The Portable package includes `.codex-plugin` and `.mcp.json`. Connect these only when the user asks Codex to operate the HUD or send opt-in notices. A normal Portable HUD run does not require the plugin.
 
-The installer registers the installed plugin in the personal `local` marketplace. Install it into the normal Codex profile with:
-
-```powershell
-codex plugin add codex-monitor-hud@local --json
-```
-
-If the user actually uses the isolated DeepSeek profile, install the same local plugin into that profile without changing its provider/model configuration:
-
-```powershell
-$previousCodexHome = $env:CODEX_HOME
-try {
-    $env:CODEX_HOME = Join-Path $HOME '.codex-deepseek'
-    codex plugin add codex-monitor-hud@local --json
-}
-finally {
-    $env:CODEX_HOME = $previousCodexHome
-}
-```
-
-Verify plugin presence separately in both profiles. Do not add a second direct MCP entry when the plugin already bundles `.mcp.json`. Newly installed or updated plugin tools are discovered by a new Codex task; an already-open task is not proof of failure if it cannot hot-load them.
-
-The bundled server negotiates MCP `2025-11-25` and compatible older revisions. Its tools expose only HUD operations and privacy-safe task number/source metadata. See [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md).
-
-## Maintenance commands
-
-| Operation | Windows |
-| --- | --- |
-| Repair | `scripts/install-windows-from-repository.ps1 -Operation Repair` |
-| Verify | installer health/heartbeat checks |
-| Roll back | `scripts/install-windows-from-repository.ps1 -Operation Rollback -RollbackVersion <version>` |
-| Uninstall | `scripts/uninstall.ps1` |
-
-Uninstall preserves user settings unless the user separately and explicitly requests a settings reset.
+The bundled server exposes HUD operations and privacy-safe task number/source metadata. See [docs/MCP_INTEGRATION.md](docs/MCP_INTEGRATION.md).
 
 ## Language
 
-Use `zh-CN` for a Simplified Chinese first-install request and `en` for English or any language without a reviewed locale. Never infer language from session content, and never replace an existing saved preference during upgrade/repair.
-
-## Required stop conditions
-
-Stop and explain the reason when the repository identity, platform/architecture, checksum, staged health check, install switch, or rollback restoration cannot be verified. If the legacy `codex-token-strip` is present, stop and ask the user to handle it; do not migrate or delete it.
+Simplified Chinese is the default. English can be selected in Settings. Upgrades preserve the saved preference in `portable-data`.

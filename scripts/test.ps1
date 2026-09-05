@@ -227,11 +227,10 @@ $mainText = Get-Content -Raw -Encoding UTF8 -LiteralPath $main
 $mcpText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src\mcp-server.mjs')
 $settingsXaml = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src\SettingsWindow.xaml')
 $installText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'scripts\install.ps1')
-$windowsInstaller = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'scripts\install-windows-from-repository.ps1')
 $manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root '.codex-plugin\plugin.json') | ConvertFrom-Json
-if ([string]$manifest.version -ne '3.4.0' -or $mcpText -notmatch 'SERVER_VERSION = "3\.4\.0"' -or [string]$manifest.version -match 'preview') { throw 'Stable v3.4.0 manifest and MCP version are not aligned.' }
+if ([string]$manifest.version -ne '3.4.1' -or $mcpText -notmatch 'SERVER_VERSION = "3\.4\.1"' -or [string]$manifest.version -match 'preview') { throw 'Stable v3.4.1 manifest and MCP version are not aligned.' }
 $installManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'install-manifest.json') | ConvertFrom-Json
-if ([string]$installManifest.version -ne '3.4.0' -or [string]$installManifest.releaseTag -ne 'v3.4.0' -or -not [bool]$installManifest.rules.preferVerifiedRelease -or -not [bool]$installManifest.rules.preserveSettings -or -not [bool]$installManifest.rules.retainRollback -or $null -ne $installManifest.platforms.'macos-arm64') { throw 'Deterministic Windows v3.4.0 repository-install manifest is invalid.' }
+if ([string]$installManifest.version -ne '3.4.1' -or [string]$installManifest.releaseTag -ne 'v3.4.1' -or -not [bool]$installManifest.rules.verifyChecksum -or -not [bool]$installManifest.rules.extractAllFiles -or -not [bool]$installManifest.rules.preservePortableData -or [bool]$installManifest.rules.systemDotnetRequired -or $null -ne $installManifest.platforms.'macos-arm64') { throw 'Deterministic Windows v3.4.1 Portable manifest is invalid.' }
 $dotnetRequired = @(
     'CodexMonitorHud.slnx',
     'src-dotnet/CodexMonitorHud.Core/CodexMonitorHud.Core.csproj',
@@ -245,7 +244,7 @@ $dotnetRequired = @(
     'scripts/compare-runtime-performance.ps1'
 )
 foreach ($relativePath in $dotnetRequired) {
-    if (-not (Test-Path -LiteralPath (Join-Path $root $relativePath))) { throw "v3.4.0 compiled architecture file is missing: $relativePath" }
+    if (-not (Test-Path -LiteralPath (Join-Path $root $relativePath))) { throw "v3.4.1 compiled architecture file is missing: $relativePath" }
 }
 $coreProjectText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'src-dotnet\CodexMonitorHud.Core\CodexMonitorHud.Core.csproj')
 $coreSourceText = (Get-ChildItem -LiteralPath (Join-Path $root 'src-dotnet\CodexMonitorHud.Core') -Recurse -Filter *.cs | ForEach-Object { Get-Content -Raw -Encoding UTF8 -LiteralPath $_.FullName }) -join "`n"
@@ -319,12 +318,13 @@ foreach ($localOnlyPath in @('docs/MAINTENANCE_WORKFLOW.md','docs/MACOS_PREVIEW_
 }
 if ($installText -notmatch '\$excludedRootNames' -or $installText -notmatch '\$excludedRelativePaths' -or $installText -notmatch "-notlike '\.test-output\*'") { throw 'Installer exclusion boundary is missing.' }
 $releaseText = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $root 'scripts\prepare-release.ps1')
-foreach ($required in @("[string]`$Version = '3.4.0'",'$repositoryStage','$portableStage','CodexMonitorHUD.exe','CodexMonitorHUD-Settings.exe','portable.marker','SmallestSize',"'.cmd'")) {
-    if ($releaseText -notmatch [regex]::Escape($required)) { throw "Curated EXE release or v3.4.0 default '$required' is missing." }
+foreach ($required in @("[string]`$Version = '3.4.1'",'$portableStage','codex-monitor-hud-portable-stage-','CodexMonitorHUD.exe','portable.marker','SmallestSize',"'.cmd'",'Remove-Item -LiteralPath $portableStage')) {
+    if ($releaseText -notmatch [regex]::Escape($required)) { throw "Portable-only v3.4.1 release default '$required' is missing." }
 }
-if ($installText -notmatch '\[switch\]\$UseBundledRuntime' -or $installText -notmatch '-not \$UseBundledRuntime' -or $windowsInstaller -notmatch '-UseBundledRuntime') { throw 'Release installs must use the bundled runtime rather than rebuild from source.' }
 if ($releaseText -notmatch 'SHA256') { throw 'Release package checksum generation is missing.' }
-if ([string]$installManifest.platforms.'windows-x64'.asset -ne 'CodexMonitorHUD-windows-x64.zip' -or $releaseText -notmatch [regex]::Escape("'CodexMonitorHUD-windows-x64.zip'")) { throw 'Release asset name and Windows install manifest are not aligned.' }
+if ([string]$installManifest.platforms.'windows-x64'.asset -ne 'CodexMonitorHUD-Portable-3.4.1-windows-x64.zip' -or $releaseText -notmatch 'CodexMonitorHUD-Portable-\$Version-windows-x64\.zip') { throw 'Portable release asset name and manifest are not aligned.' }
+if ($releaseText -match 'stage-repository|CodexMonitorHUD-windows-x64\.zip|CodexMonitorHUD-Setup-|InnoCompiler|SkipInstaller') { throw 'Obsolete installer or repository compatibility packaging remains enabled.' }
+if ($releaseText -match 'CodexMonitorHUD-Settings\.exe') { throw 'Portable release must contain only the main EXE.' }
 if ($installText -notmatch 'DefaultLanguage' -or $installText -notmatch 'Test-Path -LiteralPath \$settingsPath') { throw 'First-install prompt-language selection or upgrade-preservation guard is missing.' }
 foreach ($required in @('RollbackVersion','Switch-InstalledTree','.codex-monitor-hud-stage-','.codex-monitor-hud-rollback-','compare-runtime-performance.ps1')) {
     if ($installText -notmatch [regex]::Escape($required)) { throw "Transactional install or rollback path '$required' is missing." }
@@ -609,8 +609,6 @@ try {
 } finally {
     if (Test-Path -LiteralPath $lockedRoot) { Remove-Item -LiteralPath $lockedRoot -Recurse -Force }
 }
-
-& (Join-Path $root 'scripts\test-install-protocol.ps1')
 
 Write-Output 'PowerShell syntax: OK'
 Write-Output 'XAML syntax: OK'

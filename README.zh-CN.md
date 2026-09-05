@@ -17,14 +17,15 @@ Codex Monitor HUD 实时展示任务状态、Token 用量、上下文压力、�
 
 从 [GitHub Releases](https://github.com/wassamriehlei/codex-monitor-hud/releases/latest) 下载最新正式版。
 
-| 安装包 | 运行方法 | 数据位置 |
+| 发布包 | 运行方法 | 数据位置 |
 | --- | --- | --- |
-| `CodexMonitorHUD-Setup-3.4.0-windows-x64.exe` | 运行安装器，然后从桌面或开始菜单启动 | `%LOCALAPPDATA%\CodexMonitorHUD` |
-| `CodexMonitorHUD-Portable-3.4.0-windows-x64.zip` | 完整解压后双击 `CodexMonitorHUD.exe` | EXE 同目录下的 `portable-data\CodexMonitorHUD` |
+| `CodexMonitorHUD-Portable-3.4.1-windows-x64.zip` | 完整解压后双击 `CodexMonitorHUD.exe` | EXE 同目录下的 `portable-data\CodexMonitorHUD` |
 
-便携版设置入口是 `CodexMonitorHUD-Settings.exe`。3.4 版已删除公开的 CMD 启动器，主程序和设置均由 EXE 直接启动。请把 ZIP 完整解压到可写目录，不要直接在压缩包预览窗口中运行。
+设置从 HUD 或系统托盘菜单进入。Portable 发布包只保留 `CodexMonitorHUD.exe`，不再提供独立 Settings EXE、安装器或公开 CMD 启动器。请把 ZIP 完整解压到可写目录，不要直接在压缩包预览窗口中运行 EXE。
 
-两种发布包都内置私有 .NET/WPF 运行时和默认完成提示音，不要求系统另装 .NET SDK。可使用 `SHA256SUMS.txt` 校验下载；当前 EXE 尚未代码签名，因此 Windows 可能显示“未知发布者”。
+发布包内置私有 .NET/WPF 运行时和默认完成提示音，不要求系统另装 .NET SDK。可使用 `SHA256SUMS.txt` 校验下载；当前 EXE 尚未代码签名，因此 Windows 可能显示“未知发布者”。
+
+升级时先退出 HUD，保留原有 `portable-data` 目录，用新版本完整解压后的文件替换其余内容，再把 `portable-data` 放回两个 EXE 旁边即可。
 
 ## 主要功能
 
@@ -75,7 +76,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1 -D
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-dotnet.ps1
 ```
 
-构建后，仓库根目录会生成 `CodexMonitorHUD.exe` 与 `CodexMonitorHUD-Settings.exe`。发布脚本分别建立安装版和便携版最小暂存目录，采用最小体积 ZIP 压缩，并排除 PDB、CMD、源码工程、测试夹具与开发工具。WPF 官方不支持的 IL 裁剪没有启用，从而保持运行稳定性。
+构建后，仓库根目录只生成 `CodexMonitorHUD.exe`。`scripts/prepare-release.ps1` 只生成带版本号的 Portable ZIP，采用最小体积压缩，并在结束时自动删除临时暂存目录。PDB、CMD、源码工程、测试夹具、工具链和用户数据均不会进入发布包。WPF 官方不支持的 IL 裁剪没有启用，从而保持运行稳定性。
 
 ## 隐私说明
 
@@ -88,6 +89,6 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-dotnet.p
 - 正式支持并验证 Windows 10/11 x64。
 - 本项目为独立、非官方项目，与 OpenAI、Microsoft、DeepSeek 或 Apple 均无隶属或背书关系。
 - 当前界面是使用 WPF 实现的轻量 iOS 26 风格，不再使用已移除的 Windows Blur/Acrylic 玻璃模式。
-- 日系动漫少女图标基于 CC0 素材修改，完整出处已记录在第三方声明中。
+- 日系动漫少女图标为本项目生成，提示词与处理方式已记录在第三方声明中。
 
 MIT License.

@@ -11,7 +11,7 @@ $dotnet = if (Test-Path -LiteralPath $privateDotnet) {
     $privateDotnet
 } else {
     $command = Get-Command dotnet -ErrorAction SilentlyContinue
-    if ($null -eq $command) { throw 'The .NET 10 SDK is required to build v3.4.0. The repository-private SDK was not found and dotnet is not on PATH.' }
+    if ($null -eq $command) { throw 'The .NET 10 SDK is required to build v3.4.1. The repository-private SDK was not found and dotnet is not on PATH.' }
     $command.Source
 }
 $dotnetRoot = Split-Path -Parent $dotnet
@@ -52,7 +52,8 @@ try {
     $publishedExe = Join-Path $publishStage 'CodexMonitorHud.exe'
     if (-not (Test-Path -LiteralPath $publishedExe)) { throw 'Single-file AppHost was not produced.' }
     Copy-Item -LiteralPath $publishedExe -Destination (Join-Path $root 'CodexMonitorHUD.exe') -Force
-    Copy-Item -LiteralPath $publishedExe -Destination (Join-Path $root 'CodexMonitorHUD-Settings.exe') -Force
+    $obsoleteSettingsAlias = Join-Path $root 'CodexMonitorHUD-Settings.exe'
+    if (Test-Path -LiteralPath $obsoleteSettingsAlias) { Remove-Item -LiteralPath $obsoleteSettingsAlias -Force }
 } finally {
     if (Test-Path -LiteralPath $publishStage) { Remove-Item -LiteralPath $publishStage -Recurse -Force }
 }
@@ -75,7 +76,7 @@ Get-ChildItem -LiteralPath $runtimeStage -File -Recurse | Where-Object {
 
 $metadata = [ordered]@{
     product = 'Codex Monitor HUD'
-    version = '3.4.0'
+    version = '3.4.1'
     configuration = $Configuration
     framework = 'net10.0-windows'
     runtime = $coreRuntime.Name
@@ -86,7 +87,7 @@ $healthPath = Join-Path $stage 'health-check.json'
 $healthProcess = Start-Process -FilePath (Join-Path $root 'CodexMonitorHUD.exe') -ArgumentList @('--plugin-root',('"' + $root + '"'),'--health-check',('"' + $healthPath + '"')) -PassThru -Wait
 if ($healthProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $healthPath)) { throw 'Staged compiled runtime health check failed.' }
 $health = Get-Content -Raw -Encoding UTF8 -LiteralPath $healthPath | ConvertFrom-Json
-if ([string]$health.version -ne '3.4.0' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
+if ([string]$health.version -ne '3.4.1' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
     throw ('Staged compiled runtime health check returned an invalid result: ' + ($health | ConvertTo-Json -Compress))
 }
 if ($RunRuntimeTests) {

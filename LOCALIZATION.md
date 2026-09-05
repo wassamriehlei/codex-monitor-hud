@@ -23,5 +23,5 @@ always tied to one country.
 5. Run `scripts/test.ps1` and render both the settings page and HUD at common Windows scaling.
    Check clipping, line wrapping, symbol fallback, and light/dark contrast.
 
-Translations should be reviewed by a fluent human before release. The installer deliberately
+Translations should be reviewed by a fluent human before release. The application deliberately
 falls back to English instead of generating an unreviewed translation from a user's prompt.

@@ -8,18 +8,6 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 if (-not (Test-Path -LiteralPath $SourcePath)) { throw "Mascot source image is missing: $SourcePath" }
 
-function New-RoundedRectanglePath {
-    param([Drawing.RectangleF]$Bounds,[single]$Radius)
-    $path = New-Object Drawing.Drawing2D.GraphicsPath
-    $diameter = [single]($Radius * 2)
-    $path.AddArc($Bounds.Left,$Bounds.Top,$diameter,$diameter,180,90)
-    $path.AddArc($Bounds.Right-$diameter,$Bounds.Top,$diameter,$diameter,270,90)
-    $path.AddArc($Bounds.Right-$diameter,$Bounds.Bottom-$diameter,$diameter,$diameter,0,90)
-    $path.AddArc($Bounds.Left,$Bounds.Bottom-$diameter,$diameter,$diameter,90,90)
-    $path.CloseFigure()
-    return $path
-}
-
 function New-MascotIconPng {
     param([int]$Size,[Drawing.Bitmap]$Source)
     $bitmap = New-Object Drawing.Bitmap($Size,$Size,[Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -29,23 +17,14 @@ function New-MascotIconPng {
         $graphics.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
         $graphics.PixelOffsetMode = [Drawing.Drawing2D.PixelOffsetMode]::HighQuality
         $graphics.Clear([Drawing.Color]::Transparent)
-        $margin = [single][Math]::Max(1,$Size * 0.045)
-        $bounds = New-Object Drawing.RectangleF($margin,$margin,[single]($Size-2*$margin),[single]($Size-2*$margin))
-        $shape = New-RoundedRectanglePath $bounds ([single]($Size * 0.225))
-        try {
-            $gradient = New-Object Drawing.Drawing2D.LinearGradientBrush($bounds,[Drawing.Color]::FromArgb(255,210,225,255),[Drawing.Color]::FromArgb(255,255,205,232),42)
-            try { $graphics.FillPath($gradient,$shape) } finally { $gradient.Dispose() }
-            $saved = $graphics.Save()
-            try {
-                $graphics.SetClip($shape)
-                # Cyan-haired CC0 portrait, cropped closely so the face remains
-                # recognizable in Windows taskbar and tray icon sizes.
-                $sourceRect = New-Object Drawing.RectangleF(1080,2040,840,840)
-                $graphics.DrawImage($Source,$bounds,$sourceRect,[Drawing.GraphicsUnit]::Pixel)
-            } finally { $graphics.Restore($saved) }
-            $rim = New-Object Drawing.Pen([Drawing.Color]::FromArgb(205,255,255,255),[single][Math]::Max(1,$Size*0.022))
-            try { $graphics.DrawPath($rim,$shape) } finally { $rim.Dispose() }
-        } finally { $shape.Dispose() }
+        # Fit the whole character and preserve the generated alpha without a tile.
+        $margin = [single][Math]::Max(1,$Size * 0.025)
+        $scale = ($Size-2*$margin)/[Math]::Max($Source.Width,$Source.Height)
+        $width = [single]($Source.Width*$scale)
+        $height = [single]($Source.Height*$scale)
+        $bounds = New-Object Drawing.RectangleF((($Size-$width)/2),(($Size-$height)/2),$width,$height)
+        $sourceRect = New-Object Drawing.RectangleF(0,0,$Source.Width,$Source.Height)
+        $graphics.DrawImage($Source,$bounds,$sourceRect,[Drawing.GraphicsUnit]::Pixel)
         $stream = New-Object IO.MemoryStream
         try { $bitmap.Save($stream,[Drawing.Imaging.ImageFormat]::Png); return $stream.ToArray() }
         finally { $stream.Dispose() }
@@ -70,8 +49,16 @@ function Convert-PngToIconDib {
                 $writer.Write([byte]$pixel.B); $writer.Write([byte]$pixel.G); $writer.Write([byte]$pixel.R); $writer.Write([byte]$pixel.A)
             }
         }
-        $maskRow = New-Object byte[] $maskStride
-        for ($y=0; $y -lt $Size; $y++) { $writer.Write([byte[]]$maskRow) }
+        for ($y=$Size-1; $y -ge 0; $y--) {
+            $maskRow = New-Object byte[] $maskStride
+            for ($x=0; $x -lt $Size; $x++) {
+                if ($bitmap.GetPixel($x,$y).A -eq 0) {
+                    $byteIndex = [int][Math]::Floor($x/8)
+                    $maskRow[$byteIndex] = [byte]($maskRow[$byteIndex] -bor (128 -shr ($x % 8)))
+                }
+            }
+            $writer.Write([byte[]]$maskRow)
+        }
         $writer.Flush(); return $output.ToArray()
     } finally { $writer.Dispose(); $output.Dispose(); $bitmap.Dispose(); $input.Dispose() }
 }

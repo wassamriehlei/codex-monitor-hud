@@ -76,4 +76,5 @@ param([switch]$Settings)
     $env:CODEX_MONITOR_HUD_HOME = $oldBridge
     if ($null -ne $shortcut) { [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shortcut) }
     [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($shell)
+    if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture -Recurse -Force }
 }

@@ -1,49 +1,37 @@
 {
   "schemaVersion": 1,
   "product": "Codex Monitor HUD",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "repository": "https://github.com/wassamriehlei/codex-monitor-hud",
-  "releaseTag": "v3.4.0",
+  "releaseTag": "v3.4.1",
   "checksumAsset": "SHA256SUMS.txt",
   "platforms": {
     "windows-x64": {
-      "asset": "CodexMonitorHUD-windows-x64.zip",
-      "entrypoint": "scripts/install-windows-from-repository.ps1",
-      "stateRoot": "%LOCALAPPDATA%\\CodexMonitorHUD"
+      "asset": "CodexMonitorHUD-Portable-3.4.1-windows-x64.zip",
+      "entrypoint": "CodexMonitorHUD.exe",
+      "settingsArgument": "--open-settings",
+      "marker": "portable.marker",
+      "stateRoot": "portable-data\\CodexMonitorHUD"
     }
   },
   "rules": {
-    "preferVerifiedRelease": true,
-    "sourceFallbackOnlyWhenReleaseMissing": true,
-    "stopOnChecksumMismatch": true,
-    "userLocalInstall": true,
-    "preserveSettings": true,
-    "retainRollback": true,
+    "verifyChecksum": true,
+    "extractAllFiles": true,
+    "preservePortableData": true,
+    "userWritableDirectory": true,
+    "administratorRequired": false,
+    "systemDotnetRequired": false,
     "readSessionContent": false,
     "uploadLocalData": false
   },
   "operations": [
-    "install",
-    "repair",
-    "rollback",
-    "uninstall"
+    "run",
+    "open-settings",
+    "upgrade",
+    "rollback"
   ],
-  "sourceBuild": {
-    "sdkVersion": "10.0.302",
-    "windows": "scripts/build-dotnet.ps1"
-  },
   "health": {
-    "file": "hud.heartbeat",
-    "fields": [
-      "version",
-      "platform",
-      "architecture",
-      "installRoot",
-      "pluginRoot",
-      "config",
-      "heartbeat",
-      "rollbackPath",
-      "pluginRollbackPath"
-    ]
+    "file": "portable-data\\CodexMonitorHUD\\hud.heartbeat",
+    "entrypoint": "CodexMonitorHUD.exe"
   }
 }

@@ -3,7 +3,6 @@ param(
     [ValidateSet('zh-CN','en')][string]$DefaultLanguage = 'zh-CN',
     [ValidatePattern('^\d+\.\d+\.\d+$')][string]$RollbackVersion,
     [string]$PerformanceMetricsRoot,
-    [switch]$UseBundledRuntime,
     [switch]$SkipLaunch,
     [switch]$SkipShortcuts
 )
@@ -260,13 +259,13 @@ $compiledApp = Join-Path $SourceRoot 'CodexMonitorHUD.exe'
 $buildScript = Join-Path $SourceRoot 'scripts\build-dotnet.ps1'
 $privateSdk = Join-Path $SourceRoot 'private\toolchain\dotnet\dotnet.exe'
 $systemSdk = Get-Command dotnet -ErrorAction SilentlyContinue
-if (-not $UseBundledRuntime -and (Test-Path -LiteralPath $buildScript) -and ((Test-Path -LiteralPath $privateSdk) -or $null -ne $systemSdk)) {
+if ((Test-Path -LiteralPath $buildScript) -and ((Test-Path -LiteralPath $privateSdk) -or $null -ne $systemSdk)) {
     # A staged runtime may belong to an earlier source edit. Developer installs
     # always rebuild when an SDK is available; installed copies can still be
     # repaired or rolled back without requiring a global SDK.
     & $buildScript -Configuration Release
 } elseif (-not (Test-Path -LiteralPath $compiledApp)) {
-    throw 'The compiled v3.4.0 executable is missing and no .NET 10 SDK is available to build it.'
+    throw 'The compiled v3.4.1 executable is missing and no .NET 10 SDK is available to build it.'
 }
 
 $stageRoot = Join-Path $pluginsRoot ('.codex-monitor-hud-stage-' + [Guid]::NewGuid().ToString('N'))
@@ -281,21 +280,19 @@ try {
     $healthProcess = Start-Process -FilePath $stageApp -ArgumentList @('--plugin-root',('"' + $stageRoot + '"'),'--health-check',('"' + $healthPath + '"')) -PassThru -Wait
     if ($healthProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $healthPath)) { throw 'Staged install health check failed.' }
     $health = Get-Content -Raw -Encoding UTF8 -LiteralPath $healthPath | ConvertFrom-Json
-    if ([string]$health.version -ne '3.4.0' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
+    if ([string]$health.version -ne '3.4.1' -or [string]$health.config -ne 'ok' -or [string]$health.xaml -ne 'ok' -or [string]$health.parser -ne 'ok') {
         throw ('Staged install health check returned an invalid result: ' + ($health | ConvertTo-Json -Compress))
     }
-    if (-not $UseBundledRuntime) {
-        & (Join-Path $stageRoot 'scripts\test.ps1') -TestOutputRoot (Join-Path $validationRoot 'static')
-        $performanceArguments = @{
-            TaskCount = 12
-            ChurnCycles = 1
-            TestOutputRoot = Join-Path $validationRoot 'runtime'
-        }
-        if (-not [string]::IsNullOrWhiteSpace($PerformanceMetricsRoot)) {
-            $performanceArguments.ExistingMetricsRoot = [IO.Path]::GetFullPath($PerformanceMetricsRoot)
-        }
-        & (Join-Path $stageRoot 'scripts\compare-runtime-performance.ps1') @performanceArguments
+    & (Join-Path $stageRoot 'scripts\test.ps1') -TestOutputRoot (Join-Path $validationRoot 'static')
+    $performanceArguments = @{
+        TaskCount = 12
+        ChurnCycles = 1
+        TestOutputRoot = Join-Path $validationRoot 'runtime'
     }
+    if (-not [string]::IsNullOrWhiteSpace($PerformanceMetricsRoot)) {
+        $performanceArguments.ExistingMetricsRoot = [IO.Path]::GetFullPath($PerformanceMetricsRoot)
+    }
+    & (Join-Path $stageRoot 'scripts\compare-runtime-performance.ps1') @performanceArguments
 
     Assert-MarketplaceReadable
     $installTransaction = Switch-InstalledTree $stageRoot
@@ -320,7 +317,7 @@ try {
         Sync-InstalledStartup
         Clear-HudStopSignals
         if (-not $SkipLaunch) {
-            Start-Process -FilePath (Join-Path $targetRoot 'CodexMonitorHUD-Settings.exe') -ArgumentList @('--plugin-root',('"' + $targetRoot + '"'))
+            Start-Process -FilePath (Join-Path $targetRoot 'CodexMonitorHUD.exe') -ArgumentList @('--plugin-root',('"' + $targetRoot + '"'),'--open-settings')
         }
         Complete-InstalledTreeSwitch $installTransaction
     } catch {

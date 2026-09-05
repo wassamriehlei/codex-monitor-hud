@@ -20,7 +20,7 @@ The resident hot path is compiled C#. `CodexMonitorHud.Core` has no WPF, Windows
 
 ## Scope
 
-Codex Monitor HUD 3.4.0 is a local Windows projection over recent Codex Desktop, VS Code, and CLI session records. It combines the normal `CODEX_HOME` (`~/.codex` by default) with an optional isolated `~/.codex-deepseek` profile without reading either profile's provider configuration or authentication files. It does not maintain a historical database and does not modify Codex sessions.
+Codex Monitor HUD 3.4.1 is a local Windows projection over recent Codex Desktop, VS Code, and CLI session records. It combines the normal `CODEX_HOME` (`~/.codex` by default) with an optional isolated `~/.codex-deepseek` profile without reading either profile's provider configuration or authentication files. It does not maintain a historical database and does not modify Codex sessions.
 
 ```text
 Codex local session JSONL + session_index.jsonl
@@ -74,7 +74,7 @@ Completed single clicks expand the ball immediately after mouse release. Both ho
 
 Shared XAML resources give the ball finite number feedback and status-colored radial background motion. Only active/listening backgrounds loop, at 24 fps using opacity alone. Both hosts retain storyboard signatures to avoid refresh replay and remove clocks on expansion, hide, or `animateUpdates=false`; idle/paused backgrounds remain static. No native glass or animated blur is used.
 
-The Settings host hides on close and stays cached for 10 minutes, then shuts down explicitly. Reopen requests reuse the window through a 100 ms signal timer and reload configuration only when hidden. A settings mutex avoids redundant launches from either host. The installer requests explicit settings-host exit before swapping files. System fonts are enumerated only when the font picker is opened; the frozen color-wheel bitmap remains lazy. XAML uses direct string parsing without an intermediate XML DOM. `scripts/test-settings-runtime.ps1` measures synthetic cold/warm visibility, HWND reuse, and graceful shutdown without reading user settings or sessions.
+The Settings host hides on close and stays cached for 10 minutes, then shuts down explicitly. Reopen requests reuse the window through a 100 ms signal timer and reload configuration only when hidden. A settings mutex avoids redundant launches from either host. Portable upgrades request explicit settings-host exit before files are replaced. System fonts are enumerated only when the font picker is opened; the frozen color-wheel bitmap remains lazy. XAML uses direct string parsing without an intermediate XML DOM. `scripts/test-settings-runtime.ps1` measures synthetic cold/warm visibility, HWND reuse, and graceful shutdown without reading user settings or sessions.
 
 Independent bubbles use a uniform 420-DIP expanded content width and a root layout scale with automatic window sizing; Ctrl + wheel changes the per-session `BubbleScale` from 0.6 to 2.0, preserving it through collapse/merge/re-detach for the active session. Quiet indicators temporarily release the fixed content width so they still collapse to a dot. No corner resize handle or manual width/height is retained. `showProviderLabel` affects display labels and summary source grouping only, not identity metadata, source filtering, model display, or the privacy-safe registry.
 

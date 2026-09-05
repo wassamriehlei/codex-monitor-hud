@@ -19,12 +19,13 @@ Download the latest stable assets from [GitHub Releases](https://github.com/wass
 
 | Package | How to run | Data location |
 | --- | --- | --- |
-| `CodexMonitorHUD-Setup-3.4.0-windows-x64.exe` | Run the installer; launch from the desktop or Start menu | `%LOCALAPPDATA%\CodexMonitorHUD` |
-| `CodexMonitorHUD-Portable-3.4.0-windows-x64.zip` | Extract all files, then double-click `CodexMonitorHUD.exe` | `portable-data\CodexMonitorHUD` beside the EXE |
+| `CodexMonitorHUD-Portable-3.4.1-windows-x64.zip` | Extract all files, then double-click `CodexMonitorHUD.exe` | `portable-data\CodexMonitorHUD` beside the EXE |
 
-Open portable Settings with `CodexMonitorHUD-Settings.exe`. Version 3.4 removes the public CMD launchers: both normal startup and Settings are direct EXE entry points. Keep the extracted directory writable and do not run the EXE from inside the ZIP.
+Open Settings from the HUD or notification-area menu. The Portable release contains only `CodexMonitorHUD.exe`, with no separate Settings EXE, public CMD launcher, or installer. Keep the extracted directory writable and do not run the EXE from inside the ZIP.
 
-Both packages include the private .NET/WPF runtime and the default completion sound. No system-wide .NET SDK is required. Verify downloads with `SHA256SUMS.txt`; the current binaries are not code-signed, so Windows may show an unknown-publisher prompt.
+The package includes the private .NET/WPF runtime and default completion sound. No system-wide .NET SDK is required. Verify the download with `SHA256SUMS.txt`; the current binaries are not code-signed, so Windows may show an unknown-publisher prompt.
+
+To upgrade, exit the HUD, retain the existing `portable-data` directory, replace the other files with a fully extracted new release, then put `portable-data` back beside the EXEs.
 
 ## Highlights
 
@@ -75,7 +76,7 @@ Build the Windows AppHost and private runtime:
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-dotnet.ps1
 ```
 
-The build creates `CodexMonitorHUD.exe` and `CodexMonitorHUD-Settings.exe` at the repository root. Release packaging uses separate curated repository and portable stages, smallest-size ZIP compression, no PDB/CMD files, and no development projects or test fixtures in end-user archives. WPF trimming is intentionally avoided because it is not supported by the desktop framework.
+The build creates the single `CodexMonitorHUD.exe` entry point at the repository root. `scripts/prepare-release.ps1` creates only the versioned Portable ZIP, uses smallest-size compression, and removes its temporary stage automatically. PDB/CMD files, development projects, tests, toolchains, and user data stay out of the archive. WPF trimming is intentionally avoided because it is not supported by the desktop framework.
 
 ## Privacy
 
@@ -88,6 +89,6 @@ See [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md), and [THIRD_PARTY_NOTIC
 - Windows 10/11 x64 is packaged and tested.
 - The project is independent and unofficial; it is not affiliated with or endorsed by OpenAI, Microsoft, DeepSeek, or Apple.
 - The interface is a lightweight WPF interpretation of the iOS 26 visual language. It does not use the retired Windows Blur/Acrylic glass mode.
-- The mascot portrait is a modified CC0 asset; full provenance is recorded in the third-party notice.
+- The mascot portrait was generated for this project; its prompt and processing notes are recorded in the third-party notice.
 
 MIT License.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 3.4.1 - 2026-09-05
+
+- Make every future release Portable-only: one versioned ZIP plus its SHA-256 checksum, with no installer or repository-compatibility archive.
+- Move release staging to a temporary directory and delete it automatically after packaging; release tests now also remove extracted fixtures.
+- Remove obsolete installer/protocol scripts, repeated legacy screenshots, historical artifacts, test output, build intermediates, and unused packaging toolchains.
+- Refresh the application icon with the generated transparent-background anime programmer artwork and rebuild the root EXE entry point.
+- Consolidate startup and Settings into the single `CodexMonitorHUD.exe`; Settings remains available from the HUD/tray or `--open-settings`.
+
 ## 3.4.0 - 2026-09-05
 
 - Replace the public CMD launchers with root-level `CodexMonitorHUD.exe` and `CodexMonitorHUD-Settings.exe` entry points.
